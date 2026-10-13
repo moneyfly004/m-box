@@ -588,6 +588,10 @@ class AppStrings {
     'account_expired_block': '您的套餐已到期，购买套餐后即可继续畅连全球节点',
     'device_full_title': '设备数量已达上限',
     'device_full_block': '设备数量已达上限（{cur}/{limit}），无法连接新设备。可在「我的 - 设备管理」中删除不常用设备，或升级更高设备数的套餐',
+    // 上限为 0 = 该订阅未开放设备使用（后台的显式设置）：此时"删除设备/升级名额"
+    // 都没意义，正确出路是联系客服
+    'device_zero_title': '该订阅未开放设备使用',
+    'device_zero_block': '当前订阅的设备数上限为 0，本机无法连接任何节点。请联系客服开通或调整设备数量。',
     'account_disabled_title': '账号已被禁用',
     'account_disabled_block': '您的账号已被禁用，无法使用服务。如有疑问，请联系客服',
     'sub_disabled_title': '套餐已被禁用',
@@ -1315,6 +1319,8 @@ class AppStrings {
     'account_expired_block': 'Your plan has expired. Purchase a plan to keep enjoying global access.',
     'device_full_title': 'Device Limit Reached',
     'device_full_block': 'Device limit reached ({cur}/{limit}) — no new device can connect. Remove unused devices under Me → Devices, or upgrade to a plan with more devices.',
+    'device_zero_title': 'Devices Not Enabled',
+    'device_zero_block': 'This subscription allows 0 devices, so this device cannot connect to any node. Please contact support to enable or increase the device count.',
     'account_disabled_title': 'Account Disabled',
     'account_disabled_block': 'Your account has been disabled. Please contact support if you have questions.',
     'sub_disabled_title': 'Plan Disabled',

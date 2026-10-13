@@ -206,7 +206,11 @@ class SubscribeIssuePrompt {
       case SubscribeIssue.accountDisabled:
         return AppStrings.t('account_disabled_title');
       case SubscribeIssue.deviceFull:
-        return AppStrings.t('device_full_title');
+        // 上限 0 = 该订阅未开放设备使用（后台显式设置）：删除设备/升级名额都无效，
+        // 正确出路是联系客服
+        return (acc.sub?.deviceLimit ?? 0) <= 0
+            ? AppStrings.t('device_zero_title')
+            : AppStrings.t('device_full_title');
       case SubscribeIssue.noSubscribeUrl:
         return AppStrings.t('issue_no_url_title');
       case SubscribeIssue.network:
@@ -229,6 +233,9 @@ class SubscribeIssuePrompt {
       case SubscribeIssue.accountDisabled:
         return acc.serverMessage ?? AppStrings.t('account_disabled_block');
       case SubscribeIssue.deviceFull:
+        if ((acc.sub?.deviceLimit ?? 0) <= 0) {
+          return AppStrings.t('device_zero_block');
+        }
         return AppStrings.t('device_full_block', {
           'cur': '${acc.sub?.currentDevices ?? 0}',
           'limit': '${acc.sub?.deviceLimit ?? 0}',

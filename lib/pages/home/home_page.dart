@@ -251,9 +251,11 @@ class _HomePageState extends State<HomePage>
         conn.status == ConnStatus.reconnecting) {
       unawaited(conn.disconnect());
       _toast(AppStrings.t('cancel_connect'));
-    } else if (acc.isBlocked) {
-      // 到期 / 设备满 / 被禁用 / 未开通：先给对应提示，绝不放行
+    } else if (acc.isConnectionBlocked) {
+      // 到期 / 被禁用 / 未开通 / **后端拒绝本设备（超限）**：先给对应提示，绝不放行
       // （状态在登录/进入主页时已判定，这里不依赖节点拉取结果）
+      // 注意用 isConnectionBlocked 而不是 isBlocked：设备数达到上限但本机在允许
+      // 范围内时（例如上限 5 台里的第 5 台）要正常连接，只提示不拦截。
       _showBlockedDialog(acc);
     } else if (conn.syncingSubscription && conn.nodes.isEmpty) {
       // 订阅还在同步：这是过程不是错误，别报"没有节点"
@@ -523,7 +525,10 @@ class _HomePageState extends State<HomePage>
               SizedBox(height: compact ? 2 : 6),
               _buildSubInfoBar(acc),
               SizedBox(height: gap),
-              if (acc.isBlocked) ...[
+              // 顶部横幅：受限状态 + 设备数已达上限都要提示。
+              // 注意用 needsAttention 而不是 isBlocked —— 设备满必须给"升级设备/
+              // 管理设备"的主动提示，但**不阻断**本机连接（范围内的第 N 台照常连）。
+              if (acc.needsAttention) ...[
                 _buildAccountBanner(acc),
                 SizedBox(height: gap),
               ],

@@ -81,6 +81,7 @@ class SubscriptionService {
   /// 登出/切号时清空节点缓存（内存 + 磁盘），避免旧账号节点残留到新账号
   void clearCache() {
     _lastIssue = null;
+    _deviceRejected = false;
     _epoch++;
     _cache = [];
     _cacheTime = DateTime.fromMillisecondsSinceEpoch(0);
@@ -109,6 +110,20 @@ class SubscriptionService {
   /// 最近一次拉取「为什么没有节点」（成功拉到时清空）。UI 据此弹可操作提示。
   SubscribeIssue? get lastIssue => _lastIssue;
   SubscribeIssue? _lastIssue;
+
+  /// 后端是否**真的拒绝**了本设备（而不是"设备数达到上限"这种信息层提示）。
+  ///
+  /// 判定依据是订阅响应本身：受限状态下面板只会下发 4 个"消息节点"
+  /// （📢 官网 / ❌ 原因 / 💡 解决 / 💬 客服，server 均为 baidu.com:1234），
+  /// 其中 ❌ 原因 写明原因。只有**拿到这种拒绝载荷**才拒绝连接：
+  ///   - 上限 5 台时，第 1~5 台（含范围内的第 5 台）拿到的是真实节点 →
+  ///     deviceRejected=false → 照常连接，只在界面上提示"已达上限，可升级"；
+  ///   - 第 6 台拿到拒绝载荷（原因=设备数量超限）→ deviceRejected=true →
+  ///     拒绝连接并引导升级设备/删除闲置设备。
+  /// 与 [classifyFromInfo] 的区别：后者只看"当前设备数≥上限"这个数字，
+  /// 范围内的第 N 台同样满足该条件，因此**不能**用它作为连接门禁。
+  bool get deviceRejected => _deviceRejected;
+  bool _deviceRejected = false;
 
   /// 原因分类：订阅信息 → 原因（null = 信息层面正常）。
   /// 与 [AccountService.classify] 的优先级保持一致（停用 > 到期 > 设备满 > 未开通），
@@ -144,6 +159,54 @@ class SubscriptionService {
     }
     return SubscribeIssue.network;
   }
+
+  /// 占位/消息节点判定：面板在下发信息节点与拒绝载荷时都用
+  /// `{server: baidu.com, port: 1234, type: ss}` 这种"假节点"承载文案，
+  /// 它们**不能**被连接（点了必然失败），只用于展示。
+  static bool isMessageNode(ProxyNode n) =>
+      n.server.trim().toLowerCase() == 'baidu.com' && n.port == 1234;
+
+  /// 识别后端「拒绝载荷」：受限状态（设备超限/到期/失效/禁用…）时面板只下发
+  /// 消息节点，其中 `❌ 原因: xxx` 写明原因。返回原因文案；不是拒绝载荷则 null。
+  ///
+  /// 入参是**订阅原文**而不是解析结果：解析器会把 server=baidu.com 的消息节点
+  /// 过滤掉（用户点不到假节点，这是对的），解析完再看就什么都不剩了，
+  /// 必须在原文里认这个标记。正常响应里没有 `❌ 原因:`。
+  static final RegExp _rejectionReasonRe = RegExp(r'❌ 原因:([^"\r\n,}]*)');
+
+  static String? rejectionReasonFromRaw(String raw) {
+    final m = _rejectionReasonRe.firstMatch(raw);
+    if (m == null) return null;
+    final reason = (m.group(1) ?? '').trim();
+    return reason.isEmpty ? '订阅不可用' : reason;
+  }
+
+  /// 拒绝原因 → 问题分类（连接门禁与提示文案共用）。
+  static SubscribeIssue issueFromRejectionReason(String reason) {
+    if (reason.contains('设备')) return SubscribeIssue.deviceFull;
+    if (reason.contains('过期')) return SubscribeIssue.expired;
+    if (reason.contains('失效') ||
+        reason.contains('禁用') ||
+        reason.contains('账户')) {
+      return SubscribeIssue.subscriptionDisabled;
+    }
+    if (reason.contains('地址') || reason.contains('不存在')) {
+      return SubscribeIssue.noSubscribeUrl;
+    }
+    return SubscribeIssue.badContent;
+  }
+
+  /// 可连接节点：拒绝载荷里那 4 个承载文案的"假节点"必须剔除，
+  /// 否则用户会点到 server=baidu.com 的占位条目，连接必然失败。
+  /// 正常载荷（reason == null）原样返回，不改变既有行为。
+  static List<ProxyNode> connectableNodes(
+          List<ProxyNode> nodes, String? rejectionReason) =>
+      rejectionReason == null
+          ? nodes
+          : nodes.where((n) => !isMessageNode(n)).toList();
+
+  @visibleForTesting
+  set deviceRejected(bool v) => _deviceRejected = v;
 
   /// 订阅原文是否**看起来像**一份订阅（节点链接 / Clash YAML / JSON / base64）。
   ///
@@ -386,6 +449,23 @@ class SubscriptionService {
     // **返回空而不是旧节点**。旧实现返回 nodes，会让「已过期/已禁用账号的
     // 在途旧请求」把可用线路重新注入连接器，绕过准入闸门。
     if (epoch != _epoch || seq != _reqSeq) return const [];
+    // 后端「拒绝载荷」处理：面板在受限状态下只下发消息节点（❌ 原因 写明缘由）。
+    // 这一步把「真·被拒绝」与「设备数已达上限但本机仍在范围内」彻底分开：
+    //   - 有 ❌ 原因 → 确实拒绝：过滤掉不可连接的假节点（留给 UI 展示原因），
+    //     记录 deviceRejected，只有这种情况才允许连接门禁拦人；
+    //   - 无 ❌ 原因 → 正常响应（含范围内的第 N 台）→ deviceRejected 清零。
+    final reason = rejectionReasonFromRaw(raw);
+    if (reason != null) {
+      final real = connectableNodes(nodes, reason);
+      _deviceRejected = true;
+      _lastIssue = issueFromRejectionReason(reason);
+      _cache = real;
+      _cacheTime = DateTime.now();
+      await SubscriptionCache.instance
+          .write(subscribeUrl: usedSubscribeUrl, raw: raw);
+      return real;
+    }
+    _deviceRejected = false;
     // 注意：这里**不因「解析结果为空」而跳过覆盖**。订阅是准入闸门的执行者：
     // 到期/被禁用/未开通套餐时后端返回占位（虚假）节点，必须覆盖掉本地老配置，
     // 否则老用户能继续用缓存里的可用线路。每次成功拉取都要覆盖内存与磁盘缓存。

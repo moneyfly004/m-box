@@ -48,6 +48,22 @@ void main() {
       expect(AccountService.classify(s), isNot(AccountStatus.expired));
     });
 
+    // 回归（用户实测反馈）：上限 5 台时，第 5 台设备更新订阅后点连接提示"要升级设备"
+    // 且连不上 —— 根因是"达到上限"被当成"本机超限"，把范围内的设备自己拦死了。
+    test('达到上限（cur==limit）不再阻断连接，但保留提示状态', () {
+      final s = _sub(
+          expireTime: DateTime.now().add(const Duration(days: 10)),
+          deviceLimit: 5,
+          currentDevices: 5);
+      // 仍返回 deviceFull 用于「提示」横幅
+      expect(AccountService.classify(s), AccountStatus.deviceFull);
+      // 但不得阻断连接（proxy core 用的是 isBlocked / isConnectionBlocked）
+      final svc = AccountService.instance..reset();
+      svc.sub = s;
+      svc.status = AccountService.classify(s);
+      expect(svc.isBlocked, isFalse, reason: '范围内的设备必须能连接');
+    });
+
     test('设备数满（cur>=limit）→ deviceFull', () {
       final s = _sub(
           expireTime: DateTime.now().add(const Duration(days: 10)),

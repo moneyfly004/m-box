@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/api/api_client.dart';
 import '../../core/models/models.dart';
+import '../../core/services/account_service.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/services/update_service.dart';
 import '../../core/services/user_service.dart';
@@ -28,10 +31,30 @@ class _ProfilePageState extends State<ProfilePage> {
   bool _loading = false;
   bool _loadFailed = false; // 上次加载失败(数据区给重试,避免全零误读)
 
+  /// 「我的」页在主 Tab 里的下标（见 main.dart 的 _pages）。
+  /// 页面被 IndexedStack 保活，切回来不会重跑 initState，
+  /// 因此靠监听 tab 下标在**每次进入本页**时刷新数据。
+  static const int _profileTabIndex = 3;
+
   @override
   void initState() {
     super.initState();
     _initLoad();
+    mainTabIndex.addListener(_onTabChanged);
+  }
+
+  @override
+  void dispose() {
+    mainTabIndex.removeListener(_onTabChanged);
+    super.dispose();
+  }
+
+  /// 切回本页时重新拉取（设备增删、后台改设备数后立刻见效，
+  /// 不再出现「首页已刷新、我的还是旧数字」）
+  void _onTabChanged() {
+    if (mainTabIndex.value == _profileTabIndex && mounted) {
+      unawaited(_load());
+    }
   }
 
   /// 冷启动：先展示磁盘缓存（不再转圈），再后台静默刷新；无缓存才走网络 loading。
@@ -69,6 +92,14 @@ class _ProfilePageState extends State<ProfilePage> {
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+    // 与首页**同源**刷新设备数字：首页的「设备数」读 AccountService 的订阅信息
+    // （/user/subscribe），本页此前只刷 dashboard（/users/dashboard-info）。
+    // 两个接口刷新时机不同，设备增删后同一个客户就会出现「首页 7 台、我的 6 台」。
+    // 单独 try：订阅信息拉取失败不影响本页展示（设备数字退回 dashboard 字段）。
+    try {
+      await AccountService.instance.refresh(force: true);
+      if (mounted) setState(() {});
+    } catch (_) {}
   }
 
   void _toast(String msg) {
@@ -86,8 +117,11 @@ class _ProfilePageState extends State<ProfilePage> {
     final expire = (dash?.expireTime ?? '').toString().isEmpty
         ? AppStrings.t('expire_na')
         : dash!.expireTime.toString();
-    final online = dash?.onlineDevices ?? 0;
-    final total = dash?.totalDevices ?? 0;
+    // 设备「已用/上限」与首页**同一来源**（AccountService 的 /user/subscribe），
+    // 保证两页永远显示同一组数字；订阅信息尚未就绪时才退回 dashboard 的字段。
+    final subInfo = AccountService.instance.sub;
+    final online = subInfo?.currentDevices ?? dash?.onlineDevices ?? 0;
+    final total = subInfo?.deviceLimit ?? dash?.totalDevices ?? 0;
     final hasSub = dash?.hasSubscription == true;
     // 到期展示取日期部分
     final expireShort = expire.length > 10 ? expire.substring(0, 10) : expire;

@@ -702,7 +702,7 @@ class ConnectionController extends ChangeNotifier {
   Future<void> applySubscriptionNodes(List<ProxyNode> fresh) async {
     if (fresh.isEmpty) {
       final acc = AccountService.instance;
-      if (acc.loaded && acc.isBlocked) {
+      if (acc.loaded && acc.isConnectionBlocked) {
         nodes = [];
         current = null;
         lockedCountry = null; // 受限清空：同时解除失效的国家锁
@@ -753,7 +753,7 @@ class ConnectionController extends ChangeNotifier {
     // 不发起建连（connect() 的同一道门也只落到同一句文案），但**必须有可见
     // 结果**：文案落到 error（首页错误区可见），首页另有受限横幅带 CTA。
     final acc = AccountService.instance;
-    if (acc.loaded && acc.isBlocked) {
+    if (acc.loaded && acc.isConnectionBlocked) {
       status = ConnStatus.disconnected;
       error = acc.blockText;
       errorKind = ConnErrorKind.none;
@@ -798,7 +798,7 @@ class ConnectionController extends ChangeNotifier {
     // 放在最前，自动连接、断线重连、首页点连接都走同一道拦截；
     // 会话内已判定过（AccountService.loaded）才生效，内核 e2e 直连不受影响。
     final acc = AccountService.instance;
-    if (acc.loaded && acc.isBlocked) {
+    if (acc.loaded && acc.isConnectionBlocked) {
       status = ConnStatus.disconnected;
       error = acc.blockText;
       errorKind = ConnErrorKind.none;
