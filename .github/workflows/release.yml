@@ -457,6 +457,12 @@ jobs:
 
       - name: 扫描产物（不得含测试/真实节点信息）
         shell: bash
+        env:
+          # Windows runner 的 Python 默认输出编码是 cp1252，脚本输出全是中文，
+          # 不指定 UTF-8 会在**扫描之前**抛 UnicodeEncodeError 直接失败（踩过）。
+          # 脚本内部也做了 stdout.reconfigure 兜底，这里是双保险。
+          PYTHONUTF8: '1'
+          PYTHONIOENCODING: 'utf-8'
         run: |
           # Windows runner 上 python3 不一定在 PATH（用 python），两种都试一次
           PY="$(command -v python3 || command -v python)"
@@ -694,6 +700,9 @@ jobs:
       # 脚本会把"没扫到"当失败而不是当干净）。三个 macOS dmg 的 app payload
       # 同源，这里扫 universal 这一份作为代表。
       - name: 扫描产物（dmg 挂载后不得含测试/真实节点信息）
+        env:
+          PYTHONUTF8: '1'
+          PYTHONIOENCODING: 'utf-8'
         run: python3 tool/scan_release_artifacts.py dist/MoneyFly-macos-universal-*.dmg
 
       - uses: actions/upload-artifact@v4
@@ -839,6 +848,9 @@ jobs:
       # 合并后的最后一道闸：所有平台的产物都到齐了，在**创建 Release 之前**
       # 再扫一遍。dmg/exe 由各自的平台 job 负责，这里只扫 zip 类（本 runner 能真解包）。
       - name: 扫描产物（不得含测试/真实节点信息，闸在发布前）
+        env:
+          PYTHONUTF8: '1'
+          PYTHONIOENCODING: 'utf-8'
         run: |
           python3 tool/scan_release_artifacts.py \
             dist/MoneyFly-android-*.apk \

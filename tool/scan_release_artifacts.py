@@ -278,12 +278,27 @@ def expand(targets):
         ('.apk', '.aab', '.ipa', '.zip', '.dmg', '.exe'))]
 
 
+def _force_utf8_output() -> None:
+    """把 stdout/stderr 切成 UTF-8。
+
+    Windows runner 上 Python 的默认输出编码是 cp1252，打印中文（本脚本的输出
+    全是中文）会抛 UnicodeEncodeError → 整个检查在**没扫之前**就崩，
+    CI 直接失败（实测踩过）。这里主动 reconfigure，兼容旧版本 Python。
+    """
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding='utf-8', errors='replace')
+        except Exception:
+            pass
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('targets', nargs='+', help='产物文件或目录（支持通配）')
     ap.add_argument('--all', action='store_true',
                     help='兼容别名：目录按已知产物后缀展开（默认行为）')
     args = ap.parse_args()
+    _force_utf8_output()
 
     artifacts = expand(args.targets)
     if not artifacts:
