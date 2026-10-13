@@ -100,7 +100,21 @@ def mask(s: str) -> str:
     return s[:6] + '***' + s[-3:]
 
 
+def _valid_ipv4(ip: str) -> bool:
+    """八位组必须 ≤255 才可能是真 IP。
+
+    没有这一步时，第三方原生库（如 libsingbox.so）里的版本串/魔数
+    `538.8.4.4:xx` 会被 IP 正则匹配成"公网 IP:端口" → 真安装包直接判失败，
+    等于发版被自己的检查挡住（实测命中过）。"""
+    parts = ip.split('.')
+    if len(parts) != 4:
+        return False
+    return all(p.isdigit() and 0 <= int(p) <= 255 for p in parts)
+
+
 def ip_allowed(ip: str) -> bool:
+    if not _valid_ipv4(ip):
+        return True          # 连合法 IPv4 都不是 → 不是节点地址，放行
     return any(ip.startswith(p) for p in ALLOWED_IP_PREFIXES)
 
 
