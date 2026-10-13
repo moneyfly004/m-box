@@ -35,6 +35,17 @@ proxies:
 ''';
 
 void main() {
+  // 这些用例会动 AccountService / SubscriptionService 的单例状态：
+  // 每条前后都复位，避免"上一条把 deviceRejected 置真"影响下一条
+  setUp(() {
+    AccountService.instance.reset();
+    SubscriptionService.instance.deviceRejected = false;
+  });
+  tearDown(() {
+    AccountService.instance.reset();
+    SubscriptionService.instance.deviceRejected = false;
+  });
+
   group('拒绝载荷识别', () {
     test('面板超限载荷 → 原因=设备数量超限，归类 deviceFull', () {
       final raw = _rejectionPayload();

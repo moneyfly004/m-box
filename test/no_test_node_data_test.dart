@@ -136,6 +136,15 @@ bool _hostAllowed(String host) {
   return _allowedDomainSuffixes.any((s) => h == s || h.endsWith('.$s'));
 }
 
+/// 把 Windows 的反斜杠路径统一成 '/'。
+///
+/// 这道防线要在 Windows runner 上也有效（CI 的「校验 (Windows, 真实内核)」
+/// 作业）：不归一化时 `test\no_test_node_data_test.dart` 匹配不上排除名单里的
+/// `test/no_test_node_data_test.dart`，防线文件自身写的黑名单字面量会被自己
+/// 判成命中直接失败（实测踩过）；`_skipDirs` 的 `/build/` 同理匹配不上，
+/// 连构建产物都会被扫进来。所以所有路径比较前先归一化。
+String _posix(String p) => p.replaceAll(r'\', '/');
+
 void main() {
   test('仓库内不得含真实节点信息 / 对内标记（发布前机械防线）', () {
     final root = Directory.current;
@@ -150,7 +159,7 @@ void main() {
       if (!dir.existsSync()) continue;
       dir.listSync(recursive: true).whereType<File>().forEach((f) {
         final p = f.path;
-        if (_skipDirs.any((d) => p.contains('/$d/'))) return;
+        if (_skipDirs.any((d) => _posix(p).contains('/$d/'))) return;
         if (_skipExts.any((e) => p.toLowerCase().endsWith(e))) return;
         try {
           if (f.lengthSync() > 64 * 1024 * 1024) return;
@@ -165,7 +174,8 @@ void main() {
     final declared = _declaredAssets(root);
     for (final rel in declared) {
       final file = File('${root.path}/$rel');
-      if (file.existsSync() && !files.any((f) => f.path.endsWith(rel))) {
+      if (file.existsSync() &&
+          !files.any((f) => _posix(f.path).endsWith(rel))) {
         files.add(file);
       }
     }
@@ -174,7 +184,7 @@ void main() {
 
     final problems = <String>[];
     for (final file in files) {
-      final rel = file.path.substring(root.path.length + 1);
+      final rel = _posix(file.path.substring(root.path.length + 1));
       final shipped = _shippedPrefixes.any(rel.startsWith);
       // 防线文件自身必然写着黑名单字面量，只对它跳过黑名单这一项
       final isGuardFile = _guardFiles.contains(rel);
@@ -228,6 +238,19 @@ void main() {
           '${unique.length > 40 ? '\n... 其余 ${unique.length - 40} 处' : ''}',
     );
   });
+
+  // CI 的 Windows 作业实测失败过：路径不归一化时，防线文件自身写的黑名单
+  // 字面量会被自己判成命中（`test\no_...` 匹配不上 `test/no_...`），
+  // 且 `_skipDirs` 的 `/build/` 跳不过去。这条用例把归一化行为钉住。
+  test('路径归一化：Windows 反斜杠路径同样能匹配排除名单与打包目录判定', () {
+    expect(_posix(r'test\no_test_node_data_test.dart'),
+        'test/no_test_node_data_test.dart');
+    expect(_guardFiles.contains(_posix(r'test\no_test_node_data_test.dart')),
+        isTrue);
+    expect(_posix(r'lib\core\services\x.dart').startsWith('lib/'), isTrue);
+    expect(_posix(r'D:\a\moneyfly\moneyfly\build\app\x.dll')
+        .contains('/build/'), isTrue);
+  });
 }
 
 /// 单段文本的四项检查（原文与 base64 解出的内容共用同一套规则）
@@ -236,6 +259,7 @@ void _checkText({
   required String where,
   required bool isGuardFile,
   required List<String> problems,
+
 }) {
   for (final needle in _incidentBlocklist) {
     if (!isGuardFile && text.contains(needle)) {
