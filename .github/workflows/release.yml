@@ -829,6 +829,11 @@ jobs:
     permissions:
       contents: write
     steps:
+      # 必须先 checkout：扫描脚本（tool/scan_release_artifacts.py）在仓库里，
+      # 本作业的其它步骤只用下载下来的产物，之前没有 checkout →
+      # 最后一道闸报 "can't open file .../tool/scan_release_artifacts.py" 直接失败。
+      - uses: actions/checkout@v4
+
       - uses: actions/download-artifact@v4
         with:
           merge-multiple: true
