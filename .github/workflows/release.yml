@@ -444,6 +444,26 @@ jobs:
         env:
           INPUT_VERSION: ${{ github.event.inputs.version }}
 
+      # 停止线：产物里不得含真实/测试节点信息。
+      # 源码侧由 test/no_test_node_data_test.dart 拦（跑在前面）；这一步拦的是
+      # 「源码干净但构建期被塞进产物」的路径——构建脚本下载、CI 变量注入、
+      # 第三方内核夹带。命中直接 fail，产物不会进 Release。
+      #
+      # exe 是 Inno Setup 包：**7-Zip 解不了**（只认 NSIS/普通归档），必须用
+      # innoextract，否则脚本会因"解不开"判失败（这是有意的：没扫到 ≠ 干净）。
+      - name: 安装 innoextract（解 Inno Setup 安装包用）
+        shell: bash
+        run: choco install innoextract --no-progress -y
+
+      - name: 扫描产物（不得含测试/真实节点信息）
+        shell: bash
+        run: |
+          # Windows runner 上 python3 不一定在 PATH（用 python），两种都试一次
+          PY="$(command -v python3 || command -v python)"
+          "$PY" tool/scan_release_artifacts.py \
+            dist/MoneyFly-windows-x64-portable-*.zip \
+            dist/MoneyFly-setup-*.exe
+
       - uses: actions/upload-artifact@v4
         with:
           name: moneyfly-windows
@@ -670,6 +690,12 @@ jobs:
           cd dist && shasum -a 256 MoneyFly-macos-universal-$V.dmg > SHA256SUMS-macos-universal.txt
         env:
           INPUT_VERSION: ${{ github.event.inputs.version }}
+      # 停止线：dmg 只能在 macOS 上 hdiutil 挂载后真扫（Linux runner 扫不了，
+      # 脚本会把"没扫到"当失败而不是当干净）。三个 macOS dmg 的 app payload
+      # 同源，这里扫 universal 这一份作为代表。
+      - name: 扫描产物（dmg 挂载后不得含测试/真实节点信息）
+        run: python3 tool/scan_release_artifacts.py dist/MoneyFly-macos-universal-*.dmg
+
       - uses: actions/upload-artifact@v4
         with:
           name: moneyfly-macos-universal
@@ -809,6 +835,16 @@ jobs:
           cat SHA256SUMS*.txt 2>/dev/null | sed 's/ \*/  /' | sort -k2 > SHA256SUMS.txt
           echo "── SHA256SUMS.txt 覆盖 $(wc -l < SHA256SUMS.txt) 个产物 ──"
           cat SHA256SUMS.txt
+
+      # 合并后的最后一道闸：所有平台的产物都到齐了，在**创建 Release 之前**
+      # 再扫一遍。dmg/exe 由各自的平台 job 负责，这里只扫 zip 类（本 runner 能真解包）。
+      - name: 扫描产物（不得含测试/真实节点信息，闸在发布前）
+        run: |
+          python3 tool/scan_release_artifacts.py \
+            dist/MoneyFly-android-*.apk \
+            dist/MoneyFly-android-*.aab \
+            dist/MoneyFly-ios-*.ipa \
+            dist/MoneyFly-windows-x64-portable-*.zip
 
       - name: 创建 Release 并上传产物
         uses: softprops/action-gh-release@v2

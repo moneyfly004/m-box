@@ -23,21 +23,30 @@ import 'package:moneyfly/core/services/subscription_service.dart';
 /// 3. 复用 hysteria2 解析器时按 `'hysteria2://'.length`(12) 切前缀去切
 ///    `hy2://` 的链接(6)，多切 6 个字符 → UUID 密码被截断，节点永远连不上。
 void main() {
+  // 节点字段一律用文档占位值（RFC 5737 198.51.100.0/24 + 假 UUID + 随机公钥）。
+  // 这里曾是**真实机场订阅**的原文，公开仓库等于泄露凭据；
+  // 回归防线见 test/no_test_node_data_test.dart —— 别再改回真实节点。
+  //
+  // pbk 为什么是「一串真随机数」而不是 EXAMPLE：内核（mihomo）会**校验**
+  // reality 公钥是否为合法 X25519 点，纯文本占位符会让「配置能被内核加载」
+  // 那条用例直接失败（invalid REALITY public key）。所以这里用一次性生成的
+  // 公钥：格式合法、能让内核加载通过，但**不对应任何真实节点**（私钥已丢弃）。
+  const kFakeRealityPbk = 'HQ_-6oB8xn2u6GDOAerqTuysOQFAvpA1FpiXG5H-ySI';
   const hy2 =
-      'hy2://b07db61f-a207-4508-97f5-68182991c2d6@152.69.220.212:35000'
-      '?sni=api.push.apple.com&insecure=0#%E6%96%B0%E5%8A%A0%E5%9D%A1-1';
+      'hy2://11111111-2222-3333-4444-777777777777@198.51.100.10:35000'
+      '?sni=www.apple.com&insecure=0#%E6%96%B0%E5%8A%A0%E5%9D%A1-1';
   const vlessReality =
-      'vless://11111111-2222-3333-4444-555555555555@203.10.96.138:443'
-      '?security=reality&pbk=jNXHt1yRo0vDuchQlIP6Z0ZvjT3KtzVI-T4E7RoLJS0&sid=fd26d49a&fp=ios'
+      'vless://11111111-2222-3333-4444-555555555555@198.51.100.20:443'
+      '?security=reality&pbk=$kFakeRealityPbk&sid=00000000&fp=ios'
       '&flow=xtls-rprx-vision&type=tcp&sni=www.apple.com#%E7%BE%8E%E5%9B%BD-1';
   const vlessWs =
-      'vless://11111111-2222-3333-4444-666666666666@pq.aws48.yydjc.top:443'
+      'vless://11111111-2222-3333-4444-666666666666@node-d.example.com:443'
       '?security=tls&type=ws&path=%2Fws&host=cdn.example.com&sni=cdn.example.com'
       '#%E6%97%A5%E6%9C%AC-1';
 
   // 同一份订阅里 hy2:// 与 hysteria2:// 混用（面板很常见）：两种写法都必须认
-  const hy2Long = 'hysteria2://b07db61f-a207-4508-97f5-68182991c2d6'
-      '@203.27.106.148:60000?sni=www.apple.com&insecure=0#%E6%96%B0%E5%8A%A0%E5%9D%A1-2';
+  const hy2Long = 'hysteria2://11111111-2222-3333-4444-777777777777'
+      '@198.51.100.30:60000?sni=www.apple.com&insecure=0#%E6%96%B0%E5%8A%A0%E5%9D%A1-2';
   final plain = [hy2, hy2Long, vlessReality, vlessWs].join('\n');
   String b64(String s) => base64.encode(utf8.encode(s));
 
@@ -75,12 +84,12 @@ void main() {
   test('hy2:// 简写按 hysteria2 解析，且密码不被截断', () {
     final n = SubscriptionService.parseBase64Nodes(hy2).single;
     expect(n.type, 'hysteria2');
-    expect(n.server, '152.69.220.212');
+    expect(n.server, '198.51.100.10');
     expect(n.port, 35000);
-    // 截断 bug 会得到 '1f-a207-...'（少了前 6 个字符）
-    expect(n.raw['password'], 'b07db61f-a207-4508-97f5-68182991c2d6');
-    expect(n.password, 'b07db61f-a207-4508-97f5-68182991c2d6');
-    expect(n.sni, 'api.push.apple.com');
+    // 截断 bug 会得到 '11-2222-3333-4444-777777777777'（少了前 6 个字符）
+    expect(n.raw['password'], '11111111-2222-3333-4444-777777777777');
+    expect(n.password, '11111111-2222-3333-4444-777777777777');
+    expect(n.sni, 'www.apple.com');
   });
 
   test('hy2:// 与 hysteria2:// 得到完全一致的节点', () {
@@ -95,8 +104,8 @@ void main() {
     final n = SubscriptionService.parseBase64Nodes(vlessReality).single;
     expect(n.raw['tls'], true);
     expect(n.raw['reality-opts']['public-key'],
-        'jNXHt1yRo0vDuchQlIP6Z0ZvjT3KtzVI-T4E7RoLJS0');
-    expect(n.raw['reality-opts']['short-id'], 'fd26d49a');
+        kFakeRealityPbk);
+    expect(n.raw['reality-opts']['short-id'], '00000000');
     expect(n.raw['client-fingerprint'], 'ios');
     expect(n.raw['flow'], 'xtls-rprx-vision');
   });
@@ -132,7 +141,7 @@ void main() {
     expect(hy2All.every((p) => p['skip-cert-verify'] == true), true,
         reason: 'hy2:// 与 hysteria2:// 都要放宽（伪装 SNI 证书不可能匹配）');
     expect(hy2All.map((p) => p['server']).toSet(),
-        {'152.69.220.212', '203.27.106.148'});
+        {'198.51.100.10', '198.51.100.30'});
     expect(proxiesOf(on, 'vless').every((p) => p['skip-cert-verify'] != true),
         true, reason: 'TCP+TLS 协议证书校验照旧，不得被顺手放宽');
 
