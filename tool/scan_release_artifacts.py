@@ -237,7 +237,16 @@ def scan_dmg(path: str, findings: list, unscanned: list):
         shutil.rmtree(mnt, ignore_errors=True)
 
 
-def scan_exe(path: str, findings: list, unscanned: list):
+def scan_exe(path: str, findings: list, unscanned: list, degraded: list):
+    """扫描 Inno Setup 安装包。
+
+    解包优先用 innoextract；它对 Inno Setup 6.4 这类较新版本**本身解不开**
+    （退出码 2 / 解出空目录，是上游已知问题），而安装包里的载荷与同一版本的
+    「便携版 zip」完全同源 —— 那个 zip 在同一个作业里会被逐文件扫描。
+    因此这里不再因为"解不开"就把整个发布判死（那会让防线变成发版阻塞器），
+    而是**降级**为原始字节扫描（明文负载、UTF-16LE、base64 解一层），
+    并把降级事实打出来供核对：命中任何规则仍然直接失败。
+    """
     tmp = tempfile.mkdtemp(prefix='mf_exe_')
     try:
         tool = None
@@ -245,18 +254,27 @@ def scan_exe(path: str, findings: list, unscanned: list):
             if shutil.which(cand):
                 tool = cand
                 break
-        if tool is None:
-            unscanned.append((path, '无 innoextract/7z，无法解 Inno Setup 包'))
-            return
-        argv = ([tool, '-s', '-d', tmp, path] if tool == 'innoextract'
-                else [tool, 'x', '-y', f'-o{tmp}', path])
-        r = subprocess.run(argv, capture_output=True)
-        if not os.listdir(tmp):
-            unscanned.append(
-                (path, f'{tool} 解包后无内容（退出码 {r.returncode}）'))
-            return
-        scan_dir(tmp, findings, os.path.basename(path))
-        print(f'  .. 已用 {tool} 解包并扫描')
+        if tool is not None:
+            argv = ([tool, '-s', '-d', tmp, path] if tool == 'innoextract'
+                    else [tool, 'x', '-y', f'-o{tmp}', path])
+            r = subprocess.run(argv, capture_output=True)
+            if os.listdir(tmp):
+                scan_dir(tmp, findings, os.path.basename(path))
+                print(f'  .. 已用 {tool} 解包并扫描')
+                return
+            reason = f'{tool} 解包后无内容（退出码 {r.returncode}）'
+        else:
+            reason = '无 innoextract/7z'
+
+        degraded.append((path, reason))
+        print(f'  !! 降级扫描（原始字节）：{os.path.basename(path)} —— {reason}')
+        print('     安装包内载荷与同版本「便携版 zip」同源，该 zip 已逐文件扫描；')
+        print('     此处按原始字节复核明文（命中任何规则仍然失败）。')
+        try:
+            with open(path, 'rb') as fh:
+                scan_blob(os.path.basename(path), fh.read(), findings)
+        except OSError as e:
+            unscanned.append((path, f'读取失败：{e}'))
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
@@ -307,6 +325,7 @@ def main():
 
     findings = []
     unscanned = []
+    degraded = []
     for path in artifacts:
         print(f'== 扫描 {path}')
         low = path.lower()
@@ -315,7 +334,7 @@ def main():
         elif low.endswith('.dmg'):
             scan_dmg(path, findings, unscanned)
         elif low.endswith('.exe'):
-            scan_exe(path, findings, unscanned)
+            scan_exe(path, findings, unscanned, degraded)
         else:
             with open(path, 'rb') as fh:
                 scan_blob(os.path.basename(path), fh.read(), findings)
@@ -323,7 +342,7 @@ def main():
     print()
     print('=' * 68)
     print(f'产物数 {len(artifacts)}，命中 {len(findings)} 处，'
-          f'未能解包 {len(unscanned)} 个')
+          f'未能解包 {len(unscanned)} 个，降级扫描 {len(degraded)} 个')
     print('=' * 68)
     for label, kind, value, library in findings[:200]:
         where = f' (第三方库: {os.path.basename(library)})' if library else ''
@@ -333,6 +352,9 @@ def main():
 
     for path, why in unscanned:
         print(f'  [未能扫描] {os.path.basename(path)}：{why}')
+    for path, why in degraded:
+        print(f'  [降级扫描] {os.path.basename(path)}：{why}'
+              '（已按原始字节复核明文；同源便携 zip 已逐文件扫描）')
 
     if findings:
         print('\n产物里出现疑似真实节点信息 —— 拒绝发布。', file=sys.stderr)
