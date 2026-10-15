@@ -93,7 +93,13 @@ class SubscribeUrlFailover {
     // moneyfly.dpdns.org / sub.moneyfly.dpdns.org / new.moneyfly.dpdns.org /
     // sub.fastora.top / fastora.top）。旧上限 4 时，如果只有最后那个域名能用
     // （前面的都被屏蔽），客户端会**静默放弃**——而需求是「任意一个能拉到就行」。
-    int maxAttempts = 6,
+    //
+    // 但候选还会按**实测测速**重排（快的在前），于是"唯一能用的那个"完全可能被
+    // 排到上限之外、永远轮不到（客户 henry11：直连 IP 的 ddns 域名在其网络不可达，
+    // 只有 Cloudflare 那个能用）→ 上限放宽到 8，并且用"整体时间预算"来兜底：
+    // 只要还没超预算就继续往下试，避免被排序+截断卡死，也不会无限拖。
+    int maxAttempts = 8,
+    Duration overallBudget = const Duration(seconds: 30),
   }) async {
     final list = candidates(
         primary: primary,
@@ -105,8 +111,12 @@ class SubscribeUrlFailover {
     }
     Object? lastError;
     var attempts = 0;
+    final deadline = DateTime.now().add(overallBudget);
     for (final url in list) {
       if (attempts >= maxAttempts) break;
+      // 至少试 2 个（单次连接超时 12s，2 次足够排除"只是这个域名慢/被墙"），
+      // 之后按整体预算收敛
+      if (attempts >= 2 && DateTime.now().isAfter(deadline)) break;
       attempts++;
       try {
         final raw = await fetch(url);

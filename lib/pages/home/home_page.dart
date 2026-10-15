@@ -82,9 +82,16 @@ class _HomePageState extends State<HomePage>
     _blockedRetry = Timer.periodic(_blockedRetryInterval, (_) async {
       if (!mounted) return;
       final acc = AccountService.instance;
+      // 需要重试的三种情况：
+      //   ① 账号受限/设备被拒（后台改上限、开开关后要能自动恢复）；
+      //   ② 最近一次拉取失败（订阅域名在其网络不可达、断网、拦截页等）——
+      //      用户实测：订阅域名打不开时客户端会静默用旧内容，永远停在旧状态；
+      //   ③ 订阅列表为空。
       final stuck = acc.isBlocked ||
           acc.status == AccountStatus.deviceFull ||
-          SubscriptionService.instance.deviceRejected;
+          SubscriptionService.instance.deviceRejected ||
+          SubscriptionService.instance.lastIssue != null ||
+          context.read<ConnectionController>().nodes.isEmpty;
       if (!stuck) return; // 正常状态什么都不做（零额外请求）
       await acc.refresh(force: true);
       if (!mounted) return;

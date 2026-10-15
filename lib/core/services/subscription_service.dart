@@ -435,9 +435,22 @@ class SubscriptionService {
       usedSubscribeUrl = fetched.url;
     } catch (e) {
       // 所有地址都失败 → 回退本地缓存（同一份订阅即可，域名不同也算）
+      //
+      // 但**拒绝载荷不能当内容回退**：面板在「超限/到期/禁用」时下发的是
+      // 4 个消息节点（❌ 原因…）。这种内容一旦被当成"可用缓存"回退，用户就会
+      // 永久停在"设备数量超限/无法拉取订阅"——即使后台早已把上限调好。
+      // 用户实测（账号 henry11）：能访问 API 域名，但拉节点的订阅域名在其网络
+      // 不可达 → 全部地址失败 → 静默回退到旧的拒绝载荷 → 一直显示超限，
+      // 而服务端根本收不到任何拉取请求（日志里 0 次）。
+      final cachedIsRejection = cachedLatest != null &&
+          rejectionReasonFromRaw(cachedLatest.raw) != null;
       if (cachedLatest == null ||
+          cachedIsRejection ||
           SubscribeUrlFailover.tokenOf(cachedLatest.subscribeUrl) !=
               SubscribeUrlFailover.tokenOf(info.subscribeUrl)) {
+        // 明确暴露"订阅地址都打不开"，而不是静默给旧内容：
+        // UI 据此提示，首页限制状态自动重试会把恢复做掉
+        _lastIssue = SubscribeIssue.network;
         rethrow;
       }
       raw = cachedLatest.raw;
@@ -486,8 +499,13 @@ class SubscriptionService {
       _lastIssue = issueFromRejectionReason(reason);
       _cache = real;
       _cacheTime = DateTime.now();
-      await SubscriptionCache.instance
-          .write(subscribeUrl: usedSubscribeUrl, raw: raw);
+      // 拒绝载荷**不写磁盘缓存**：它只是"此刻被拒"的快照，写进去以后一旦
+      // 订阅域名不可达，回退分支就会把它当成可用内容（见上面的 cachedIsRejection
+      // 判定）。内存里保留（本次会话展示原因），磁盘不落。
+      if (rejectionReasonFromRaw(raw) == null) {
+        await SubscriptionCache.instance
+            .write(subscribeUrl: usedSubscribeUrl, raw: raw);
+      }
       return real;
     }
     _deviceRejected = false;
