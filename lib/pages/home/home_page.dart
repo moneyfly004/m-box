@@ -65,6 +65,31 @@ class _HomePageState extends State<HomePage>
     });
     // 回前台自动刷新订阅（保活页面避免数据过期）
     WidgetsBinding.instance.addObserver(this);
+    _startBlockedAutoRetry();
+  }
+
+  /// 受限/被拒状态下的自动重试（每 60 秒一次，恢复正常后自动停）。
+  ///
+  /// 为什么需要：管理员在后台把设备上限从 1 改成 500（或打开"允许删除设备"开关）后，
+  /// 客户端此前只有在用户手动下拉刷新/重登时才可能更新，界面上一直停在
+  /// "升级设备 / 删除设备"的提示，用户以为自己的设备被拉黑了。
+  /// 这里定时自查：一旦账号不再受限就把订阅与状态刷新到最新。
+  Timer? _blockedRetry;
+  static const Duration _blockedRetryInterval = Duration(seconds: 60);
+
+  void _startBlockedAutoRetry() {
+    _blockedRetry?.cancel();
+    _blockedRetry = Timer.periodic(_blockedRetryInterval, (_) async {
+      if (!mounted) return;
+      final acc = AccountService.instance;
+      final stuck = acc.isBlocked ||
+          acc.status == AccountStatus.deviceFull ||
+          SubscriptionService.instance.deviceRejected;
+      if (!stuck) return; // 正常状态什么都不做（零额外请求）
+      await acc.refresh(force: true);
+      if (!mounted) return;
+      await _ensureNodes(force: true);
+    });
   }
 
   /// 有新版本时弹提示。放到首帧之后：构建期弹窗会抛异常。
@@ -88,6 +113,7 @@ class _HomePageState extends State<HomePage>
 
   @override
   void dispose() {
+    _blockedRetry?.cancel();
     UpdateService.hasUpdate.removeListener(_onUpdateAvailable);
     ConnectionController.instance.removeListener(_onConnChanged);
     WidgetsBinding.instance.removeObserver(this);

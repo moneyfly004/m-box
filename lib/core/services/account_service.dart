@@ -111,15 +111,50 @@ class AccountService extends ChangeNotifier {
   bool get isConnectionBlocked =>
       isBlocked || SubscriptionService.instance.deviceRejected;
 
+  /// 账号信息的会话缓存时长。
+  ///
+  /// 旧实现是"会话内只拉一次"（`if (loaded && !force) return status;`），
+  /// 后果：管理员在后台把设备上限从 1 改成 500（或改开关）之后，客户端在整个
+  /// 会话里一直显示旧上限、旧提示，用户以为"被拉黑了"。现在 60 秒后自动重取，
+  /// 且受限/设备被拒时**每次都重取**（见 refresh 与 effectiveStatus）。
+  static const Duration freshTtl = Duration(seconds: 60);
+  DateTime? _fetchedAt;
+
+  /// 上次成功拉取账号信息的时间（null = 从未拉到）
+  DateTime? get fetchedAt => _fetchedAt;
+
+  /// 是否已过期（超过 [freshTtl]）——UI 可在进入首页/我的页时据此强刷
+  bool get isStale {
+    final at = _fetchedAt;
+    if (at == null) return true;
+    return DateTime.now().difference(at) > freshTtl;
+  }
+
   /// 拉取并重新判定（登录成功后 / 主页刷新 / 支付成功 时调用）。
-  /// force=true 强制重新请求；否则会话内只拉一次。
+  /// force=true 强制重新请求；否则会话内缓存 [freshTtl]，过期自动重取。
+  ///
+  /// 受限状态（到期/禁用/未开通）与「设备数已满/被后端拒绝」时**不走缓存**：
+  /// 这两类状态最需要"后台一改就跟着变"——管理员放宽上限后客户端必须能立刻
+  /// 重新拉到订阅、恢复正常，而不是等缓存过期或重装。
   Future<AccountStatus> refresh({bool force = false}) async {
-    if (loaded && !force) return status;
+    final needFresh = force ||
+        !loaded ||
+        isStale ||
+        status == AccountStatus.deviceFull ||
+        status == AccountStatus.expired ||
+        status == AccountStatus.subscriptionDisabled ||
+        status == AccountStatus.accountDisabled ||
+        status == AccountStatus.noSubscription;
+    if (!needFresh) return status;
     try {
       final info = await SubscriptionService.instance.fetchInfo();
       sub = info;
       status = classify(info);
       serverMessage = null;
+      _fetchedAt = DateTime.now();
+      // 后端已经不再拒绝本机（例如管理员把设备上限从 1 改成 500）：
+      // 立刻清掉"被拒绝"的粘滞标记与旧提示，让订阅/连接恢复
+      await SubscriptionService.instance.clearRejectionIfInRange(info);
     } catch (e) {
       final msg = ApiClient.errorMsg(e);
       // 禁用账号：后端所有业务接口 403「账户已被禁用…」→ 明确判定为禁用，
@@ -148,6 +183,7 @@ class AccountService extends ChangeNotifier {
 
   /// 登出 / 切换账号时清理，防止旧账号状态残留
   void reset() {
+    _fetchedAt = null;
     sub = null;
     status = AccountStatus.unknown;
     loaded = false;

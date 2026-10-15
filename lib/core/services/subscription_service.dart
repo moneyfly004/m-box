@@ -122,6 +122,25 @@ class SubscriptionService {
   ///     拒绝连接并引导升级设备/删除闲置设备。
   /// 与 [classifyFromInfo] 的区别：后者只看"当前设备数≥上限"这个数字，
   /// 范围内的第 N 台同样满足该条件，因此**不能**用它作为连接门禁。
+  /// 后端**不再**拒绝本机时清掉粘滞标记。
+  ///
+  /// 场景（用户实测）：上限 1 台时第 2 台被拒 → deviceRejected=true、界面显示
+  /// "升级/删除设备"；管理员随后把上限改成 500，若不清这个标记，客户端会一直
+  /// 停在"被拒绝"状态（无法更新订阅、无法连接），看起来像被拉黑。
+  /// 判定依据用**后端下发的数字**（current_devices < device_limit 即已放宽），
+  /// 不用本地时间/本地计算。
+  Future<void> clearRejectionIfInRange(SubscriptionInfo info) async {
+    if (!_deviceRejected) return;
+    final limit = info.deviceLimit;
+    final current = info.currentDevices;
+    final inRange = limit > 0 && current < limit;
+    if (!inRange) return;
+    _deviceRejected = false;
+    _lastIssue = null;
+    // 本类不是 ChangeNotifier；调用方（AccountService.refresh）随后会 notifyListeners，
+    // UI 会按最新的 deviceRejected 重绘。
+  }
+
   bool get deviceRejected => _deviceRejected;
   bool _deviceRejected = false;
 
@@ -329,7 +348,13 @@ class SubscriptionService {
       }
       // 账号正常且内存缓存仍在 30 分钟 TTL 内 → 直接返回缓存
       // （判定放在缓存命中之前：禁止用「到期前的缓存」跳过到期判定）
+      // 被后端拒绝 / 账号受限时**不吃节点缓存**：这类状态最需要"后台一改就跟着变"
+      // （例如上限从 1 改成 500 后要立刻能重新拉到真实节点），
+      // 30 分钟缓存会让用户以为"永远恢复不了"。
+      final deviceLimited = _deviceRejected ||
+          (info.deviceLimit > 0 && info.currentDevices >= info.deviceLimit);
       if (!force &&
+          !deviceLimited &&
           _cache.isNotEmpty &&
           DateTime.now().difference(_cacheTime) < _cacheTtl) {
         return List.of(_cache);
