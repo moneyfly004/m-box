@@ -15,6 +15,7 @@ import '../../widgets/subscribe_issue.dart';
 import '../../widgets/update_prompt.dart';
 import '../../core/api/api_client.dart';
 import '../../core/services/app_log.dart';
+import '../../core/services/speed_series.dart';
 import '../../l10n/app_strings.dart';
 import '../../core/services/geo_lookup.dart';
 import '../../main.dart';
@@ -1833,8 +1834,11 @@ class _StatCard extends StatelessWidget {
           // 下方所有卡片跟着上下位移。现在恒定占位，样本不足时画一条基线。
           if (spark != null) ...[
             SizedBox(height: compact ? 4 : 6),
+            // 曲线图高度：稍微给高一点，让"整体趋势 + 当前速率"两条线看得清
+            // （同 FlClash 的流量图观感）；仍受矮窗口(620)约束，见
+            // test/home_layout_fit_test.dart 的一屏放得下断言。
             SizedBox(
-                height: compact ? 12 : 16,
+                height: compact ? 16 : 22,
                 width: double.infinity,
                 child: _Sparkline(values: spark!, color: color)),
           ],
@@ -1879,61 +1883,100 @@ class _Sparkline extends StatelessWidget {
 
 class _SparkPainter extends CustomPainter {
   _SparkPainter({required this.values, required this.color});
+
+  /// 最近 ~60 秒的 1 秒采样（原始值，未平滑；平滑在 paint 里做，便于单测）
   final List<double> values;
   final Color color;
 
   @override
   void paint(Canvas canvas, Size size) {
     if (size.width <= 0 || size.height <= 0) return;
-    // 样本不足（刚连接、断开后清空）也画一条基线：占位高度恒定，卡片不再
-    // 因为「趋势线有没有」而长高/缩回，避免下方内容上下跳。
+
+    final baselineY = size.height - 0.7;
+    // 样本不足（刚连接）：画一条基线占位，卡片高度恒定，下方内容不跳
     if (values.length < 2) {
       canvas.drawLine(
-        Offset(0, size.height - 0.7),
-        Offset(size.width, size.height - 0.7),
+        Offset(0, baselineY),
+        Offset(size.width, baselineY),
         Paint()
           ..strokeWidth = 1.4
           ..color = color.withValues(alpha: .35),
       );
       return;
     }
-    var maxV = 0.0;
-    for (final v in values) {
-      if (v > maxV) maxV = v;
-    }
-    if (maxV <= 0) maxV = 0.1; // 全零也有基线
-    final path = Path();
-    final n = values.length;
-    for (var i = 0; i < n; i++) {
-      final x = size.width * i / (n - 1);
-      final y = size.height - (values[i] / maxV).clamp(0.0, 1.0) * size.height;
-      if (i == 0) {
-        path.moveTo(x, y);
-      } else {
-        path.lineTo(x, y);
-      }
-    }
-    final stroke = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.4
-      ..strokeCap = StrokeCap.round
-      ..color = color;
-    canvas.drawPath(path, stroke);
-    // 浅色填充(0→曲线→底部)
-    final fill = Path.from(path)
-      ..lineTo(size.width, size.height)
-      ..lineTo(0, size.height)
-      ..close();
-    canvas.drawPath(fill, Paint()..color = color.withValues(alpha: .10));
+
+    // ① 两条曲线，一条"整体趋势"、一条"当前速率"：
+    //    用户要求这个图是**一个连续的整体**（像 FlClash），而不是每秒跳的尖刺 ——
+    //    尖刺会让客户以为"没有流量/时断时续"。
+    //    趋势线窗口大（12s）所以平稳；当前线窗口小（3s）跟手但不毛。
+    final trend = smoothSeries(values, window: 12);
+    final instant = smoothSeries(values, window: 3);
+    // ② 量程用平滑后的趋势峰值 + 下限：小流量也看得见，且不会逐帧忽大忽小
+    final peak = seriesPeak(trend);
+
+    final trendPts = toPoints(trend, size, peak);
+    final instantPts = toPoints(instant, size, peak);
+    final trendPath = smoothPath(trendPts);
+    final instantPath = smoothPath(instantPts);
+
+    // ③ 渐变填充（整体区域）：视觉上"一直在流动"，不像空图
+    final fillPath = closeToBottom(trendPath, size);
+    canvas.drawPath(
+      fillPath,
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            color.withValues(alpha: .28),
+            color.withValues(alpha: .02),
+          ],
+        ).createShader(Rect.fromLTWH(0, 0, size.width, size.height)),
+    );
+
+    // ④ 趋势线：较细、半透明 → 就是那条"平稳的整体曲线"
+    canvas.drawPath(
+      trendPath,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.2
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round
+        ..color = color.withValues(alpha: .55),
+    );
+    // ⑤ 当前速率线：稍微实一点，叠在趋势线之上
+    canvas.drawPath(
+      instantPath,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round
+        ..color = color,
+    );
+    // ⑥ 基线始终在：断开/空闲时也有一条连续的底边，不显得"断了"
+    canvas.drawLine(
+      Offset(0, baselineY),
+      Offset(size.width, baselineY),
+      Paint()
+        ..strokeWidth = 1
+        ..color = color.withValues(alpha: .18),
+    );
   }
 
   @override
   bool shouldRepaint(_SparkPainter old) =>
-      old.values != values || old.color != color;
+      old.color != color || !_sameSeries(old.values, values);
+
+  static bool _sameSeries(List<double> a, List<double> b) {
+    if (identical(a, b)) return true;
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
 }
-
-
-
 
 /// #3 顶部信息条单元格（窄屏自动收缩，不溢出）
 class _InfoCell extends StatelessWidget {
