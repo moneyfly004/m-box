@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import '../../core/api/api_client.dart';
 import '../../core/api/server_pool.dart';
 import '../../core/proxy/proxy_core.dart';
 import '../../core/services/account_service.dart';
@@ -288,7 +289,7 @@ class _SettingsPageState extends State<SettingsPage> {
             onTap: _pickSubscribeUa)),
         // 线路自救：某些地区官网域名被墙 → 自动/手动改用备用域名（订阅与接口都受益）
         _item(['settings_server_line'], _row(icon: '🛰️', title: AppStrings.t('settings_server_line'),
-            desc: AppStrings.t('settings_server_line_desc'),
+            desc: _serverLineDesc(),
             value: _serverLineLabel(),
             onTap: _pickServerLine)),
         if (Platform.isAndroid || Platform.isWindows || Platform.isMacOS)
@@ -863,10 +864,25 @@ class _SettingsPageState extends State<SettingsPage> {
     return (host != null && host.isNotEmpty) ? host : u;
   }
 
-  /// 服务器线路行展示：当前生效域名（自定义时加标记）
+  /// 服务器线路行展示：当前**实际生效**域名（兜底/自定义时加标记）。
+  /// 用户选的那条与实际不一致时，说明文案由 [_serverLineDesc] 如实给出。
   String _serverLineLabel() {
     final pool = ServerPool.instance;
-    return pool.usingCustom ? '${pool.activeHost} · 自定义' : pool.activeHost;
+    if (pool.fellBackFromPin) return '${pool.activeHost} · 兜底';
+    if (pool.usingCustom) return '${pool.activeHost} · 自定义';
+    return pool.activeHost;
+  }
+
+  /// ① 线路说明：默认是原说明；当"用户选的线路"没在用时，如实说明并给出口
+  String _serverLineDesc() {
+    final pool = ServerPool.instance;
+    if (pool.fellBackFromPin) {
+      return AppStrings.t('settings_server_line_pinned', {
+        'pinned': pool.userPinnedHost,
+        'active': pool.activeHost,
+      });
+    }
+    return AppStrings.t('settings_server_line_desc');
   }
 
   /// 服务器线路选择：自动（主域名优先）／池内其它线路／自定义域名。
@@ -885,6 +901,15 @@ class _SettingsPageState extends State<SettingsPage> {
         title: Text(AppStrings.t('settings_server_line'),
             style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
         children: [
+          if (pool.fellBackFromPin)
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(context, '__back_to_pin__'),
+              child: Text(
+                AppStrings.t('settings_server_line_back_to_pin',
+                    {'host': pool.userPinnedHost}),
+                style: TextStyle(color: MFColors.brandLight),
+              ),
+            ),
           SimpleDialogOption(
             onPressed: () => Navigator.pop(context, '__auto__'),
             child: Text(
@@ -917,7 +942,11 @@ class _SettingsPageState extends State<SettingsPage> {
     );
     if (picked == null || !mounted) return;
 
-    if (picked == '__auto__') {
+    if (picked == '__back_to_pin__') {
+      // ② 一键回到用户选的线路：清掉它的失败冷却并记为生效线路，
+      // 然后立刻重拉（下面的 _refreshAfterLineSwitch 会带你走一遍）
+      await pool.retryUserPinnedLine();
+    } else if (picked == '__auto__') {
       await pool.reset();
     } else if (picked == '__custom__') {
       final ctrl = TextEditingController(text: pool.usingCustom ? pool.activeHost : '');
@@ -955,6 +984,8 @@ class _SettingsPageState extends State<SettingsPage> {
       await pool.markWorking(picked);
     }
     if (!mounted) return;
+    // 用户已经做出新选择 → 之前的兜底提示过期，清掉避免首页再弹
+    ServerPool.clearFallbackNotice();
     setState(() {});
     _toast(AppStrings.t('settings_server_line_switched')
         .replaceAll('{host}', pool.activeHost));
@@ -970,6 +1001,18 @@ class _SettingsPageState extends State<SettingsPage> {
   /// 复用与「重新绑定本机」相同的刷新链路：先刷账号（拿到最新的 subscribe_url /
   /// 设备状态），再拉订阅节点，最后喂给连接器（已连接时不会打断当前线路）。
   Future<void> _refreshAfterLineSwitch() async {
+    // ⑥ 换线路后重排「域名快慢」：实测结果只在启动时测过一次，换线路/换网络后
+    //    结论可能已经变了。探测很轻（约 1KB 的小接口），失败不影响主流程。
+    unawaited(() async {
+      try {
+        final ranked = await ApiClient.probeDomainLatency();
+        if (ranked.isNotEmpty) {
+          await ServerPool.instance.applyLatencyRanking(ranked);
+        }
+      } catch (e) {
+        AppLog.error('换线路后域名重排失败: $e');
+      }
+    }());
     try {
       await AccountService.instance.refresh(force: true);
       final nodes = await SubscriptionService.instance.fetchNodes(force: true);

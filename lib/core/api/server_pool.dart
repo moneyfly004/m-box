@@ -3,7 +3,35 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+/// 一条线路诊断记录（哪个域名、什么原因失败/恢复）。
+///
+/// 目的（⑦）：客服排查"用户说更新订阅失败"时，能看到具体是哪个域名、什么原因，
+/// 而不是只能让用户反复重试。
+class LineDiag {
+  const LineDiag({
+    required this.at,
+    required this.host,
+    required this.kind,
+    required this.detail,
+  });
+
+  final DateTime at;
+  final String host;
+
+  /// 类型：connect（连接层失败）/ timeout / http / content（拿到了但不是订阅）/
+  /// 其他自定义标签
+  final String kind;
+  final String detail;
+
+  String get line =>
+      '${at.toIso8601String()} [$kind] $host — $detail';
+
+  @override
+  String toString() => line;
+}
 
 /// 服务器线路池：主域名连不上时自动轮换到备用域名。
 ///
@@ -46,6 +74,22 @@ class ServerPool {
   /// 是否已经有过「实测可用」的域名（决定启动时用实测最快的还是上次可用的）
   static const _prefsKeyHasWorking = 'serverPoolHasWorking';
   static const _prefsKeyCustom = 'serverPoolCustomBase';
+  /// 用户**显式选择**的线路基底（'' = 自动）。与「实际生效」分开保存：
+  /// 自动兜底成功后不能把用户的选择悄悄改掉，否则设置里选的那条等于形同虚设。
+  static const _prefsKeyUserPin = 'serverPoolUserPin';
+  /// 失败域名的冷却截止时间（host → 毫秒时间戳），JSON 存一份，重启后仍生效
+  static const _prefsKeyFailUntil = 'serverPoolFailUntil';
+
+  /// 域名失败后的冷却时长：这段时间内它排到「已知可用」的后面。
+  ///
+  /// 为什么需要：每次刷新订阅都会**先试当前线路**，而当前线路如果正被墙，
+  /// 每次都白等一次连接超时（12s）才轮到能用的域名 —— 用户感知是「更新订阅很慢/
+  /// 像卡住」。冷却期把它降级为兜底项；TTL 短 + 用户手动换线路时立刻清空，
+  /// 保证「换了线路马上就用新线路」。
+  static const failCooldown = Duration(minutes: 10);
+
+  /// 冷却中的域名在排序里的惩罚值：足够大，保证排在任何未失败域名之后
+  static const _failedPenalty = 1 << 18;
 
   static List<String> _decodeAll(List<String> encoded) => [
         for (final e in encoded)
@@ -59,6 +103,9 @@ class ServerPool {
   bool _loaded = false;
   bool _hasWorking = false;
   List<int> _rank = const [];
+  String _userPin = '';
+  final Map<String, int> _failUntilMs = {};
+  final List<LineDiag> _diag = [];
 
   /// 池内域名（主域名在前）
   List<String> get all => List.unmodifiable(domains);
@@ -66,6 +113,23 @@ class ServerPool {
   /// 用户手动指定的域名基底（为空表示用池内域名）
   String get customBase => _custom;
   bool get usingCustom => _custom.isNotEmpty;
+
+  /// 用户在设置里**显式选**的线路基底（'' = 自动/未选过）。
+  /// 自动兜底只会改变 [activeBase]（实际生效），不会改这个值。
+  String get userPinnedBase => _userPin;
+
+  /// 用户所选线路的主机名（'' = 自动）
+  String get userPinnedHost => _hostOf(_userPin);
+
+  /// 用户是否显式选过线路
+  bool get hasUserPin => _userPin.isNotEmpty;
+
+  /// 是否正在走当前生效的线路（而不是兜底出来的那个）
+  bool get onUserPinnedLine =>
+      _userPin.isEmpty || normalizeBase(_userPin) == normalizeBase(activeBase);
+
+  /// 自动兜底是否已经偏离了用户选的线路（偏离时界面要如实说明）
+  bool get fellBackFromPin => _userPin.isNotEmpty && !onUserPinnedLine;
 
   /// 当前生效的基底地址（形如 https://xxx/api/v1）
   String get activeBase {
@@ -91,14 +155,154 @@ class ServerPool {
 
   /// 某个主机在实测排名里的位次（越小越快）；未知主机的排在已知的后面。
   /// 供订阅地址轮换按「同一套实测结果」排序（订阅域名与接口域名是同一批）。
+  ///
+  /// **刚失败的域名会额外加一个大惩罚**（见 [failCooldown]）：本次刷新先去拿
+  /// 已知可用的订阅，不再每次都白等一次连接超时；冷却到期自动恢复原位。
   int priorityOfHost(String host) {
     final h = host.trim().toLowerCase();
     if (h.isEmpty) return 1 << 20;
+    final base = _rankedPriority(h);
+    return isRecentlyFailed(h) ? base + _failedPenalty : base;
+  }
+
+  int _rankedPriority(String hostLower) {
     final ordered = _ordered;
     for (var i = 0; i < ordered.length; i++) {
-      if (Uri.tryParse(ordered[i])?.host.toLowerCase() == h) return i;
+      if (Uri.tryParse(ordered[i])?.host.toLowerCase() == hostLower) return i;
     }
-    return (1 << 20) + h.hashCode.abs() % 1000;
+    return (1 << 20) + hostLower.hashCode.abs() % 1000;
+  }
+
+  /// 该主机是否处于「刚失败」冷却期
+  bool isRecentlyFailed(String host) {
+    final h = host.trim().toLowerCase();
+    if (h.isEmpty) return false;
+    final until = _failUntilMs[h];
+    if (until == null) return false;
+    if (until <= DateTime.now().millisecondsSinceEpoch) {
+      _failUntilMs.remove(h); // 已过期，顺手清掉
+      return false;
+    }
+    return true;
+  }
+
+  /// 某次请求的地址/基底记为**失败**（进入冷却，并记一条线路诊断）
+  void noteDomainFailure(String urlOrBase, {String kind = 'connect'}) {
+    final host = _hostOf(urlOrBase);
+    if (host.isEmpty) return;
+    _failUntilMs[host] =
+        DateTime.now().add(failCooldown).millisecondsSinceEpoch;
+    noteDiag(host, kind, '连接失败，${failCooldown.inMinutes} 分钟内降级为兜底项');
+    _persistFailures();
+  }
+
+  /// 某次请求的地址/基底记为**成功**（立即解除冷却）
+  void noteDomainSuccess(String urlOrBase) {
+    final host = _hostOf(urlOrBase);
+    if (host.isEmpty) return;
+    if (_failUntilMs.remove(host) != null) _persistFailures();
+  }
+
+  /// 测试用：把某主机的冷却截止时间直接设成指定时刻（验证过期自动恢复）
+  @visibleForTesting
+  void debugSetFailureUntil(String host, DateTime until) {
+    final h = host.trim().toLowerCase();
+    if (h.isEmpty) return;
+    _failUntilMs[h] = until.millisecondsSinceEpoch;
+  }
+
+  /// 清空失败冷却（[host] 为空 = 全部）。用户手动换线路时调用：
+  /// 「我选了这条线路」必须立刻生效，不能被上一次的失败记录拦住。
+  void clearFailureCooldown([String? host]) {
+    if (host == null || host.trim().isEmpty) {
+      if (_failUntilMs.isEmpty) return;
+      _failUntilMs.clear();
+    } else {
+      if (_failUntilMs.remove(host.trim().toLowerCase()) == null) return;
+    }
+    _persistFailures();
+  }
+
+  /// 从地址/基底里取主机名（裸主机名也接受）；公开给拦截器做诊断用
+  static String hostOf(String urlOrBase) => _hostOf(urlOrBase);
+
+  static String _hostOf(String urlOrBase) {
+    final v = urlOrBase.trim();
+    if (v.isEmpty) return '';
+    final u = Uri.tryParse(v.contains('://') ? v : 'https://$v');
+    final h = u?.host.toLowerCase() ?? '';
+    if (h.isNotEmpty) return h;
+    // 允许直接传裸主机名
+    return v.toLowerCase();
+  }
+
+  void _persistFailures() {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final live = <String, int>{
+      for (final e in _failUntilMs.entries)
+        if (e.value > now) e.key: e.value,
+    };
+    _failUntilMs
+      ..clear()
+      ..addAll(live);
+    try {
+      SharedPreferences.getInstance().then((p) {
+        p.setString(_prefsKeyFailUntil, jsonEncode(live));
+      });
+    } catch (_) {}
+  }
+
+  // ---------- 线路诊断（⑦：客服可查"哪个域名、什么原因失败"）----------
+
+  /// 记录一条线路诊断（内存保留最近 [diagLimit] 条，同时写运行日志，
+  /// 日志中心「运行日志」里就能看到，不必让客服猜为什么更新订阅失败）
+  void noteDiag(String host, String kind, String detail) {
+    _diag.add(LineDiag(
+        at: DateTime.now(), host: host, kind: kind, detail: detail));
+    if (_diag.length > diagLimit) {
+      _diag.removeRange(0, _diag.length - diagLimit);
+    }
+  }
+
+  static const diagLimit = 60;
+
+  /// 兜底通知（②）：自动偏离"用户选的线路"并成功拉到东西时置位（只在变化时置位
+  /// 一次），首页监听后弹一次提示（带"回到我选的线路"动作），提示完由 UI 清除。
+  ///
+  /// 用 ValueNotifier 而不是直接弹窗：ServerPool 在 core 层拿不到 BuildContext，
+  /// 且首页有多个（每个 tab 生命周期不同）。
+  static final ValueNotifier<({String pinned, String active})?> fallbackNotice =
+      ValueNotifier(null);
+
+  /// 上次已提示过的组合（避免同一组"所选→实际"反复打扰）
+  static String _notifiedPair = '';
+
+  /// 记录"实际用了哪条线路"：若与用户所选不同则置位兜底通知（幂等）
+  void noteEffectiveLine(String usedBaseOrUrl) {
+    if (_userPin.isEmpty) return;
+    final usedHost = _hostOf(usedBaseOrUrl);
+    final pinHost = userPinnedHost;
+    if (usedHost.isEmpty || pinHost.isEmpty || usedHost == pinHost) return;
+    final pair = '$pinHost→$usedHost';
+    if (pair == _notifiedPair) return;
+    _notifiedPair = pair;
+    noteDiag(usedHost, 'fallback', '用户所选 $pinHost 不可达，已改用 $usedHost');
+    fallbackNotice.value = (pinned: pinHost, active: usedHost);
+  }
+
+  /// UI 提示后清除
+  static void clearFallbackNotice() => fallbackNotice.value = null;
+
+  /// 最近的线路诊断（新到旧）
+  List<LineDiag> get diagnostics => List.unmodifiable(_diag.reversed);
+
+  /// 一行式线路状态摘要（设置页/诊断用）：
+  /// 「你选：X ｜ 实际：Y（已兜底）」或「自动 ｜ 实际：X」
+  String lineSummary() {
+    final eff = activeHost;
+    if (_userPin.isEmpty) return '自动 ｜ 实际：$eff';
+    if (onUserPinnedLine) return '你选：$userPinnedHost ｜ 实际：$eff';
+    return '你选：$userPinnedHost ｜ 实际：$eff（该线路不可达，已自动兜底）';
   }
 
   /// 用一次实测结果重排（[fastestFirst] 为域名基底，按快到慢），并持久化。
@@ -198,15 +402,38 @@ class ServerPool {
           .map((e) => int.tryParse(e.trim()) ?? -1)
           .where((i) => i >= 0 && i < domains.length)
           .toList();
+      _userPin = normalizeBase(p.getString(_prefsKeyUserPin) ?? '');
+      final failRaw = p.getString(_prefsKeyFailUntil) ?? '';
+      if (failRaw.isNotEmpty) {
+        final decoded = jsonDecode(failRaw);
+        if (decoded is Map) {
+          final now = DateTime.now().millisecondsSinceEpoch;
+          decoded.forEach((k, v) {
+            final until = v is int ? v : int.tryParse('$v');
+            if (until != null && until > now) {
+              _failUntilMs['$k'.toLowerCase()] = until;
+            }
+          });
+        }
+      }
     } catch (_) {
       // 读取失败按默认（主域名）处理，不影响使用
     }
   }
 
-  /// 记录某个基底可用：切换过去并持久化（下次启动优先使用）
-  Future<void> markWorking(String base) async {
+  /// 记录某个基底可用：切换过去并持久化（下次启动优先使用）。
+  ///
+  /// [userInitiated] = 这是用户在设置里**显式选择**的线路 → 同时记为用户选择
+  /// （[userPinnedBase]）；自动兜底/轮换成功只更新"实际生效"，不动用户选择，
+  /// 于是界面能如实说「你选的 X 不可达，正在用 Y」，用户也能一键回到自己选的线路。
+  Future<void> markWorking(String base, {bool userInitiated = false}) async {
     final normalized = normalizeBase(base);
     if (normalized.isEmpty) return;
+    if (userInitiated) {
+      _userPin = normalized;
+      // 用户刚选了这条 → 立刻清掉它的失败冷却，保证"选了就用它"
+      clearFailureCooldown(_hostOf(normalized));
+    }
     final i = domains.indexOf(normalized);
     if (i >= 0) {
       _index = i;
@@ -215,12 +442,25 @@ class ServerPool {
     } else {
       _custom = normalized;
     }
+    noteDomainSuccess(normalized);
     try {
       final p = await SharedPreferences.getInstance();
       await p.setInt(_prefsKeyIndex, _index);
       await p.setString(_prefsKeyCustom, _custom);
       await p.setBool(_prefsKeyHasWorking, _hasWorking);
+      if (_userPin.isEmpty) {
+        await p.remove(_prefsKeyUserPin);
+      } else {
+        await p.setString(_prefsKeyUserPin, _userPin);
+      }
     } catch (_) {}
+  }
+
+  /// 用户选的线路当前不可达 → 一键回到它（清冷却 + 记为生效线路）
+  Future<void> retryUserPinnedLine() async {
+    if (_userPin.isEmpty) return;
+    clearFailureCooldown(_hostOf(_userPin));
+    await markWorking(_userPin, userInitiated: true);
   }
 
   /// 返回下一个**尚未尝试过**的基底；均已尝试过则返回 null。
@@ -228,44 +468,55 @@ class ServerPool {
   /// [tried] 是本次请求已尝试过的基底列表（由重试拦截器维护），
   /// 这样一轮重试里每个域名只会被打一次。
   String? nextUntried(List<String> tried) {
-    // 顺序 = 当前生效域名 → 实测排名（快到慢）→ 其余
+    // 顺序 = 当前生效域名 → 用户选的线路 → 实测排名（快到慢）→ 其余；
+    // 其中**刚失败的域名排到最后**（冷却期），避免每次请求都先白等一次超时。
     final current = activeBase;
-    final candidates = <String>[
+    final head = <String>[
       if (_custom.isNotEmpty) _custom,
       current,
+      if (_userPin.isNotEmpty) _userPin,
       ..._ordered,
       ...domains,
     ];
-    for (final candidate in candidates) {
-      if (!tried.contains(candidate)) return candidate;
+    final fresh = <String>[];
+    final cooling = <String>[];
+    for (final c in head) {
+      if (tried.contains(c) || fresh.contains(c) || cooling.contains(c)) continue;
+      (isRecentlyFailed(_hostOf(c)) ? cooling : fresh).add(c);
     }
-    return null;
+    final candidates = <String>[...fresh, ...cooling];
+    return candidates.isEmpty ? null : candidates.first;
   }
 
-  /// 恢复为「优先主域名、不指定自定义域名」
+  /// 恢复为「优先主域名、不指定自定义域名、无用户选择」（用户点"自动"）
   Future<void> reset() async {
     _index = 0;
     _custom = '';
     _hasWorking = false;
+    _userPin = '';
+    clearFailureCooldown();
     try {
       final p = await SharedPreferences.getInstance();
       await p.setInt(_prefsKeyIndex, 0);
       await p.remove(_prefsKeyCustom);
+      await p.remove(_prefsKeyUserPin);
     } catch (_) {}
   }
 
-  /// 用户手动指定域名（可只填域名，自动补 https:// 与 /api/v1）
+  /// 用户手动指定域名（可只填域名，自动补 https:// 与 /api/v1）—— 属于用户显式选择
   Future<void> setCustom(String input) async {
     final normalized = normalizeBase(input);
     if (normalized.isEmpty) return;
-    await markWorking(normalized);
+    await markWorking(normalized, userInitiated: true);
   }
 
   Future<void> clearCustom() async {
     _custom = '';
+    _userPin = '';
     try {
       final p = await SharedPreferences.getInstance();
       await p.remove(_prefsKeyCustom);
+      await p.remove(_prefsKeyUserPin);
     } catch (_) {}
   }
 
@@ -384,6 +635,8 @@ Interceptor buildServerFailoverInterceptor(Dio dio,
   return InterceptorsWrapper(
     onResponse: (r, h) {
       final base = r.requestOptions.baseUrl;
+      // 成功即解除该域名的失败冷却（③）；失败冷却只在连接层失败时写入
+      if (base.isNotEmpty) ServerPool.instance.noteDomainSuccess(base);
       if (base.isNotEmpty && base != ServerPool.instance.activeBase) {
         unawaited(ServerPool.instance.markWorking(base));
       }
@@ -407,6 +660,11 @@ Interceptor buildServerFailoverInterceptor(Dio dio,
       final current =
           opts.baseUrl.isNotEmpty ? opts.baseUrl : ServerPool.instance.activeBase;
       if (!tried.contains(current)) tried.add(current);
+      // 连接层失败 → 该域名进入冷却（③）+ 记一条线路诊断（⑦）。
+      // 冷却只影响**排序**（仍在候选里），TTL 10 分钟，用户手动换线路时立即清空。
+      ServerPool.instance.noteDomainFailure(current, kind: 'connect');
+      ServerPool.instance.noteDiag(
+          ServerPool.hostOf(current), 'connect', '${opts.method} ${opts.path} 连接失败（${e.type}）');
       opts.extra['_domainTried'] = tried;
 
       Object lastError = e;
@@ -419,11 +677,14 @@ Interceptor buildServerFailoverInterceptor(Dio dio,
         onLog?.call('[线路切换] $current 连接失败（${e.type}）→ 改试 $next');
         try {
           final retried = await dio.fetch(opts);
+          ServerPool.instance.noteDomainSuccess(next);
+          ServerPool.instance.noteEffectiveLine(next);
           unawaited(ServerPool.instance.markWorking(next));
           h.resolve(retried);
           return;
         } catch (e2) {
           lastError = e2 is DioException ? e2 : e;
+          ServerPool.instance.noteDomainFailure(next, kind: 'connect');
           if (!ServerPool.isRetryableOnRotation(lastError, opts.method,
               path: opts.path)) {
             break;

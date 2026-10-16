@@ -7,6 +7,7 @@ import '../package/upgrade_devices_page.dart';
 
 import '../../core/models/models.dart';
 import '../../core/proxy/proxy_core.dart';
+import '../../core/api/server_pool.dart';
 import '../../core/services/account_service.dart';
 import '../../core/services/permission_service.dart';
 import '../../core/services/subscription_service.dart';
@@ -68,6 +69,12 @@ class _HomePageState extends State<HomePage>
     // 回前台自动刷新订阅（保活页面避免数据过期）
     WidgetsBinding.instance.addObserver(this);
     _startBlockedAutoRetry();
+    // ② 线路兜底提示：用户选的线路打不开、客户端自动换了别的域名拉订阅时，
+    //    明确告诉用户（并可一键回到自己选的线路）—— 否则"我选了没用"永远无从察觉。
+    ServerPool.fallbackNotice.addListener(_onLineFallback);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _onLineFallback();
+    });
   }
 
   /// 受限/被拒状态下的自动重试（每 60 秒一次，恢复正常后自动停）。
@@ -120,9 +127,49 @@ class _HomePageState extends State<HomePage>
     });
   }
 
+  /// 兜底提示（一次性）：弹 SnackBar 说明 + 提供「回到我选的线路」。
+  /// 不占用任何布局（SnackBar 浮在页面上），因此不影响首页的"位置固定"改造。
+  void _onLineFallback() {
+    final notice = ServerPool.fallbackNotice.value;
+    if (notice == null || !mounted) return;
+    ServerPool.clearFallbackNotice(); // 只提示一次
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final msg = AppStrings.t('settings_server_line_fallback', {
+        'pinned': notice.pinned,
+        'active': notice.active,
+      });
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(
+          content: Text(msg),
+          duration: const Duration(seconds: 8),
+          action: SnackBarAction(
+            label: AppStrings.t('settings_server_line_notice_action'),
+            onPressed: () async {
+              await ServerPool.instance.retryUserPinnedLine();
+              final host = ServerPool.instance.activeHost;
+              try {
+                await AccountService.instance.refresh(force: true);
+                final nodes =
+                    await SubscriptionService.instance.fetchNodes(force: true);
+                await ConnectionController.instance
+                    .applySubscriptionNodes(nodes);
+              } catch (e) {
+                AppLog.error('回到所选线路后刷新失败: $e');
+              }
+              if (!mounted) return;
+              _toast(AppStrings.t('settings_server_line_back_ok', {'host': host}));
+            },
+          ),
+        ));
+    });
+  }
+
   @override
   void dispose() {
     _blockedRetry?.cancel();
+    ServerPool.fallbackNotice.removeListener(_onLineFallback);
     UpdateService.hasUpdate.removeListener(_onUpdateAvailable);
     ConnectionController.instance.removeListener(_onConnChanged);
     WidgetsBinding.instance.removeObserver(this);

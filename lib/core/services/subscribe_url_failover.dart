@@ -13,6 +13,8 @@
 /// 时也视为该地址失败，继续换下一个 —— 否则用户会拿到一份解析不出节点的"空订阅"。
 library;
 
+import 'dart:async';
+
 /// 拉取订阅原文的函数签名（注入以便测试）
 typedef SubscribeFetch = Future<String> Function(String url);
 
@@ -93,6 +95,7 @@ class SubscribeUrlFailover {
   /// 排在最前，保证换线路后立即以新域名拉取。
   /// [looksUsable] 用于识别"连上了但不是订阅"（拦截页/HTML）；为空则只要请求成功就算可用。
   /// [onSuccess] 在成功时回调实际使用的地址（调用方据此记忆/落盘）。
+  /// [onAttemptFailed] 每次尝试失败都回调（地址 + 原因分类），供线路诊断（⑦）使用。
   /// 全部失败抛出最后一次异常；候选为空时抛 [StateError]。
   static Future<({String url, String raw})> fetchFirst({
     required String primary,
@@ -103,8 +106,9 @@ class SubscribeUrlFailover {
     required SubscribeFetch fetch,
     bool Function(String raw)? looksUsable,
     void Function(String url)? onSuccess,
+    void Function(String url, String reason)? onAttemptFailed,
     // 上限必须覆盖「面板下发的全部域名 + 上次记住的那个」：
-    // 线上 `/user/subscribe` 会下发 5~6 个订阅域名（dy.moneyfly.top /
+    // 线上 `/user/subscribe` 会下发 5~8 个订阅域名（dy.moneyfly.top /
     // moneyfly.dpdns.org / sub.moneyfly.dpdns.org / new.moneyfly.dpdns.org /
     // sub.fastora.top / fastora.top）。旧上限 4 时，如果只有最后那个域名能用
     // （前面的都被屏蔽），客户端会**静默放弃**——而需求是「任意一个能拉到就行」。
@@ -115,6 +119,17 @@ class SubscribeUrlFailover {
     // 只要还没超预算就继续往下试，避免被排序+截断卡死，也不会无限拖。
     int maxAttempts = 8,
     Duration overallBudget = const Duration(seconds: 30),
+    /// **首个候选**（当前线路）的单独尝试上限：比常规连接超时（12s）短得多。
+    ///
+    /// 被墙的域名几乎都是"连接超时"，等满 12s 才换下一个是"点更新订阅像卡住"的
+    /// 主因。5s 足够判定"这条线路现在打不开"，随即进入下面的并行竞速。
+    Duration firstAttemptTimeout = const Duration(seconds: 5),
+    /// 首个候选失败后**同时竞速**的候选数量（happy eyeballs）。
+    ///
+    /// 串行等待的代价是"每个不可达域名都要赔一次超时"；并行竞速后最坏等待约为
+    /// 「首尝试超时 + 一个连接超时」，而不是「2 个连接超时」。代价是可能对同一份
+    /// 订阅多发一个请求（GET，无害；面板的拉取计数会略增），因此宽度限制为 2。
+    int raceWidth = 2,
   }) async {
     final list = candidates(
         primary: primary,
@@ -125,31 +140,87 @@ class SubscribeUrlFailover {
     if (list.isEmpty) {
       throw StateError('没有可用的订阅地址');
     }
-    Object? lastError;
+
     var attempts = 0;
+    Object? lastError;
     final deadline = DateTime.now().add(overallBudget);
-    for (final url in list) {
-      if (attempts >= maxAttempts) break;
-      // 至少试 2 个（单次连接超时 12s，2 次足够排除"只是这个域名慢/被墙"），
-      // 之后按整体预算收敛
-      if (attempts >= 2 && DateTime.now().isAfter(deadline)) break;
+
+    /// 一次尝试：成功返回结果，失败返回 null 并回调失败原因
+    Future<({String url, String raw})?> tryOnce(String url,
+        {Duration? timeout}) async {
       attempts++;
       try {
-        final raw = await fetch(url);
+        final Future<String> f = fetch(url);
+        final raw = timeout == null ? await f : await f.timeout(timeout);
         if (raw.trim().isEmpty) {
+          onAttemptFailed?.call(url, 'empty');
           lastError = StateError('订阅地址返回空内容: $url');
-          continue;
+          return null;
         }
-        if (looksUsable != null && !looksUsable(raw)) {
+        final usable = looksUsable;
+        if (usable != null && !usable(raw)) {
+          onAttemptFailed?.call(url, 'content');
           lastError = StateError('订阅地址返回的不是订阅内容: $url');
-          continue;
+          return null;
         }
         onSuccess?.call(url);
         return (url: url, raw: raw);
       } catch (e) {
+        onAttemptFailed?.call(url, _classify(e));
         lastError = e;
+        return null;
       }
     }
+
+    /// 并行竞速：谁先拿到可用内容用谁；全部失败返回 null
+    Future<({String url, String raw})?> race(List<String> urls) {
+      final completer = Completer<({String url, String raw})?>();
+      var pending = urls.length;
+      for (final u in urls) {
+        unawaited(tryOnce(u).then((r) {
+          if (r != null) {
+            if (!completer.isCompleted) completer.complete(r);
+          } else if (--pending == 0) {
+            if (!completer.isCompleted) completer.complete(null);
+          }
+        }));
+      }
+      return completer.future;
+    }
+
+    // ① 首个候选（当前线路 / 用户选的线路）单独先试，用更短的超时
+    var idx = 0;
+    final first = await tryOnce(list[idx], timeout: firstAttemptTimeout);
+    if (first != null) return first;
+    idx++;
+
+    // ② 首尝试失败 → 接下来 raceWidth 个候选并行竞速
+    while (idx < list.length && attempts < maxAttempts) {
+      final batch = <String>[];
+      for (var i = 0; i < raceWidth && idx + i < list.length; i++) {
+        if (attempts + batch.length >= maxAttempts) break;
+        batch.add(list[idx + i]);
+      }
+      if (batch.isEmpty) break;
+      idx += batch.length;
+      final won = batch.length == 1
+          ? await tryOnce(batch.first)
+          : await race(batch);
+      if (won != null) return won;
+      // 至少要试 2 个（单次超时可能是这个域名慢/被墙），之后按整体预算收敛
+      if (attempts >= 2 && DateTime.now().isAfter(deadline)) break;
+    }
+
     throw lastError ?? StateError('订阅地址全部不可用');
+  }
+
+  /// 失败原因分类（供线路诊断展示，客服一眼看出是"连不上"还是"返回的不是订阅"）
+  static String _classify(Object e) {
+    final s = e.toString().toLowerCase();
+    if (e is TimeoutException || s.contains('timeout')) return 'timeout';
+    if (s.contains('socket') || s.contains('connection')) return 'connect';
+    if (s.contains('handshake') || s.contains('certificate')) return 'tls';
+    if (s.contains('host') || s.contains('dns') || s.contains('name')) return 'dns';
+    return 'error';
   }
 }

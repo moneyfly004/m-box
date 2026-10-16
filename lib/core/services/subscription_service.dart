@@ -8,6 +8,7 @@ import '../api/api_client.dart';
 import '../api/server_pool.dart';
 import '../api/endpoints.dart';
 import '../models/models.dart';
+import 'app_log.dart';
 import 'settings_store.dart';
 import 'subscribe_url_failover.dart';
 import 'subscription_cache.dart';
@@ -428,14 +429,16 @@ class SubscriptionService {
         backups: info.subscribeUrls,
         preferred: preferred,
         pinned: pinned,
-        // 谁快用谁：用客户端域名实测结果排序（国内各地 ISP 差别大，实测优先）
+        // 谁快用谁：用客户端域名实测结果排序（国内各地 ISP 差别大，实测优先）。
+        // priorityOfHost 里已包含"刚失败的域名排到最后"的冷却惩罚（③）。
         hostPriority: (u) =>
             ServerPool.instance.priorityOfHost(Uri.tryParse(u)?.host ?? ''),
-        fetch: (u) async => ApiClient.instance
-            .fetchText(u, ua: await _subscriptionUa()),
+        fetch: _fetchSubscribeUrl,
         // 连上了但返回的不是订阅内容（机房拦截页/运营商提示页常是 200 + HTML）
         // → 视为该地址失败，继续换下一个，避免用户拿到解析不出节点的"空订阅"
         looksUsable: looksLikeSubscription,
+        // 线路诊断（⑦）：哪个域名、什么原因失败 —— 写运行日志，日志中心可见
+        onAttemptFailed: _noteLineFailure,
       );
       raw = fetched.raw;
       usedSubscribeUrl = fetched.url;
@@ -475,9 +478,9 @@ class SubscriptionService {
             backups: fresh.subscribeUrls,
             // 续费/重建订阅后的新地址同样要按当前线路改写域名
             pinned: _pinToActiveLine(fresh.subscribeUrl),
-            fetch: (u) async => ApiClient.instance
-                .fetchText(u, ua: await _subscriptionUa()),
+            fetch: _fetchSubscribeUrl,
             looksUsable: looksLikeSubscription,
+            onAttemptFailed: _noteLineFailure,
           );
           raw = again.raw;
           usedSubscribeUrl = again.url;
@@ -551,6 +554,34 @@ class SubscriptionService {
     _cache = [];
     _cacheTime = DateTime.fromMillisecondsSinceEpoch(0);
     unawaited(SubscriptionCache.instance.clear());
+  }
+
+  /// 拉订阅正文的统一入口：**成功/失败都记到线路池**（③ 冷却 + ⑦ 诊断）。
+  ///
+  /// 成功 → 立即解除该域名的失败冷却（下次优先用它）；
+  /// 失败 → 进入冷却（10 分钟内降级为兜底项，避免每次刷新都白等一次超时）。
+  static Future<String> _fetchSubscribeUrl(String url) async {
+    try {
+      final raw =
+          await ApiClient.instance.fetchText(url, ua: await _subscriptionUa());
+      ServerPool.instance.noteDomainSuccess(url);
+      // ② 若"用户选的线路"没用上（自动兜底到别的域名），置位一次性提示
+      ServerPool.instance.noteEffectiveLine(url);
+      AppLog.log('LINE',
+          '订阅拉取成功：${Uri.tryParse(url)?.host ?? url}（${raw.length} 字节）');
+      return raw;
+    } catch (e) {
+      // 具体原因由 onAttemptFailed（_noteLineFailure）分类记录，这里只补异常文本
+      AppLog.log('LINE', '订阅拉取异常：${Uri.tryParse(url)?.host ?? url} → $e');
+      rethrow;
+    }
+  }
+
+  /// 单次尝试失败 → 域名冷却 + 运行日志（客服可见：哪个域名、什么原因）
+  static void _noteLineFailure(String url, String reason) {
+    final host = Uri.tryParse(url)?.host ?? url;
+    ServerPool.instance.noteDomainFailure(url, kind: reason);
+    AppLog.log('LINE', '订阅地址不可用 [$reason]：$host');
   }
 
   /// 把订阅地址改写到**当前生效的服务器线路**域名（同 token，同一份订阅）。
