@@ -48,10 +48,23 @@ void _useDio(void Function(DioAdapter a) routes) {
 }
 
 /// 在真实异步区构建页面并等 mock 请求返回
-Future<void> _pumpPage(WidgetTester tester, Widget page) async {
+/// 构建页面并等待异步数据落地。
+///
+/// 旧实现固定 `delayed(120ms)` 就断言 —— CI 上（尤其 macOS 真实内核那个 job）
+/// 机器负载高时接口回调偶尔超过 120ms，页面还停在骨架态，断言就报
+/// "Found 0 widgets with text containing ¥200"，属于时序型 flaky
+/// （v2.2.28 构建时真实踩到一次，导致发布作业被跳过）。
+/// 现在改成"最多等 3 秒，出现 [until] 就返回"，既稳又快。
+Future<void> _pumpPage(WidgetTester tester, Widget page,
+    {Finder? until, Duration timeout = const Duration(seconds: 3)}) async {
   await tester.runAsync(() async {
     await tester.pumpWidget(_wrap(page));
-    await Future<void>.delayed(const Duration(milliseconds: 120));
+    final deadline = DateTime.now().add(timeout);
+    while (true) {
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      if (until == null || until.evaluate().isNotEmpty) break;
+      if (DateTime.now().isAfter(deadline)) break;
+    }
   });
   await tester.pump();
   await tester.pump();
@@ -125,7 +138,8 @@ void main() {
           (s) => s.reply(200, _env([_planJson(id: 1, price: 200)])));
       a.onGet('/payment/methods', (s) => s.reply(200, _env([])));
     });
-    await _pumpPage(tester, const PackagePage());
+    await _pumpPage(tester, const PackagePage(),
+        until: find.textContaining('¥200', findRichText: true));
     expect(find.textContaining('¥200', findRichText: true), findsWidgets,
         reason: '套餐页应显示 ¥200');
     expect(find.textContaining('200.00', findRichText: true), findsNothing,
@@ -136,7 +150,7 @@ void main() {
       a.onGet('/users/dashboard-info',
           (s) => s.reply(200, _env(_dashboardJson(balance: 200))));
     });
-    await _pumpPage(tester, const ProfilePage());
+    await _pumpPage(tester, const ProfilePage(), until: find.text('¥200'));
     expect(find.text('¥200'), findsOneWidget,
         reason: '我的页余额必须与套餐页同口径：¥200（旧实现是 ¥200.00）');
     expect(find.textContaining('200.00', findRichText: true), findsNothing,
