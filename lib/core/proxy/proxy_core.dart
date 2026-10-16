@@ -414,6 +414,13 @@ class ConnectionController extends ChangeNotifier {
   /// 订阅同步中（登录后拉取/刷新订阅）：直接反映 SubscriptionService 的
   /// 拉取状态。UI 用它显示「正在同步订阅…」——同步是过程，不是错误。
   bool get syncingSubscription => SubscriptionService.instance.syncing.value;
+  /// 仅测试用：把「订阅同步中」置为真/假，用于验证主页布局不因同步提示位移。
+  @visibleForTesting
+  void setSyncingForTest(bool v) {
+    SubscriptionService.instance.syncing.value = v;
+    notifyListeners();
+  }
+
 
   /// 实时速率（MB/s）——由内核 /traffic 1s 推送。
   /// 用独立 ValueNotifier：每秒更新只通知速率监听者（首页速率卡片），

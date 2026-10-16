@@ -9,7 +9,8 @@
 //
 // 现在的契约（任何一条被破坏都会让这条用例红）：
 //   · 420×780（默认窗口）与 380×620（最小窗口）下 maxScrollExtent == 0，不需要滚动；
-//   · 国家区是等宽网格：窄窗口 3 列 × 2 行 = 自动最优 + 5 国，窗口拉高 3 列 × 3 行 = + 8 国；
+//   · 国家区是**固定 3 列 × 3 行 = 9 格**（用户要求固定位置）：第 1 格「自动最优」，
+//     其余 8 格内容按延迟择优且必须有一个美国；数据未就绪时用同尺寸骨架占位，位置不变；
 //   · 未知地区（'XX' / null）不进网格，绝不出现写着「XX」的药丸，也不占真实国家槽位；
 //   · 第一格永远是「自动最优」。
 import 'package:dio/dio.dart';
@@ -138,20 +139,24 @@ void main() {
         reason: '最小窗口下也要能看全（原先内容 763px，必须滚 143px）');
   });
 
-  testWidgets('国家网格对称：窄窗口 3 列 × 2 行、单元格等宽、第一格是「自动最优」', (tester) async {
+  testWidgets('国家网格对称：固定 3 列 × 3 行共 9 格、单元格等宽、第一格是「自动最优」', (tester) async {
     await _pumpHome(tester, const Size(380, 620));
     final rects = _pillRects(tester);
-    expect(rects.length, 6, reason: '自动最优 + 5 国 = 3 列 × 2 行');
+    expect(rects.length, 9, reason: '固定 9 格：自动最优 + 8 个格位（内容随延迟变）');
     // 等宽（Expanded）＝ 左右对称
     final widths = rects.map((r) => r.width.round()).toSet();
     expect(widths.length, 1, reason: '所有单元格必须等宽，实测 $widths');
-    // 正好两行
+    // 固定三行（用户要求 9 格分三排）
     final tops = rects.map((r) => r.top.round()).toSet().toList()..sort();
-    expect(tops.length, 2, reason: '应正好两行，实测行数 ${tops.length}');
-    // 每行横坐标对齐（列对齐）
-    final row1 = rects.sublist(0, 3).map((r) => r.left.round()).toList();
-    final row2 = rects.sublist(3).map((r) => r.left.round()).toList();
-    expect(row2, row1, reason: '两行的列必须对齐');
+    expect(tops.length, 3, reason: '应正好三行，实测行数 ${tops.length}');
+    // 每行横坐标对齐（列对齐），且行间距一致（上下两排也一样齐）
+    final rows = [
+      for (var r = 0; r < 3; r++) rects.sublist(r * 3, r * 3 + 3).map((x) => x.left.round()).toList(),
+    ];
+    expect(rows[1], rows[0], reason: '第二排的列必须与第一排对齐');
+    expect(rows[2], rows[0], reason: '第三排的列必须与第一排对齐');
+    final heights = rects.map((r) => r.height.round()).toSet();
+    expect(heights.length, 1, reason: '所有单元格必须等高，实测 $heights');
     // 「自动最优」不能丢
     expect(find.descendant(
         of: find.byKey(const ValueKey('quick_pill_0')),
@@ -174,7 +179,7 @@ void main() {
     expect(find.text('XX'), findsNothing, reason: '哨兵值 XX 不能当国家名显示');
     expect(find.text('未知地区'), findsNothing, reason: '未知地区不占真实国家的槽位');
     final rects = _pillRects(tester);
-    expect(rects.length, 6, reason: '只有已知国家进网格');
+    expect(rects.length, 9, reason: '固定 9 格；未知地区用骨架占位，不写成「XX」');
     // 第一格仍是自动最优，第二格应该是真实国家里延迟最低的
     expect(find.descendant(
         of: find.byKey(const ValueKey('quick_pill_1')),
@@ -191,7 +196,7 @@ void main() {
   testWidgets('长国名也不溢出（哈萨克斯坦 / 澳大利亚）', (tester) async {
     await _pumpHome(tester, const Size(380, 620));
     // RenderFlex overflow 会让用例直接失败；这里再显式确认药丸还在
-    expect(_pillRects(tester).length, 6);
+    expect(_pillRects(tester).length, 9);
     expect(tester.takeException(), isNull);
   });
 

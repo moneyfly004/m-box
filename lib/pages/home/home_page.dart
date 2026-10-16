@@ -15,7 +15,8 @@ import '../../widgets/subscribe_issue.dart';
 import '../../widgets/update_prompt.dart';
 import '../../core/api/api_client.dart';
 import '../../core/services/app_log.dart';
-import '../../core/services/speed_series.dart';
+import '../../core/services/country_slots.dart';
+import '../../widgets/traffic_chart.dart';
 import '../../l10n/app_strings.dart';
 import '../../core/services/geo_lookup.dart';
 import '../../main.dart';
@@ -1134,6 +1135,32 @@ class _HomePageState extends State<HomePage>
           // 真实错误优先（如内核启动失败），绝不被同步提示掩盖；
           // 没有错误且正在同步 → 显示「正在同步订阅…」这个**过程**，
           // 而不是让用户看到上一会话残留/或"节点还没到"的假错误。
+          // 状态行**恒定占位**：订阅同步中/空闲都画在这一行里。
+          // 用户反馈"主页上每次订阅更新的时候卡片就会移动位置"——根因就是这里
+          // 原来按 syncingSubscription 增删整块内容（订阅每 30~60 秒刷一次，
+          // 每次刷新卡片长高一次、下方所有卡片跟着位移）。现在高度恒定，
+          // 只有内容在这一行里变；真实错误才额外占高度（那是要用户处理的异常态）。
+          SizedBox(
+            height: compact ? 16 : 18,
+            width: double.infinity,
+            child: conn.error == null && conn.syncingSubscription
+                ? Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      SizedBox(
+                        width: 11,
+                        height: 11,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 1.5, color: MFColors.brandLight)),
+                      const SizedBox(width: 6),
+                      Text(AppStrings.t('sub_syncing'),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 11, color: MFColors.txt3)),
+                    ],
+                  )
+                : const SizedBox.shrink(),
+          ),
           if (conn.error != null) ...[
             const SizedBox(height: 8),
             Text(conn.error!, textAlign: TextAlign.center,
@@ -1145,24 +1172,6 @@ class _HomePageState extends State<HomePage>
               const SizedBox(height: 8),
               _buildErrorActions(conn),
             ],
-          ],
-          if (conn.error == null && conn.syncingSubscription) ...[
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                SizedBox(
-                  width: 11,
-                  height: 11,
-                  child: CircularProgressIndicator(
-                      strokeWidth: 1.5, color: MFColors.brandLight),
-                ),
-                const SizedBox(width: 6),
-                Text(AppStrings.t('sub_syncing'),
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 11, color: MFColors.txt3)),
-              ],
-            ),
           ],
           const SizedBox(height: 10),
           _buildModeSwitch(conn),
@@ -1252,32 +1261,14 @@ class _HomePageState extends State<HomePage>
         final down = formatSpeed(snap.downMbps, lastUnit: _downUnit);
         _upUnit = up.unit;
         _downUnit = down.unit;
-        return Row(
-          children: [
-            Expanded(
-              child: _StatCard(
-                label: AppStrings.t('up_speed'),
-                value: up.value,
-                unit: up.unit,
-                icon: Icons.arrow_upward_rounded,
-                color: MFColors.brandLight,
-                spark: conn.upHistory,
-                compact: compact,
-              ),
-            ),
-            SizedBox(width: compact ? 10 : 12),
-            Expanded(
-              child: _StatCard(
-                label: AppStrings.t('down_speed'),
-                value: down.value,
-                unit: down.unit,
-                icon: Icons.arrow_downward_rounded,
-                color: MFColors.green,
-                spark: conn.downHistory,
-                compact: compact,
-              ),
-            ),
-          ],
+        return _TrafficCard(
+          compact: compact,
+          upValue: up.value,
+          upUnit: up.unit,
+          downValue: down.value,
+          downUnit: down.unit,
+          upSamples: conn.upHistory,
+          downSamples: conn.downHistory,
         );
       },
     );
@@ -1311,18 +1302,19 @@ class _HomePageState extends State<HomePage>
     }
     final entries = byCountry.entries.toList()
       ..sort((a, b) => a.value.latencyMs.compareTo(b.value.latencyMs));
-    // 一个国家都没测出来时整段隐藏（保持冷启动时的高度不变）
-    if (entries.isEmpty) return const SizedBox.shrink();
-
+    // 固定三排九格（用户要求）：
+    //   - 格数/大小/位置**永远不变**（数据没到也渲染骨架），不再"连接一会儿才冒出来"；
+    //   - 第 1 格恒为「自动最优」，其余 8 格是固定格位，内容按延迟最低择优；
+    //   - 8 格里**必须有一个美国**（没进前 8 就顶掉最慢的那个），见 selectCountrySlots。
     const cols = 3;
-    final rows = compact ? 2 : 3;
-    final shown = entries.take(cols * rows - 1).toList();
-    final cellH = compact ? 28.0 : 32.0;
-    final rowGap = compact ? 5.0 : 6.0;
-    // 第一格恒为「自动最优」，其余按延迟从低到高
+    const rows = 3;
+    const cellH = 30.0;
+    const rowGap = 5.0;
+    final picked = selectCountrySlots(entries, cols * rows - 1);
     final cells = <Widget>[
       _autoBestPill(conn, 0),
-      for (var i = 0; i < shown.length; i++) _countryPill(conn, shown[i], compact, i + 1),
+      for (var i = 0; i < picked.length; i++)
+        _countryPill(conn, picked[i], compact, i + 1),
     ];
     return Column(
       key: const ValueKey('quick_countries'),
@@ -1348,7 +1340,7 @@ class _HomePageState extends State<HomePage>
                   Expanded(
                     child: r * cols + c < cells.length
                         ? cells[r * cols + c]
-                        : const SizedBox.shrink(),
+                        : _placeholderPill(),
                   ),
                 ],
               ],
@@ -1356,6 +1348,27 @@ class _HomePageState extends State<HomePage>
           ),
         ],
       ],
+    );
+  }
+
+  /// 占位药丸（国家还没测出来时的骨架）：与真实药丸**等高同宽**，保证九宫格
+  /// 不会因为数据到位而跳位置（用户要求"固定位置、不临时生成卡片"）。
+  Widget _placeholderPill() {
+    return Container(
+      decoration: BoxDecoration(
+        color: MFColors.card2,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: MFColors.line),
+      ),
+      alignment: Alignment.center,
+      child: Container(
+        width: 26,
+        height: 8,
+        decoration: BoxDecoration(
+          color: MFColors.txt3.withValues(alpha: .25),
+          borderRadius: BorderRadius.circular(4),
+        ),
+      ),
     );
   }
 
@@ -1742,31 +1755,43 @@ class _ModeOption extends StatelessWidget {
   }
 }
 
-class _StatCard extends StatelessWidget {
-  const _StatCard({
-    required this.label,
-    required this.value,
-    required this.unit,
-    required this.color,
-    required this.icon,
-    this.spark,
-    this.compact = false,
+/// 速率显示：MB/s 与 KB/s 之间带**迟滞**切换，避免刚归零就换单位。
+({String value, String unit}) formatSpeed(double mbps, {String? lastUnit}) {
+  const kb = 'KB/s';
+  const mb = 'MB/s';
+  if (mbps <= 0) return (value: '0.0', unit: lastUnit ?? mb);
+  final useKb = lastUnit == kb ? mbps < 0.15 : mbps < 0.08;
+  if (!useKb) return (value: mbps.toStringAsFixed(1), unit: mb);
+  return (value: (mbps * 1024).toStringAsFixed(0), unit: kb);
+}
+
+/// 速率卡：**一张卡里两条曲线**（上行蓝、下行绿），加当前数值。
+///
+/// 用户要求：不要上行一张卡、下行一张卡各一条瞬时折线，而是一个整体的卡片、
+/// 上面两条不同颜色的曲线 —— 既是"一个整体"，也能一眼比出上下行的量级。
+/// 图高恒定（无数据时只有基线），所以订阅刷新/断连都不会让卡片高度变化。
+class _TrafficCard extends StatelessWidget {
+  const _TrafficCard({
+    required this.compact,
+    required this.upValue,
+    required this.upUnit,
+    required this.downValue,
+    required this.downUnit,
+    required this.upSamples,
+    required this.downSamples,
   });
-  final String label;
-  final String value;
-  final String unit;
-  final Color color;
-  final IconData icon;
-  /// 矮窗口（桌面默认 780 / 最小 620）：卡片整体再压一档，给「快速切换国家」
-  /// 的两行网格腾高度，保证主页一屏放得下
+
   final bool compact;
-  /// 迷你趋势(最近 ~60s 速率 MB/s;null 不显示)
-  final List<double>? spark;
+  final String upValue;
+  final String upUnit;
+  final String downValue;
+  final String downUnit;
+  final List<double> upSamples;
+  final List<double> downSamples;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      // 桌面窗口高度有限（默认 780、最小 620）：卡片整体压矮，让主页一屏放得下
       padding: EdgeInsets.symmetric(
           horizontal: compact ? 12 : 14, vertical: compact ? 7 : 9),
       decoration: BoxDecoration(
@@ -1779,202 +1804,93 @@ class _StatCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(icon, size: compact ? 15 : 16, color: color),
-              const SizedBox(width: 6),
-              Text(label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                      fontSize: compact ? 11.5 : 12,
-                      color: MFColors.txt2,
-                      fontWeight: FontWeight.w600)),
+              Expanded(
+                child: _speedLegend(
+                  icon: Icons.arrow_upward_rounded,
+                  label: AppStrings.t('up_speed'),
+                  value: upValue,
+                  unit: upUnit,
+                  color: MFColors.brandLight,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _speedLegend(
+                  icon: Icons.arrow_downward_rounded,
+                  label: AppStrings.t('down_speed'),
+                  value: downValue,
+                  unit: downUnit,
+                  color: MFColors.green,
+                ),
+              ),
             ],
           ),
           SizedBox(height: compact ? 4 : 6),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              // 数值定宽 + 右对齐：位数变化（0.0 / 51 / 1234）与单位切换都不再
-              // 推动右侧内容 —— 旧实现里 unit 是这个 Text 的兄弟节点，数值一变宽
-              // 单位就左右平移（每秒一次，就是用户看到的「卡片来回跳」）。
-              // 宽度按最大现实值取：MB/s 下 4 位整数 + 小数（~78px）。
-              SizedBox(
-                width: compact ? 76 : 88,
-                child: Text(value,
-                    textAlign: TextAlign.right,
-                    maxLines: 1,
-                    softWrap: false,
-                    overflow: TextOverflow.clip,
-                    style: TextStyle(
-                        fontSize: compact ? 20 : 22,
-                        fontWeight: FontWeight.w700,
-                        color: color,
-                        fontFamily: kNumFont,
-                        fontFeatures: const [FontFeature.tabularFigures()],
-                        height: 1)),
-              ),
-              const SizedBox(width: 6),
-              // 单位也定宽左对齐：KB/s 与 MB/s 等长，但仍占固定槽位，彻底不受影响
-              SizedBox(
-                width: compact ? 38 : 42,
-                child: Text(unit,
-                    maxLines: 1,
-                    softWrap: false,
-                    overflow: TextOverflow.clip,
-                    style: TextStyle(
-                        fontSize: compact ? 12 : 13,
-                        color: MFColors.txt3,
-                        fontWeight: FontWeight.w500)),
-              ),
-            ],
+          // 两条曲线共用一张画布与量程：就是一个整体
+          TrafficChart(
+            upSamples: upSamples,
+            downSamples: downSamples,
+            upColor: MFColors.brandLight,
+            downColor: MFColors.green,
+            height: compact ? 40 : 52,
           ),
-          // 趋势线**始终占位**：旧实现按 `spark.length >= 2` 决定是否渲染，
-          // 连上约 2 秒后卡片突然长高 36px、断开清空 history 又缩回去 ——
-          // 下方所有卡片跟着上下位移。现在恒定占位，样本不足时画一条基线。
-          if (spark != null) ...[
-            SizedBox(height: compact ? 4 : 6),
-            // 曲线图高度：稍微给高一点，让"整体趋势 + 当前速率"两条线看得清
-            // （同 FlClash 的流量图观感）；仍受矮窗口(620)约束，见
-            // test/home_layout_fit_test.dart 的一屏放得下断言。
-            SizedBox(
-                height: compact ? 16 : 22,
-                width: double.infinity,
-                child: _Sparkline(values: spark!, color: color)),
-          ],
         ],
       ),
     );
   }
-}
 
-/// 速率显示（数值 + 单位）。
-///
-/// 为什么需要迟滞（hysteresis）：单位切换的分界点是 0.1 MB/s，而空闲时保活
-/// 流量/心跳会让速率在 0 附近抖动 —— 没有迟滞时单位每秒在 `KB/s` 与 `MB/s`
-/// 之间翻转，加上数值位数变化（`0.0` ↔ `51` ↔ `1234`），视觉上就是「卡片里的
-/// 数字来回跳」。迟滞把「切到 KB/s」和「切回 MB/s」的门槛分开，抖动不再翻转。
-///
-/// [lastUnit] 上次显示的单位（首次传 null）。完全空闲（<=0）时**沿用**上次
-/// 单位，避免刚归零就换单位。
-({String value, String unit}) formatSpeed(double mbps, {String? lastUnit}) {
-  const kb = 'KB/s';
-  const mb = 'MB/s';
-  if (mbps <= 0) return (value: '0.0', unit: lastUnit ?? mb);
-  final useKb = lastUnit == kb ? mbps < 0.15 : mbps < 0.08;
-  if (!useKb) return (value: mbps.toStringAsFixed(1), unit: mb);
-  return (value: (mbps * 1024).toStringAsFixed(0), unit: kb);
-}
-
-/// 迷你趋势折线(无新依赖,纯 CustomPaint):平滑一条随时间变化的速率曲线
-class _Sparkline extends StatelessWidget {
-  const _Sparkline({required this.values, required this.color});
-  final List<double> values;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return CustomPaint(
-      size: Size.infinite,
-      painter: _SparkPainter(values: values, color: color),
+  /// 图例 + 当前值：颜色与曲线一一对应（谁是哪条线，一眼看得出）
+  Widget _speedLegend({
+    required IconData icon,
+    required String label,
+    required String value,
+    required String unit,
+    required Color color,
+  }) {
+    return Row(
+      children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 6),
+        Icon(icon, size: compact ? 13 : 14, color: color),
+        const SizedBox(width: 3),
+        Text(label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+                fontSize: compact ? 11.5 : 12,
+                color: MFColors.txt2,
+                fontWeight: FontWeight.w600)),
+        const SizedBox(width: 6),
+        // 数值**定宽**右对齐 + 单位定宽：位数/单位变化都不推动旁边内容
+        // （旧实现每秒抖一次就是这么来的；这里的固定宽度是刻意保留的约束）
+        SizedBox(
+          width: compact ? 52 : 62,
+          child: Text(value,
+              maxLines: 1,
+              softWrap: false,
+              overflow: TextOverflow.clip,
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                  fontSize: compact ? 13.5 : 14.5,
+                  fontWeight: FontWeight.w800,
+                  color: MFColors.txt,
+                  fontFamily: kNumFont)),
+        ),
+        const SizedBox(width: 3),
+        SizedBox(
+          width: 34,
+          child: Text(unit,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                  fontSize: compact ? 10 : 10.5, color: MFColors.txt3)),
+        ),
+      ],
     );
-  }
-}
-
-class _SparkPainter extends CustomPainter {
-  _SparkPainter({required this.values, required this.color});
-
-  /// 最近 ~60 秒的 1 秒采样（原始值，未平滑；平滑在 paint 里做，便于单测）
-  final List<double> values;
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (size.width <= 0 || size.height <= 0) return;
-
-    final baselineY = size.height - 0.7;
-    // 样本不足（刚连接）：画一条基线占位，卡片高度恒定，下方内容不跳
-    if (values.length < 2) {
-      canvas.drawLine(
-        Offset(0, baselineY),
-        Offset(size.width, baselineY),
-        Paint()
-          ..strokeWidth = 1.4
-          ..color = color.withValues(alpha: .35),
-      );
-      return;
-    }
-
-    // ① 两条曲线，一条"整体趋势"、一条"当前速率"：
-    //    用户要求这个图是**一个连续的整体**（像 FlClash），而不是每秒跳的尖刺 ——
-    //    尖刺会让客户以为"没有流量/时断时续"。
-    //    趋势线窗口大（12s）所以平稳；当前线窗口小（3s）跟手但不毛。
-    final trend = smoothSeries(values, window: 12);
-    final instant = smoothSeries(values, window: 3);
-    // ② 量程用平滑后的趋势峰值 + 下限：小流量也看得见，且不会逐帧忽大忽小
-    final peak = seriesPeak(trend);
-
-    final trendPts = toPoints(trend, size, peak);
-    final instantPts = toPoints(instant, size, peak);
-    final trendPath = smoothPath(trendPts);
-    final instantPath = smoothPath(instantPts);
-
-    // ③ 渐变填充（整体区域）：视觉上"一直在流动"，不像空图
-    final fillPath = closeToBottom(trendPath, size);
-    canvas.drawPath(
-      fillPath,
-      Paint()
-        ..shader = LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            color.withValues(alpha: .28),
-            color.withValues(alpha: .02),
-          ],
-        ).createShader(Rect.fromLTWH(0, 0, size.width, size.height)),
-    );
-
-    // ④ 趋势线：较细、半透明 → 就是那条"平稳的整体曲线"
-    canvas.drawPath(
-      trendPath,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.2
-        ..strokeCap = StrokeCap.round
-        ..strokeJoin = StrokeJoin.round
-        ..color = color.withValues(alpha: .55),
-    );
-    // ⑤ 当前速率线：稍微实一点，叠在趋势线之上
-    canvas.drawPath(
-      instantPath,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.5
-        ..strokeCap = StrokeCap.round
-        ..strokeJoin = StrokeJoin.round
-        ..color = color,
-    );
-    // ⑥ 基线始终在：断开/空闲时也有一条连续的底边，不显得"断了"
-    canvas.drawLine(
-      Offset(0, baselineY),
-      Offset(size.width, baselineY),
-      Paint()
-        ..strokeWidth = 1
-        ..color = color.withValues(alpha: .18),
-    );
-  }
-
-  @override
-  bool shouldRepaint(_SparkPainter old) =>
-      old.color != color || !_sameSeries(old.values, values);
-
-  static bool _sameSeries(List<double> a, List<double> b) {
-    if (identical(a, b)) return true;
-    if (a.length != b.length) return false;
-    for (var i = 0; i < a.length; i++) {
-      if (a[i] != b[i]) return false;
-    }
-    return true;
   }
 }
 
