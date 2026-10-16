@@ -380,10 +380,14 @@ void main() {
     /// 改成**轮询到状态稳定**、上限 3s：快机器立刻返回，慢机器也不会假失败；
     /// 状态始终不成立时依旧如实失败（不是把断言放宽）。
     Future<void> pumpHome(WidgetTester tester) async {
+      // 稳定 = 线路已装载 **且** 连接动作已真正发起（内核 start 被调用）或已给出错误。
+      //
+      // ⚠️ 不能只看 status != disconnected：connect() 一进入就是 connecting，
+      // 而内核 start 是**之后**才调的 —— 只看状态会在 start 之前就退出轮询，
+      // 断言 kernel.startCalls==1 随机失败（macOS arm64 上真实踩到过）。
       bool settled() {
         final nodesReady = conn.nodes.isNotEmpty;
         final attemptDone = kernel.startCalls.isNotEmpty ||
-            conn.status != ConnStatus.disconnected ||
             conn.error != null ||
             conn.errorKind != ConnErrorKind.none;
         return nodesReady && attemptDone;
