@@ -139,7 +139,14 @@ class ServerPool {
   /// 旧域名在其网络里往往正是打不开的那个 —— 表现为「换了线路还是拉取失败」。
   /// 改写后**新线路域名排在最前**，换线路立即生效（见 SubscribeUrlFailover.pinned）。
   ///
-  /// 只接受 http/https 绝对地址；相对地址、解析失败、已是当前线路时返回空串。
+  /// ⚠️ 只改写**池内域名之间**（源地址的域名必须是本应用内置线路池里的域名）：
+  /// 换域名的前提是「这些域名指向同一套后端、token 通用」。若订阅地址来自
+  /// 用户自定义/自建面板（池外域名），把它换成池内域名会指向**别人的后端**
+  /// （拿到 404 / 别人的订阅）。自建面板场景下后端下发的地址本来就在用户自己的
+  /// 域名上，也不需要改写。
+  ///
+  /// 只接受 http/https 绝对地址；相对地址、解析失败、池外域名、已是当前线路、
+  /// 或拿不到当前线路地址时一律返回空串（调用方按"不改写"处理）。
   String rewriteToActiveLine(String url) {
     final raw = url.trim();
     if (raw.isEmpty) return '';
@@ -147,9 +154,12 @@ class ServerPool {
     if (u == null || u.host.isEmpty) return '';
     final scheme = u.scheme.toLowerCase();
     if (scheme != 'http' && scheme != 'https') return '';
+    // 池外域名不改写（用户自建面板 / 第三方后端）
+    if (!_isPoolHost(u.host)) return '';
     final authority = activeAuthority;
     if (authority.isEmpty) return '';
-    if (u.scheme == Uri.tryParse(authority)?.scheme && u.authority == Uri.tryParse(authority)?.authority) {
+    final target = Uri.tryParse(authority);
+    if (target != null && u.scheme == target.scheme && u.authority == target.authority) {
       return ''; // 已经是当前线路，无需改写
     }
     // query 可能含 token 明文，保持不变
@@ -157,6 +167,19 @@ class ServerPool {
     if (rebuilt == raw) return '';
     return rebuilt;
   }
+
+  /// 主机是否属于内置线路池（与任意池内域名的 host 相同）
+  static bool _isPoolHost(String host) {
+    final h = host.trim().toLowerCase();
+    if (h.isEmpty) return false;
+    for (final base in domains) {
+      if (Uri.tryParse(base)?.host.toLowerCase() == h) return true;
+    }
+    return false;
+  }
+
+  /// 供测试/调试：某个主机是否属于内置线路池
+  static bool isPoolHost(String host) => _isPoolHost(host);
 
   int get activeIndex => _index;
 

@@ -58,6 +58,21 @@ void main() {
       expect(pool.rewriteToActiveLine(url), '');
     });
 
+    test('池外域名（自建面板 / 第三方后端）**不**改写：换域名只在同一套后端之间进行', () async {
+      final pool = ServerPool.instance;
+      await pool.reset();
+      await pool.markWorking(pool.all[1]);
+      // 自建面板下发的订阅地址：换成池内域名会指向别人的后端
+      expect(
+        pool.rewriteToActiveLine('https://my-own-panel.example/api/v1/client/subscribe?$_token'),
+        '',
+        reason: '池外域名必须保持原样（否则自建面板会被改成别人的域名）',
+      );
+      expect(ServerPool.isPoolHost('my-own-panel.example'), isFalse);
+      expect(ServerPool.isPoolHost('dy.moneyfly.top'), isTrue);
+      await pool.reset();
+    });
+
     test('非法地址（相对路径 / 非 http）→ 返回空串，不改写', () async {
       final pool = ServerPool.instance;
       await pool.reset();

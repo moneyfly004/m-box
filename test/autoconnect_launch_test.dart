@@ -372,10 +372,29 @@ void main() {
       } catch (_) {}
     });
 
+    /// 渲染首页并等「首屏异步链」跑完（拉订阅 → 解析 isolate → 装载节点 → 自动连接）。
+    ///
+    /// 不用固定等待时间：这条链路要跨 isolate 解析 + 假后端多轮请求，CI 上
+    /// （尤其 Windows runner 多文件并行、CPU 抢占时）偶尔跑不完，会让"无磁盘缓存"
+    /// 的用例偶发失败（v2.2.29 的发布就卡在这两条：nodes=0）。
+    /// 改成**轮询到状态稳定**、上限 3s：快机器立刻返回，慢机器也不会假失败；
+    /// 状态始终不成立时依旧如实失败（不是把断言放宽）。
     Future<void> pumpHome(WidgetTester tester) async {
+      bool settled() {
+        final nodesReady = conn.nodes.isNotEmpty;
+        final attemptDone = kernel.startCalls.isNotEmpty ||
+            conn.status != ConnStatus.disconnected ||
+            conn.error != null ||
+            conn.errorKind != ConnErrorKind.none;
+        return nodesReady && attemptDone;
+      }
+
       await tester.runAsync(() async {
         await tester.pumpWidget(_wrap(const HomePage()));
-        await Future<void>.delayed(const Duration(milliseconds: 600));
+        final deadline = DateTime.now().add(const Duration(seconds: 3));
+        while (!settled() && DateTime.now().isBefore(deadline)) {
+          await Future<void>.delayed(const Duration(milliseconds: 50));
+        }
       });
       await tester.pump();
     }
