@@ -15,7 +15,18 @@ AppName=MoneyFly
 AppVersion={#VERSION}
 AppPublisher=top.moneyfly
 AppPublisherURL=https://dy.moneyfly.top
-DefaultDirName={autopf}\MoneyFly
+; 默认安装目录：**C 盘**用户级目录 %LOCALAPPDATA%\Programs\MoneyFly。
+; 为什么不用 {autopf}：PrivilegesRequired=lowest 时它等于 {userpf}（同一个位置），
+; 但这个脚本要**显式钉在 C 盘**（用户要求「安装时默认装到 C 盘」），并且必须同时满足：
+;   - 免管理员：应用内「重启即更新」是静默安装（/SILENT），需要 UAC 的目录会让
+;     每次自动更新都弹权限框、甚至装不上（PrivilegesRequired 保持 lowest）；
+;   - 用户配置目录被重定向到别的盘时（企业环境常见），退回系统盘下的目录，
+;     保证"默认装在 C 盘"依然成立。
+DefaultDirName={code:GetDefaultDir}
+; **不再沿用上一次安装目录**：Inno 默认 UsePreviousAppDir=yes，曾经把程序装在
+; D 盘/E 盘的用户会一直默认装回那个盘（用户反馈"要默认装到 C 盘"的真实原因之一）。
+; 旧目录里的程序仍会被旧版卸载程序正常卸载（按 AppId 识别，与目录无关）。
+UsePreviousAppDir=no
 DefaultGroupName=MoneyFly
 ; 便携解压为 zip 版；安装版默认不强制管理员（v1 系统代理模式无需提权，
 ; 后续 TUN 模式需要时改为 requireAdministrator）
@@ -65,6 +76,22 @@ Filename: "{app}\moneyfly.exe"; Description: "{cm:LaunchProgram,MoneyFly}"; Flag
 Type: filesandordirs; Name: "{localappdata}\Temp\moneyfly_core"
 
 [Code]
+// 默认安装目录（见 [Setup] DefaultDirName={code:GetDefaultDir}）：
+// 常规机器 = C:\Users\<用户>\AppData\Local\Programs\MoneyFly；
+// 用户配置目录不在系统盘时 = <系统盘>:\MoneyFly（同样是免管理员的用户级位置）。
+function GetDefaultDir(Param: String): String;
+var
+  AppDataDir, SysDrive: String;
+begin
+  AppDataDir := ExpandConstant('{localappdata}');
+  SysDrive := ExpandConstant('{sd}');
+  if (Length(AppDataDir) >= 2) and (Length(SysDrive) >= 2) and
+     (CompareText(Copy(AppDataDir, 1, 2), Copy(SysDrive, 1, 2)) <> 0) then
+    Result := SysDrive + '\MoneyFly'
+  else
+    Result := AppDataDir + '\Programs\MoneyFly';
+end;
+
 // 升级安装时先结束正在运行的旧版本：/CLOSEAPPLICATIONS 靠 Restart Manager，
 // 个别环境下拿不到句柄就替换失败，这里兜一层 taskkill（没在跑时它返回非零，无害）。
 //
