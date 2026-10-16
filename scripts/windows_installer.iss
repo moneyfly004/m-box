@@ -51,15 +51,17 @@ Name: "{autodesktop}\MoneyFly"; Filename: "{app}\moneyfly.exe"; Tasks: desktopic
 ; （旧版本还停在后台/或窗口消失）。nowait 让安装器立刻返回，不阻塞收尾。
 Filename: "{app}\moneyfly.exe"; Description: "{cm:LaunchProgram,MoneyFly}"; Flags: nowait postinstall
 
-; ===== 卸载彻底：删除应用数据残留 =====
-; path_provider 在 Windows 上：支持目录 %APPDATA%\top.moneyfly\MoneyFly、
-; 缓存目录 %LOCALAPPDATA%\top.moneyfly\MoneyFly；mihomo 内核工作目录在
-; 系统临时目录 moneyfly_core。卸载时一并删除，保证重装后为全新状态
-; （重新登录 + 重新拉取订阅），不沿用旧订阅/节点配置 ——
-; 与客户端首启 install_id 检测互为兜底。
+; ===== 卸载清理 =====
+; ⚠️ 这里**只能删纯缓存**，绝不能删应用数据目录：
+; path_provider 在 Windows 上把 install_id（安装实例标记，客户端据此派生
+; X-MF-Device-Id / device_hash）写在 %APPDATA%\top.moneyfly\MoneyFly 下。
+; Inno 升级时会**先静默运行旧版卸载程序**，旧版在这里删掉了整个
+; %APPDATA%\top.moneyfly\MoneyFly ⇒ install_id 丢失 ⇒ 同一台电脑在后台被
+; 登记成新设备。生产实证：老站用户 susanzhang1230 只有 iPhone + 一台 Windows
+; 两台设备，后台却显示 3 台（MoneyFly 2.2.25 与 2.2.28 是同一台 PC）。
+; 应用数据的清理改到 [Code] 的 CurUninstallStepChanged，且**只在用户真正
+; 手动卸载（非静默）时**执行；升级/应用内「重启即更新」都走静默卸载，数据保留。
 [UninstallDelete]
-Type: filesandordirs; Name: "{userappdata}\top.moneyfly\MoneyFly"
-Type: filesandordirs; Name: "{localappdata}\top.moneyfly\MoneyFly"
 Type: filesandordirs; Name: "{localappdata}\Temp\moneyfly_core"
 
 [Code]
@@ -78,4 +80,31 @@ var
 begin
   Exec('taskkill.exe', '/f /im moneyfly.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   Result := '';
+end;
+
+// ===== 真正的「卸载彻底」：只在用户手动卸载时清应用数据 =====
+// 升级安装与应用内「重启即更新」都会**静默**运行旧版卸载程序（/SILENT），
+// 那种情况下必须保留 %APPDATA%\top.moneyfly\MoneyFly —— 里面有 install_id，
+// 删了同一台电脑就会被后台当成新设备（幽灵设备、白占设备名额）。
+// 用户从控制面板/开始菜单真正卸载（交互式，无 /SILENT）时才清理，
+// 保证「卸载后重装 = 全新状态（重新登录 + 重新拉订阅）」的原意不变。
+function IsSilentRun: Boolean;
+var
+  Cmd: String;
+begin
+  Cmd := Uppercase(GetCmdTail);
+  Result := (Pos('/SILENT', Cmd) > 0) or (Pos('/VERYSILENT', Cmd) > 0);
+end;
+
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+begin
+  if CurUninstallStep = usUninstall then
+  begin
+    if not IsSilentRun then
+    begin
+      DelTree(ExpandConstant('{userappdata}\top.moneyfly\MoneyFly'), True, True, True);
+      DelTree(ExpandConstant('{localappdata}\top.moneyfly\MoneyFly'), True, True, True);
+      DelTree(ExpandConstant('{localappdata}\Temp\moneyfly_core'), True, True, True);
+    end;
+  end;
 end;

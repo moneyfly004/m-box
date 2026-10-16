@@ -328,6 +328,11 @@ class DeviceInfo {
   final String deviceType;
   final String deviceModel;
   final String deviceBrand;
+  /// 硬件指纹哈希（后端字段 device_hw_fp，来自客户端上报的 X-MF-Device-Fp）。
+  /// 用于在设备列表里**精确**认出本机：同型号两台电脑的机型/品牌完全一样，
+  /// 只看机型会把别人的机器误标成「本机」。老后端不下发此字段时为空串，
+  /// 调用方应退回机型+品牌启发式判断。
+  final String deviceHwFp;
   final String ipAddress;
   final String location;
   final String osName;
@@ -352,6 +357,7 @@ class DeviceInfo {
     required this.deviceType,
     required this.deviceModel,
     required this.deviceBrand,
+    this.deviceHwFp = '',
     required this.ipAddress,
     required this.location,
     required this.osName,
@@ -376,6 +382,7 @@ class DeviceInfo {
         deviceType: j['device_type']?.toString() ?? j['type']?.toString() ?? '',
         deviceModel: j['device_model']?.toString() ?? '',
         deviceBrand: j['device_brand']?.toString() ?? '',
+        deviceHwFp: j['device_hw_fp']?.toString() ?? '',
         ipAddress: j['ip_address']?.toString() ?? j['ip']?.toString() ?? '',
         location: j['location']?.toString() ?? '',
         osName: j['os_name']?.toString() ?? '',

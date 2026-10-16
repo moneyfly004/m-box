@@ -414,6 +414,11 @@ class SubscriptionService {
                 SubscribeUrlFailover.tokenOf(info.subscribeUrl))
         ? cachedLatest.subscribeUrl
         : null;
+    // **当前服务器线路优先**（用户在设置里换过线路时尤其重要）：
+    // 把后端下发的订阅地址改写到当前线路的域名（token 不变，同一份订阅），
+    // 让它排在最前。否则换线路后仍会先试「上次成功的旧域名地址」——
+    // 而用户换线路通常正是因为旧域名在其网络打不开，结果就是"换了线路还是拉取失败"。
+    final pinned = _pinToActiveLine(info.subscribeUrl);
 
     String raw;
     var usedSubscribeUrl = info.subscribeUrl;
@@ -422,6 +427,7 @@ class SubscriptionService {
         primary: info.subscribeUrl,
         backups: info.subscribeUrls,
         preferred: preferred,
+        pinned: pinned,
         // 谁快用谁：用客户端域名实测结果排序（国内各地 ISP 差别大，实测优先）
         hostPriority: (u) =>
             ServerPool.instance.priorityOfHost(Uri.tryParse(u)?.host ?? ''),
@@ -467,6 +473,8 @@ class SubscriptionService {
           final again = await SubscribeUrlFailover.fetchFirst(
             primary: fresh.subscribeUrl,
             backups: fresh.subscribeUrls,
+            // 续费/重建订阅后的新地址同样要按当前线路改写域名
+            pinned: _pinToActiveLine(fresh.subscribeUrl),
             fetch: (u) async => ApiClient.instance
                 .fetchText(u, ua: await _subscriptionUa()),
             looksUsable: looksLikeSubscription,
@@ -543,6 +551,20 @@ class SubscriptionService {
     _cache = [];
     _cacheTime = DateTime.fromMillisecondsSinceEpoch(0);
     unawaited(SubscriptionCache.instance.clear());
+  }
+
+  /// 把订阅地址改写到**当前生效的服务器线路**域名（同 token，同一份订阅）。
+  ///
+  /// 返回空串表示无需/无法改写（已是当前线路、地址不合法、拿不到线路地址）。
+  /// 只有地址里带 token 时才改写：没有 token 的地址（自建面板的固定路径）换域名
+  /// 未必存在，保持原样交给轮换逻辑处理。
+  static String _pinToActiveLine(String subscribeUrl) {
+    if (SubscribeUrlFailover.tokenOf(subscribeUrl).isEmpty) return '';
+    try {
+      return ServerPool.instance.rewriteToActiveLine(subscribeUrl);
+    } catch (_) {
+      return '';
+    }
   }
 
   /// 拉取订阅原文（单地址，失败回退同一份订阅的本地缓存）。

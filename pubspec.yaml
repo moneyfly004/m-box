@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 2.2.28+193
+version: 2.2.29+194
 
 environment:
   sdk: ^3.11.0
@@ -59,6 +59,10 @@ dependencies:
 dev_dependencies:
   http_mock_adapter: ^0.6.1
   flutter_test:
+    sdk: flutter
+  # 真机/模拟器端到端验证（安卓全局模式、设置项生效）用：跑在设备进程内，
+  # 可以真正驱动内核与 VPN，而不是只在宿主机上跑 widget 测试。
+  integration_test:
     sdk: flutter
 
   # The "flutter_lints" package below contains a set of recommended lints to

@@ -42,9 +42,15 @@ class DevicesPage extends StatefulWidget {
 /// 真实工单：到期后把设备全删了，续费一年仍然拿不到节点，因为本机已被移除）。
 /// 之前列表里不区分本机，用户根本不知道自己删的是正在用的这台。
 ///
-/// 判定口径与后端识别设备的口径一致：UA 里的机型 + 品牌（客户端每个请求都会带
-/// `X-MF-Device-Model` / `X-MF-Device-Brand`）。
+/// 判定口径与后端识别设备的口径一致，**优先用硬件指纹**：
+///  ① 后端下发 `device_hw_fp`（= 本机上报的 `X-MF-Device-Fp`）时按它精确比对 ——
+///     同型号两台电脑的机型/品牌完全一样，只靠机型会把别人的机器误标成本机；
+///  ② 旧后端不发该字段、或本机读不到硬件指纹时，退回机型 + 品牌的启发式判断。
 bool isCurrentDeviceEntry(DeviceInfo d, Map<String, String> headers) {
+  final fp = (headers['X-MF-Device-Fp'] ?? '').trim().toLowerCase();
+  final dFp = d.deviceHwFp.trim().toLowerCase();
+  if (fp.isNotEmpty && dFp.isNotEmpty) return fp == dFp;
+
   final model = (headers['X-MF-Device-Model'] ?? '').trim().toLowerCase();
   final brand = (headers['X-MF-Device-Brand'] ?? '').trim().toLowerCase();
   final dModel = d.deviceModel.trim().toLowerCase();

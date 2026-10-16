@@ -1,6 +1,7 @@
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart';
 
+import '../services/device_fingerprint.dart';
 import '../services/local_paths.dart';
 
 /// MoneyFly User-Agent + 设备信息头
@@ -128,6 +129,21 @@ class UserAgent {
       }
       if (installId.isNotEmpty) {
         deviceHeaders['X-MF-Device-Id'] = installId;
+      }
+    } catch (_) {}
+
+    // 硬件指纹：跨「重装/清数据/安装包升级删了应用数据」不变的机器标识。
+    //
+    // install_id 会随安装实例变化（Windows 安装包升级时旧卸载程序若删了
+    // %APPDATA%\top.moneyfly\MoneyFly，install_id 就丢了），后端会因此把同一台
+    // 电脑登记成新设备（幽灵设备、白占设备名额）。后端在「安装 ID 没命中」时会用
+    // 这个指纹把同一订阅下的老行认回来，所以同一台机器重装后仍只占一个名额。
+    //
+    // 同样刻意放在平台信息采集的 try 之外：读不到就是不加这个头（后端行为不变）。
+    try {
+      final hwFp = await DeviceFingerprint.resolve();
+      if (hwFp.isNotEmpty) {
+        deviceHeaders['X-MF-Device-Fp'] = hwFp;
       }
     } catch (_) {}
   }

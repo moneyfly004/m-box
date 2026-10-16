@@ -20,6 +20,7 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity : FlutterActivity() {
     companion object {
         private const val CHANNEL = "top.moneyfly/vpn_permissions"
+        private const val DEVICE_CHANNEL = "top.moneyfly/device_id"
         private const val CORE_CHANNEL = "top.moneyfly/vpn_core"
         private const val REQ_VPN = 1001
         private const val REQ_NOTIFY = 1002
@@ -64,6 +65,15 @@ class MainActivity : FlutterActivity() {
                 else -> result.notImplemented()
             }
         }
+
+        // 设备标识通道：硬件指纹读取（跨重装不变，用于设备去重）
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, DEVICE_CHANNEL)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "getAndroidId" -> result.success(androidId())
+                    else -> result.notImplemented()
+                }
+            }
 
         // 核心控制通道：启动/停止 VPN（mihomo 内核由 VpnService 托管）
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CORE_CHANNEL)
@@ -262,6 +272,17 @@ class MainActivity : FlutterActivity() {
                 .map { mapOf("package" to it.key, "label" to it.value) }
         } catch (e: Exception) {
             emptyList()
+        }
+    }
+
+    /** ANDROID_ID：Android 8+ 按「应用签名 + 用户」作用域（旧版按设备+用户），
+     *  **卸载重装不变化**，作为跨安装实例的硬件指纹。取不到时返回空串，
+     *  Dart 侧会跳过 X-MF-Device-Fp 头（后端按原逻辑处理）。 */
+    private fun androidId(): String {
+        return try {
+            Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID) ?: ""
+        } catch (e: Exception) {
+            ""
         }
     }
 

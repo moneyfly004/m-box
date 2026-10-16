@@ -123,6 +123,41 @@ class ServerPool {
     return u?.host ?? activeBase;
   }
 
+  /// 当前线路的 `scheme://host[:port]`（改写订阅地址用）。
+  /// 拿不到有效地址时返回空串（调用方忽略改写）。
+  String get activeAuthority {
+    final u = Uri.tryParse(activeBase);
+    if (u == null || u.host.isEmpty) return '';
+    return '${u.scheme}://${u.authority}';
+  }
+
+  /// 把后端下发的**绝对订阅地址**改写到当前线路的域名：
+  /// 同一套后端下 token 通用（订阅按 token 查库，与域名无关），
+  /// 所以只换 `scheme://host[:port]`、保留 path 与 query 即可拿到同一份订阅。
+  ///
+  /// 为什么需要：用户在设置里换线路后，若继续用「上次成功的旧域名订阅地址」，
+  /// 旧域名在其网络里往往正是打不开的那个 —— 表现为「换了线路还是拉取失败」。
+  /// 改写后**新线路域名排在最前**，换线路立即生效（见 SubscribeUrlFailover.pinned）。
+  ///
+  /// 只接受 http/https 绝对地址；相对地址、解析失败、已是当前线路时返回空串。
+  String rewriteToActiveLine(String url) {
+    final raw = url.trim();
+    if (raw.isEmpty) return '';
+    final u = Uri.tryParse(raw);
+    if (u == null || u.host.isEmpty) return '';
+    final scheme = u.scheme.toLowerCase();
+    if (scheme != 'http' && scheme != 'https') return '';
+    final authority = activeAuthority;
+    if (authority.isEmpty) return '';
+    if (u.scheme == Uri.tryParse(authority)?.scheme && u.authority == Uri.tryParse(authority)?.authority) {
+      return ''; // 已经是当前线路，无需改写
+    }
+    // query 可能含 token 明文，保持不变
+    final rebuilt = '$authority${u.path}${u.hasQuery ? '?${u.query}' : ''}';
+    if (rebuilt == raw) return '';
+    return rebuilt;
+  }
+
   int get activeIndex => _index;
 
   /// 从本地恢复上次可用的线路（幂等，可重复调用）

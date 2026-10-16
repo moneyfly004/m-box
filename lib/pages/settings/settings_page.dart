@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/api/server_pool.dart';
 import '../../core/proxy/proxy_core.dart';
+import '../../core/services/account_service.dart';
 import '../../core/services/app_log.dart';
 import '../../core/services/autostart.dart';
 import '../../core/services/crash_logger.dart';
@@ -957,6 +958,27 @@ class _SettingsPageState extends State<SettingsPage> {
     setState(() {});
     _toast(AppStrings.t('settings_server_line_switched')
         .replaceAll('{host}', pool.activeHost));
+    // 换线路后**立刻用新线路的域名重拉账号与订阅**：
+    // 只改地址不重拉的话，本次会话（以及重启前的每次自动刷新）仍然沿用旧域名
+    // 拉到的内容/旧域名的订阅地址，用户看到的还是「换了线路照样拉取失败」。
+    // 重拉会按当前线路改写订阅域名（见 SubscriptionService._pinToActiveLine）。
+    await _refreshAfterLineSwitch();
+  }
+
+  /// 换线路后的强制刷新（账号 + 订阅 + 应用到连接器）。
+  ///
+  /// 复用与「重新绑定本机」相同的刷新链路：先刷账号（拿到最新的 subscribe_url /
+  /// 设备状态），再拉订阅节点，最后喂给连接器（已连接时不会打断当前线路）。
+  Future<void> _refreshAfterLineSwitch() async {
+    try {
+      await AccountService.instance.refresh(force: true);
+      final nodes = await SubscriptionService.instance.fetchNodes(force: true);
+      await ConnectionController.instance.applySubscriptionNodes(nodes);
+      AppLog.log('LINE', '已切到线路 ${ServerPool.instance.activeHost} 并重拉订阅');
+    } catch (e) {
+      // 新线路也拉不到时如实记录，不打断用户（首页的限制/失败提示会引导重试）
+      AppLog.error('refresh after line switch failed: $e');
+    }
   }
 
   /// 生效的主 DNS 列表：dnsNameservers（新，主列表）> dns（旧单值兼容）> 默认

@@ -27,11 +27,18 @@ class SubscribeUrlFailover {
     return m?.group(1) ?? '';
   }
 
-  /// 候选顺序：上次成功的（若与主地址同属一份订阅）→ 主地址 → 备用地址（去重）。
+  /// 候选顺序：**当前线路改写的地址** → 上次成功的（若与主地址同属一份订阅）
+  /// → 主地址 → 备用地址（去重）。
   static List<String> candidates({
     required String primary,
     Iterable<String> backups = const [],
     String? preferred,
+    /// 按「用户在设置里选的服务器线路」改写过的订阅地址（只换域名，token 不变）。
+    ///
+    /// 必须排在 `preferred` **之前**：用户在设置里换线路后，订阅必须立即以新线路的
+    /// 域名拉取；旧实现把「上次成功的旧域名地址」排第一，于是换线路后仍然先撞旧域名
+    /// （旧域名往往正是打不开的那个）→ 要么等一次超时才换、要么直接报「拉取失败」。
+    String? pinned,
     /// 可选的「主机快慢」判据（越小越快，来自客户端域名实测）。
     /// 传入时：候选按快慢排序（上次成功的仍排最前）—— 国内各地 ISP 差别大，
     /// 「哪个快用哪个」必须由实测决定，不能写死主地址优先。
@@ -45,6 +52,11 @@ class SubscribeUrlFailover {
     }
 
     final primaryToken = tokenOf(primary);
+    // pinned 只在「与主地址同一份订阅」时采用：避免拿别的账号的 token 去请求
+    final pinnedToken = tokenOf(pinned ?? '');
+    if (pinnedToken.isNotEmpty && pinnedToken == primaryToken) {
+      add(pinned);
+    }
     final preferredToken = tokenOf(preferred ?? '');
     // preferred 只在「与主地址同一份订阅」时采用：避免续费/重建订阅后
     // 拿着旧 token 的地址反复失败（旧地址会 403/404）
@@ -77,6 +89,8 @@ class SubscribeUrlFailover {
 
   /// 依次尝试候选地址，返回第一个成功拿到"像订阅的内容"的结果。
   ///
+  /// [pinned] 是「按当前服务器线路改写过域名」的订阅地址（见 [candidates]），
+  /// 排在最前，保证换线路后立即以新域名拉取。
   /// [looksUsable] 用于识别"连上了但不是订阅"（拦截页/HTML）；为空则只要请求成功就算可用。
   /// [onSuccess] 在成功时回调实际使用的地址（调用方据此记忆/落盘）。
   /// 全部失败抛出最后一次异常；候选为空时抛 [StateError]。
@@ -84,6 +98,7 @@ class SubscribeUrlFailover {
     required String primary,
     Iterable<String> backups = const [],
     String? preferred,
+    String? pinned,
     int Function(String url)? hostPriority,
     required SubscribeFetch fetch,
     bool Function(String raw)? looksUsable,
@@ -105,6 +120,7 @@ class SubscribeUrlFailover {
         primary: primary,
         backups: backups,
         preferred: preferred,
+        pinned: pinned,
         hostPriority: hostPriority);
     if (list.isEmpty) {
       throw StateError('没有可用的订阅地址');
