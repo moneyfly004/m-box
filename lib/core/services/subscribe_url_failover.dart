@@ -119,11 +119,14 @@ class SubscribeUrlFailover {
     // 只要还没超预算就继续往下试，避免被排序+截断卡死，也不会无限拖。
     int maxAttempts = 8,
     Duration overallBudget = const Duration(seconds: 30),
-    /// **首个候选**（当前线路）的单独尝试上限：比常规连接超时（12s）短得多。
+    /// **首个候选**（当前线路）的单独尝试上限：比常规连接超时（12s）短一些。
     ///
     /// 被墙的域名几乎都是"连接超时"，等满 12s 才换下一个是"点更新订阅像卡住"的
-    /// 主因。5s 足够判定"这条线路现在打不开"，随即进入下面的并行竞速。
-    Duration firstAttemptTimeout = const Duration(seconds: 5),
+    /// 主因。8s 足够判定"这条线路现在打不开"，随即进入下面的并行竞速。
+    /// ⚠️ 不能设太小：订阅正文常见 300~500KB，慢速移动网络下 5s 下不来很正常，
+    /// 一刀切会把"其实能通、只是慢"的地址判死（客户实测：只剩一个可用域名 +
+    /// 5s 上限 → 永远报"拉不到新订阅"）。
+    Duration firstAttemptTimeout = const Duration(seconds: 8),
     /// 首个候选失败后**同时竞速**的候选数量（happy eyeballs）。
     ///
     /// 串行等待的代价是"每个不可达域名都要赔一次超时"；并行竞速后最坏等待约为
@@ -194,6 +197,15 @@ class SubscribeUrlFailover {
     if (first != null) return first;
     idx++;
 
+    // ①' 只有一个候选时，短超时失败**不能直接判死**：大订阅在慢速网络上就是会
+    //    超过 firstAttemptTimeout —— 用完整超时给同一个地址再试一次。
+    var firstFullTried = false;
+    if (list.length == 1) {
+      firstFullTried = true;
+      final retry = await tryOnce(list.first);
+      if (retry != null) return retry;
+    }
+
     // ② 首尝试失败 → 接下来 raceWidth 个候选并行竞速
     while (idx < list.length && attempts < maxAttempts) {
       final batch = <String>[];
@@ -209,6 +221,18 @@ class SubscribeUrlFailover {
       if (won != null) return won;
       // 至少要试 2 个（单次超时可能是这个域名慢/被墙），之后按整体预算收敛
       if (attempts >= 2 && DateTime.now().isAfter(deadline)) break;
+    }
+
+    // ② 最后的兜底：首地址此前只被**短超时**试过一次（慢但可用的地址会被误判），
+    //    这里用完整超时再给它一次机会，避免"其实能通却报拉取失败"。
+    //
+    //    只在还没用满 maxAttempts 时才补这一次：maxAttempts 的语义是"别让用户
+    //    干等太久"，已经试满上限就如实报错（单候选的情形在上面的 ①' 已单独处理，
+    //    因为那种情况多试一次是成功与失败的分界）。
+    if (!firstFullTried && attempts < maxAttempts) {
+      firstFullTried = true;
+      final lastChance = await tryOnce(list.first);
+      if (lastChance != null) return lastChance;
     }
 
     throw lastError ?? StateError('订阅地址全部不可用');

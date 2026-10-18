@@ -99,7 +99,11 @@ class _HomePageState extends State<HomePage>
       final stuck = acc.isBlocked ||
           acc.status == AccountStatus.deviceFull ||
           SubscriptionService.instance.deviceRejected ||
-          SubscriptionService.instance.lastIssue != null ||
+          // 登录态失效时不自动重试：令牌过期只能重新登录，每 60s 空转只会
+          // 刷日志、还让「网络异常」的假象一直挂着（提示里已经给重新登录出口）
+          (SubscriptionService.instance.lastIssue != null &&
+              SubscriptionService.instance.lastIssue !=
+                  SubscribeIssue.authRequired) ||
           context.read<ConnectionController>().nodes.isEmpty;
       if (!stuck) return; // 正常状态什么都不做（零额外请求）
       await acc.refresh(force: true);

@@ -124,6 +124,8 @@ class SubscribeIssuePrompt {
         if (context.mounted) await _relogin(context);
         return;
       case SubscribeIssue.noSubscribeUrl:
+      case SubscribeIssue.authRequired:
+        // 登录态失效：重新登录是唯一出路（重试/换网络都没用）
         await _relogin(context);
         return;
       case SubscribeIssue.expired:
@@ -213,6 +215,8 @@ class SubscribeIssuePrompt {
             : AppStrings.t('device_full_title');
       case SubscribeIssue.noSubscribeUrl:
         return AppStrings.t('issue_no_url_title');
+      case SubscribeIssue.authRequired:
+        return AppStrings.t('issue_auth_title');
       case SubscribeIssue.network:
         return AppStrings.t('issue_network_title');
       case SubscribeIssue.badContent:
@@ -242,6 +246,8 @@ class SubscribeIssuePrompt {
         });
       case SubscribeIssue.noSubscribeUrl:
         return AppStrings.t('issue_no_url_body');
+      case SubscribeIssue.authRequired:
+        return AppStrings.t('issue_auth_body');
       case SubscribeIssue.network:
         return AppStrings.t('issue_network_body');
       case SubscribeIssue.badContent:
@@ -264,7 +270,8 @@ class SubscribeIssuePrompt {
       case SubscribeIssue.deviceKicked:
         return AppStrings.t('issue_rebind');
       case SubscribeIssue.noSubscribeUrl:
-        return AppStrings.t('issue_relogin');
+      case SubscribeIssue.authRequired:
+        return AppStrings.t('issue_auth_action');
       case SubscribeIssue.expired:
         return AppStrings.t('go_renew');
       case SubscribeIssue.noSubscription:

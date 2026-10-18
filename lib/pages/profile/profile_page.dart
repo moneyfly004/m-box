@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../../core/api/api_client.dart';
 import '../../core/models/models.dart';
 import '../../core/services/account_service.dart';
+import '../../core/services/subscription_service.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/services/update_service.dart';
 import '../../core/services/user_service.dart';
@@ -30,6 +31,9 @@ class _ProfilePageState extends State<ProfilePage> {
   DashboardInfo? get _dashboard => UserService.instance.cachedDashboard;
   bool _loading = false;
   bool _loadFailed = false; // 上次加载失败(数据区给重试,避免全零误读)
+  /// 上次失败的分类：登录态失效（401）与真正的网络异常要给出**不同**的出路。
+  /// 旧实现一律提示"账户信息加载失败"，用户只能反复点重试（对过期令牌永远无效）。
+  SubscribeIssue? _failIssue;
 
   /// 「我的」页在主 Tab 里的下标（见 main.dart 的 _pages）。
   /// 页面被 IndexedStack 保活，切回来不会重跑 initState，
@@ -80,12 +84,20 @@ class _ProfilePageState extends State<ProfilePage> {
     }
     try {
       await UserService.instance.dashboard(force: true);
-      if (mounted) setState(() {});
+      if (mounted) {
+        setState(() {
+          _loadFailed = false;
+          _failIssue = null;
+        });
+      }
     } catch (e) {
       if (!mounted) return;
       if (!hadCache) {
-        // 无缓存且失败：给「错误+重试」占位
-        setState(() => _loadFailed = true);
+        // 无缓存且失败：给「错误+重试」占位，并按原因给出**正确出路**
+        setState(() {
+          _loadFailed = true;
+          _failIssue = SubscriptionService.classifyFromError(ApiClient.errorMsg(e));
+        });
         _toast(ApiClient.errorMsg(e));
       }
       // 已有缓存时静默失败：保留旧数据继续浏览，不打断用户
@@ -100,6 +112,19 @@ class _ProfilePageState extends State<ProfilePage> {
       await AccountService.instance.refresh(force: true);
       if (mounted) setState(() {});
     } catch (_) {}
+  }
+
+  /// 重新登录：清会话/缓存后回到登录页（与订阅提示里的"重新登录"同一套行为）
+  Future<void> _relogin() async {
+    try {
+      await AuthService.instance.logout();
+      UserService.instance.invalidateCache();
+      if (!mounted) return;
+      Navigator.of(context).popUntil((r) => r.isFirst);
+      context.read<SessionState>().setLoggedIn(false);
+    } catch (e) {
+      debugPrint('relogin failed: $e');
+    }
   }
 
   void _toast(String msg) {
@@ -151,25 +176,42 @@ class _ProfilePageState extends State<ProfilePage> {
                     children: [
                       Icon(Icons.cloud_off_outlined, size: 40, color: MFColors.txt3),
                       const SizedBox(height: 10),
-                      Text(AppStrings.t('profile_load_fail'),
+                      Text(
+                          _failIssue == SubscribeIssue.authRequired
+                              ? AppStrings.t('issue_auth_title')
+                              : AppStrings.t('profile_load_fail'),
                           textAlign: TextAlign.center,
                           maxLines: 3,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(fontSize: 12.5, color: MFColors.txt2)),
+                      if (_failIssue == SubscribeIssue.authRequired)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Text(AppStrings.t('issue_auth_body'),
+                              textAlign: TextAlign.center,
+                              maxLines: 4,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(fontSize: 11.5, color: MFColors.txt3)),
+                        ),
                       const SizedBox(height: 14),
                       // 审计 P2：小控件一律 InkWell（有按压反馈）+ 命中区够大
                       Material(
                         color: Colors.transparent,
                         child: InkWell(
                         borderRadius: BorderRadius.circular(12),
-                        onTap: _load,
+                        onTap: _failIssue == SubscribeIssue.authRequired
+                            ? _relogin
+                            : _load,
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
                           constraints: const BoxConstraints(minHeight: 44),
                           decoration: BoxDecoration(
                               gradient: MFColors.brandGradient,
                               borderRadius: BorderRadius.circular(12)),
-                          child: Text(AppStrings.t('retry'),
+                          child: Text(
+                              _failIssue == SubscribeIssue.authRequired
+                                  ? AppStrings.t('profile_relogin')
+                                  : AppStrings.t('retry'),
                               style: const TextStyle(fontSize: 13, color: Colors.white, fontWeight: FontWeight.w600)),
                         ),
                         ),

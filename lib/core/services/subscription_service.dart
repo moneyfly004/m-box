@@ -42,6 +42,13 @@ enum SubscribeIssue {
   /// 有套餐但后端没下发订阅地址（异常）→ 重新登录 / 重试
   noSubscribeUrl,
 
+  /// 登录态失效（401 / 令牌过期 / 未授权）→ 重新登录
+  ///
+  /// 为什么单列一类：旧实现把所有认不出的错误都归到 [network]，于是
+  /// 「登录已过期」也被显示成「网络服务端异常，暂时拿不到最新订阅」——
+  /// 用户反复重试、重装、换网络都没用（唯一出路是重新登录），客诉不断。
+  authRequired,
+
   /// 网络 / 后端异常 → 重试
   network,
 
@@ -171,7 +178,26 @@ class SubscriptionService {
     if (isKickedMessage(msg)) return SubscribeIssue.deviceKicked;
     if (_isDisableMessage(msg)) return SubscribeIssue.accountDisabled;
     final m = msg.toLowerCase();
-    if (msg.contains('设备') && (msg.contains('上限') || msg.contains('已达'))) {
+    // 登录态失效：401 / 令牌过期 / 未授权 / 后端明确要求重新登录
+    // （踢下线判定在上面已先行命中，不会被这里抢走）
+    if (msg.contains('登录已过期') ||
+        msg.contains('登录已失效') ||
+        msg.contains('未授权') ||
+        msg.contains('请重新登录') ||
+        msg.contains('请登录') ||
+        m.contains('unauthorized') ||
+        m.contains('invalid token') ||
+        m.contains('token expired') ||
+        m.contains('token is expired')) {
+      return SubscribeIssue.authRequired;
+    }
+    // 面板的下发文案有两种写法：「设备数量已达上限」与
+    // 「设备数量超过限制(当前X/限制Y)」—— 两种都要认出来，否则会掉到 network
+    if (msg.contains('设备') &&
+        (msg.contains('上限') ||
+            msg.contains('已达') ||
+            msg.contains('超过限制') ||
+            msg.contains('超限'))) {
       return SubscribeIssue.deviceFull;
     }
     if (m.contains('device limit') || m.contains('too many devices')) {
