@@ -1,0 +1,55 @@
+name: Retitle Releases (English, generic)
+
+# 统一改写所有已发布 Release 的说明文字：
+#   - 只用英文；
+#   - 只写 "Fixed some issues."（不暴露任何具体修复内容）；
+#   - 包括历史版本（此前是中文逐条说明）。
+#
+# 为什么需要单独一个工作流：本地 gh 凭据对该仓库没有写权限（403/404），
+# 只能借仓库自带的 GITHUB_TOKEN 来编辑 Release。
+#
+# 触发：修改本文件或 .github/retitle-releases.txt 并推送到 main（一次性、幂等）；
+#      也可在 Actions 页面手动 Run workflow。
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/retitle-releases.yml'
+      - '.github/retitle-releases.txt'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  retitle:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 把所有 Release 说明改成英文泛化文案
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -uo pipefail
+          BODY="Fixed some issues."
+          echo "统一文案: $BODY"
+          tags="$(gh release list --repo "$GITHUB_REPOSITORY" --limit 200 \
+                  --json tagName,isDraft \
+                  --jq '.[] | select(.isDraft == false) | .tagName')"
+          if [ -z "$tags" ]; then
+            echo "没有已发布的 Release"
+            exit 0
+          fi
+          failed=0
+          for t in $tags; do
+            if gh release edit "$t" --repo "$GITHUB_REPOSITORY" --notes "$BODY" >/dev/null 2>&1; then
+              echo "✓ $t → $BODY"
+            else
+              echo "✗ $t 改写失败"
+              failed=$((failed+1))
+            fi
+          done
+          echo "----- 结果核对 -----"
+          gh release list --repo "$GITHUB_REPOSITORY" --limit 200 \
+            --json tagName,body --jq '.[] | "\(.tagName): \(.body | gsub("\n"; " ") | .[0:60])"'
+          echo "失败数: $failed"
+          [ "$failed" -eq 0 ]
