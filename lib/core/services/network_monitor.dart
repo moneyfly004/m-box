@@ -33,9 +33,24 @@ class NetworkMonitor {
     _prev = null;
   }
 
+  /// 只比较「底层接入方式」，**忽略 VPN 隧道接口本身**（ConnectivityResult.other）。
+  ///
+  /// iOS 上隧道一起来，connectivity_plus 就会在结果里多出 `other`，并且会来回
+  /// 抖动（实测日志：每 8 秒 wifi → [wifi, other] → wifi 循环）。旧实现把它当成
+  /// "网络变了"，于是每次抖动都触发一次网络变化处理（重排测速、重连判定），
+  /// 用户体感就是「连上没多久就自己断开/重连」。
+  static List<ConnectivityResult> _underlying(List<ConnectivityResult> r) =>
+      r.where((e) => e != ConnectivityResult.other).toList();
+
   void _onChange(List<ConnectivityResult> results) {
-    if (_prev != null && !listEquals(results, _prev) && !results.contains(ConnectivityResult.none)) {
-      AppLog.net('network changed: $_prev → $results');
+    final now = _underlying(results);
+    final prevUnderlying = _prev == null ? null : _underlying(_prev!);
+    final changed = _prev != null &&
+        !listEquals(now, prevUnderlying ?? const <ConnectivityResult>[]) &&
+        !results.contains(ConnectivityResult.none);
+    _prev = results;
+    if (changed) {
+      AppLog.net('network changed: $prevUnderlying → $now');
       _debounce?.cancel();
       _debounce = Timer(const Duration(seconds: 3), () {
         // ⑥ 网络变了（WiFi↔蜂窝 / 断网→恢复）→ 之前"哪个域名可达/多快"的结论
@@ -54,6 +69,5 @@ class NetworkMonitor {
         ConnectionController.instance.onNetworkChanged();
       });
     }
-    _prev = results;
   }
 }

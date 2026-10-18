@@ -105,9 +105,9 @@ class ProxyCoreEmbedded extends ProxyCore {
     _smartMode = config['mode']?.toString() != 'global';
     // 剥离 app 侧元数据（系统代理端口/模式/TUN 开关），不写入 YAML
     final tunMode = config.remove('_tunMode')?.toString() ?? 'auto';
-    config.remove('_localPort');
     final clashPort =
         (config.remove('_clashApiPort') as num?)?.toInt() ?? 9090;
+    final localPort = (config.remove('_localPort') as num?)?.toInt() ?? 2080;
     final clashSecret = config.remove('_clashApiSecret')?.toString() ?? '';
     _api.options.baseUrl = 'http://127.0.0.1:$clashPort';
     if (clashSecret.isNotEmpty) {
@@ -126,6 +126,16 @@ class ProxyCoreEmbedded extends ProxyCore {
       await _channel.invokeMethod('startVpn', {
         'configYaml': configYaml,
         'needTun': needTun,
+        // ⚠️ iOS 侧（VpnCorePlugin/PacketTunnelProvider）必须拿到这三项：
+        //   · clashSecret：扩展在**网络切换**时要 PATCH /configs 把新接口绑上去，
+        //     没有正确的 secret 会被内核回 401 → 切换后流量全断（客户实测
+        //     「热切换失败 / 经常自动断开」，扩展日志里那行
+        //     `API 自检(扩展内) HTTP 401` 就是它）；
+        //   · apiPort / localPort：端口被用户改过时，扩展要跟 App 用同一套端口。
+        // 旧实现只传了 configYaml/needTun → 扩展拿到空 secret → 401 循环。
+        'apiPort': clashPort,
+        'localPort': localPort,
+        'clashSecret': clashSecret,
       });
     } on PlatformException catch (e) {
       // start_failed（原生侧返回，如 Android 12+ 后台启动前台服务受限）：
@@ -433,12 +443,28 @@ class ProxyCoreEmbedded extends ProxyCore {
 
   Future<void> _clash(String method, String path, Object body) async {
     if (!_running) throw StateError('not running');
-    await _api.request(path,
-        data: body,
-        options: Options(method: method, validateStatus: (s) => s != null && s >= 200 && s < 300));
+    try {
+      await _api.request(path,
+          data: body,
+          options: Options(
+              method: method,
+              validateStatus: (s) => s != null && s >= 200 && s < 300));
+    } on DioException catch (e) {
+      final code = e.response?.statusCode;
+      if (code == 401 || code == 403) {
+        _apiAuthFailed = true;
+        AppLog.error('内核 API 鉴权失败（$method $path → HTTP $code）：'
+            'secret 与内核配置不一致，热切换必然失败');
+      }
+      rethrow;
+    }
   }
 
   bool _watchdogInFlight = false;
+
+  /// 最近一次 API 调用是否因鉴权失败（供 UI/日志诊断：热切换失败的真实原因）
+  bool _apiAuthFailed = false;
+  bool get apiAuthFailed => _apiAuthFailed;
 
   void _startWatchdog() {
     _watchdog?.cancel();
@@ -452,7 +478,21 @@ class ProxyCoreEmbedded extends ProxyCore {
         try {
           final r = await _api.get('/version',
               options: Options(validateStatus: (s) => true));
-          ok = r.statusCode == 200;
+          final code = r.statusCode ?? 0;
+          // ⚠️ 只要内核**回了 HTTP** 就说明它活着：401/403 是鉴权问题
+          // （secret 与配置不一致，热切换会失败，但不代表内核死了）。
+          // 旧实现要求严格 200 → iOS 扩展侧 secret 为空时每 15s 判死一次，
+          // 触发 connect→死→recover 无限循环（客户实测「经常自动断开」）。
+          ok = code > 0 && code < 500;
+          if (!ok) {
+            AppLog.kernel('watchdog: /version 返回 $code');
+          } else if (code == 401 || code == 403) {
+            _apiAuthFailed = true;
+            AppLog.error('内核 API 鉴权失败（HTTP $code）：热切换/测速会失败，'
+                '请检查 secret 是否与配置一致');
+          } else {
+            _apiAuthFailed = false;
+          }
         } catch (_) {
           ok = false;
         }
@@ -461,9 +501,19 @@ class ProxyCoreEmbedded extends ProxyCore {
           return;
         }
         _watchdogFailures++;
-        final nativeAlive = _watchdogFailures >= _watchdogDeadThreshold
+        var nativeAlive = _watchdogFailures >= _watchdogDeadThreshold
             ? await _nativeVpnAlive()
             : true;
+        // 判死前**二次确认**：iOS 的 NEVPNStatus 在系统调整隧道（reasserting/
+        // 网络切换）瞬间可能返回 false，一次采样不可信。再查一次仍为 false 才认。
+        if (!nativeAlive) {
+          await Future<void>.delayed(const Duration(milliseconds: 800));
+          final again = await _nativeVpnAlive();
+          if (again) {
+            AppLog.kernel('watchdog: 原生状态抖动（false→true），保持连接');
+            nativeAlive = true;
+          }
+        }
         final action = decideWatchdog(
           pollOk: false,
           consecutiveFailures: _watchdogFailures,

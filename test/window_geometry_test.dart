@@ -31,3 +31,6 @@ void main() {
     });
   });
 }
+
+// 说明：窗口几何 + 看门狗 + 网络抖动三处 iOS/Windows 稳定性修复的判定口径，
+// 分别见 test/window_geometry_test.dart（几何）、下面的 watchdog 判定矩阵。

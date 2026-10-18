@@ -468,6 +468,9 @@ class SubscriptionService {
       );
       raw = fetched.raw;
       usedSubscribeUrl = fetched.url;
+      AppLog.log('LINE',
+          '订阅拉取成功：${Uri.tryParse(usedSubscribeUrl)?.host ?? usedSubscribeUrl}'
+          '（${raw.length} 字节）');
     } catch (e) {
       // 所有地址都失败 → 回退本地缓存（同一份订阅即可，域名不同也算）
       //
@@ -593,8 +596,9 @@ class SubscriptionService {
       ServerPool.instance.noteDomainSuccess(url);
       // ② 若"用户选的线路"没用上（自动兜底到别的域名），置位一次性提示
       ServerPool.instance.noteEffectiveLine(url);
-      AppLog.log('LINE',
-          '订阅拉取成功：${Uri.tryParse(url)?.host ?? url}（${raw.length} 字节）');
+      // 成功日志不在这里打：并行竞速会让 2~3 个地址同时成功，逐条打会刷出
+      // 3 条"订阅拉取成功"（客户日志里就是这样，看着像重复拉取）。
+      // 采用哪个地址由调用方在拿到结果后统一打一条。
       return raw;
     } catch (e) {
       // 具体原因由 onAttemptFailed（_noteLineFailure）分类记录，这里只补异常文本
