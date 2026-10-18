@@ -8,6 +8,8 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/window_manager.dart';
 
+import 'core/services/window_geometry.dart';
+
 import 'core/api/api_client.dart';
 import 'core/api/server_pool.dart';
 import 'core/proxy/proxy_core.dart';
@@ -101,7 +103,15 @@ void main() async {
       await windowManager.ensureInitialized();
       unawaited(windowManager.setPreventClose(true));
       unawaited(windowManager.setTitle('MoneyFly'));
-      unawaited(windowManager.setMinimumSize(const Size(380, 620)));
+      // 最小尺寸放宽到 340×520：旧值 380×620 在 1024×600 这类小屏 / 高 DPI 缩放的
+      // 机器上会超过屏幕可用高度，窗口就没法完整显示（用户看到"界面打不开"）
+      unawaited(windowManager.setMinimumSize(const Size(340, 520)));
+      // 界面必须出现在**屏幕正中间**（用户明确要求），并把异常尺寸/残留屏外坐标纠正
+      try {
+        await WindowGeometry.centerOnLaunch();
+      } catch (e) {
+        AppLog.error('启动居中失败（不阻塞）: $e');
+      }
     } catch (e) {
       AppLog.error('windowManager 初始化失败（不阻塞启动）: $e');
     }
@@ -228,8 +238,10 @@ class _MoneyFlyAppState extends State<MoneyFlyApp> with WidgetsBindingObserver, 
           final visible = await windowManager.isVisible();
           if (!visible) {
             AppLog.error('窗口启动 4 秒后仍不可见 → 强制显示（自愈）');
-            await windowManager.show();
-            await windowManager.focus();
+            await WindowGeometry.showAndFocus();
+          } else {
+            // 可见但可能整块/大半块在屏幕外（旧版本遗留坐标）→ 拉回中间
+            await WindowGeometry.ensureOnScreen();
           }
         } catch (e) {
           AppLog.error('窗口可见性自愈失败: $e');
@@ -237,8 +249,8 @@ class _MoneyFlyAppState extends State<MoneyFlyApp> with WidgetsBindingObserver, 
       });
       TrayService.instance.init(
         showWindow: () async {
-          await windowManager.show();
-          await windowManager.focus();
+          // show + 还原 + 屏外自愈 + 置前（老机器上窗口可能停在屏幕外）
+          await WindowGeometry.showAndFocus();
         },
         quit: _quitApp,
       );
