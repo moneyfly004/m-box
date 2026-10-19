@@ -259,6 +259,13 @@ class _SettingsPageState extends State<SettingsPage> {
             onTap: _pickFakeIpFilter)),
         _item(['settings_bypass_lan'], _row(icon: '🏠', title: AppStrings.t('settings_bypass_lan'),
             trailing: _switch(_s['bypassLan'] == true, (v) => _set('bypassLan', v)))),
+        // 智能模式下「必须走代理」的网站（内置默认名单 + 这里追加）：
+        // chatgpt / gemini / linkedin / tiktok 等被国内 DNS 污染或误判成直连
+        // 时打不开，这里让用户能自己补（详见 mihomo_config 的 defaultForceProxyDomains）
+        _item(['settings_force_proxy'], _row(icon: '🌐', title: AppStrings.t('settings_force_proxy'),
+            desc: AppStrings.t('settings_force_proxy_desc'),
+            value: '${_forceProxyExtra().length}',
+            onTap: _pickForceProxyDomains)),
         _item(['settings_bypass'], _row(icon: '🚫', title: AppStrings.t('settings_bypass'),
             desc: AppStrings.t('settings_bypass_desc'),
             value: '${((_s['bypassDomains'] as List?)?.length ?? 0)}',
@@ -1134,6 +1141,43 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   /// fake-ip 过滤追加域名编辑（每行一个；域名保留真实解析）
+  /// 用户追加的「必须走代理」域名（内置默认名单在生成器里，这里只存追加项）
+  List<String> _forceProxyExtra() {
+    final l = _s['forceProxyDomains'];
+    return l is List ? List<String>.from(l.whereType<String>()) : const <String>[];
+  }
+
+  /// 编辑「必须走代理」域名：一行一个，写入 forceProxyDomains（保存后重连生效）
+  Future<void> _pickForceProxyDomains() async {
+    final v = await _askText(
+      title: AppStrings.t('settings_force_proxy'),
+      initial: _forceProxyExtra().join('\n'),
+      hint: AppStrings.t('settings_force_proxy_hint'),
+      keyboardType: TextInputType.multiline,
+      minLines: 4,
+      maxLines: 8,
+      style: TextStyle(color: MFColors.txt, fontSize: 13),
+      validate: (raw) {
+        // 只校验"每行不是空、不含空格"——域名清单允许用户随意试，
+        // 真正的匹配由内核按 DOMAIN-SUFFIX 做，写错了最多少生效一条
+        for (final it in _splitServerText(raw)) {
+          if (it.contains(' ')) return AppStrings.t('settings_force_proxy_hint');
+        }
+        return null;
+      },
+    );
+    if (v == null) return; // 取消
+    final out = <String>[];
+    for (final it in _splitServerText(v)) {
+      final d = it.trim().toLowerCase();
+      if (d.isEmpty) continue;
+      out.add(d);
+    }
+    await _set('forceProxyDomains', out);
+    if (!mounted) return;
+    _toast(AppStrings.t('settings_force_proxy_saved', {'n': '${out.length}'}));
+  }
+
   Future<void> _pickFakeIpFilter() async {
     final v = await _askText(
       title: AppStrings.t('settings_fakeip_extra'),

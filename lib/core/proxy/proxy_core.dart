@@ -52,6 +52,8 @@ Map<String, dynamic> _buildConfigInIsolate(Map<String, dynamic> args) {
     useMrsRuleSet: args['useMrsRuleSet'] == true,
     udpSkipCertVerify: args['udpSkipCertVerify'] != false,
     bypassDomains: (args['bypassDomains'] as List?)?.cast<String>() ?? const [],
+    // 「必须走代理」名单（内置默认在生成器里，这里只传用户追加的）
+    forceProxyDomains: (args['forceProxyDomains'] as List?)?.cast<String>() ?? const [],
     dnsNameservers: (args['dnsNameservers'] as List?)?.cast<String>() ?? const [],
     fakeIpFilterExtra: (args['fakeIpFilterExtra'] as List?)?.cast<String>() ?? const [],
   );
@@ -966,6 +968,7 @@ class ConnectionController extends ChangeNotifier {
         'useMrsRuleSet': Platform.isIOS,
         'udpSkipCertVerify': settings['udpSkipCertVerify'] != false,
         'bypassDomains': (settings['bypassDomains'] as List?)?.cast<String>() ?? const [],
+        'forceProxyDomains': (settings['forceProxyDomains'] as List?)?.cast<String>() ?? const [],
         'dnsNameservers': (settings['dnsNameservers'] as List?)?.cast<String>() ?? const [],
         'fakeIpFilterExtra': (settings['fakeIpFilterExtra'] as List?)?.cast<String>() ?? const [],
       });

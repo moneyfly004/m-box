@@ -49,6 +49,20 @@ class MihomoConfigBuilder {
     String? clashApiSecret,
     /// TUN 栈（Android 机型兼容性切换；桌面 TUN 场景也可用）
     String tunStack = 'gvisor',
+    /// 「必须走代理」的域名后缀（用户自定义 + App 内置默认，见
+    /// [defaultForceProxyDomains]）：生成 `DOMAIN-SUFFIX,xxx,select`，**排在
+    /// 所有直连规则之前**，覆盖 GEOSITE/GEOIP 的国内判定。
+    ///
+    /// 为什么必须有：智能模式（rule）的判据是「国内直连、其余走代理」，而
+    /// chatgpt.com / gemini.google.com / linkedin.com / tiktok.com 这类站点
+    /// 经常出现两种误判 ——
+    ///   ① 被国内 DNS 解析出「被污染但落在 CN 段」的 IP → GEOIP,CN 命中 → 直连 →
+    ///      必然打不开（全局模式能开，因为全局不判 GEOIP）；
+    ///   ② 少数字节系 CDN 域名（tiktokcdn/tiktokv 等）被 geolocation-cn 收录 →
+    ///      GEOSITE,cn 命中 → 直连。
+    /// 这两类只有「显式指定走代理」才稳，所以做成内置默认名单 + 用户可追加。
+    List<String> forceProxyDomains = const [],
+
     /// 用户自定义直连名单，三类条目（命中 DIRECT，优先级最高）：
     /// - 域名后缀（如 example.com）→ DOMAIN-SUFFIX
     /// - `IP-CIDR:` 前缀 + IP 段（如 IP-CIDR:192.168.1.0/24）→ IP-CIDR
@@ -143,6 +157,16 @@ class MihomoConfigBuilder {
         'IP-CIDR,172.16.0.0/12,DIRECT',
         'IP-CIDR,192.168.0.0/16,DIRECT',
       ],
+      // 「必须走代理」名单（内置默认 + 用户追加）：必须在 GEOSITE/GEOIP 之前。
+      // 原因：chatgpt/gemini/linkedin/tiktok 这类站点，国内 DNS 常返回"被污染但
+      // 落在 CN 段"的 IP → GEOIP,CN 命中 → DIRECT → 智能模式必然打不开；少数
+      // 字节系 CDN 域名还被 geolocation-cn 收录 → GEOSITE,cn 命中 → 同样直连。
+      // 显式置顶可以把这两种误判一次性盖掉（用户仍可用「直连名单」强制直连）。
+      for (final d in _normalizeDomains([
+        ...defaultForceProxyDomains,
+        ...forceProxyDomains,
+      ]))
+        'DOMAIN-SUFFIX,$d,select',
       // 智能模式：国内直连（离线 country.mmdb / geosite.dat / cn.mrs；缺失则降级全代理）
       // iOS 走 RULE-SET,cn（.mrs 规则集）而不是 GEOSITE,cn —— 见 useMrsRuleSet
       if (geoReady) ...[
@@ -185,6 +209,24 @@ class MihomoConfigBuilder {
       // GitHub 被墙会卡 90s 甚至启动失败）。文件缺失时（异常）规则已降级，
       // 内核不会走到下载路径。
       'geo-auto-update': false,
+
+      // ===== 域名嗅探（sniffer）=====
+      // 为什么要开：TUN 场景下内核拿到的是**IP 包**，若 DNS 返回了被污染、
+      // 或恰好落在国内网段的 IP，`GEOIP,CN` 就会把 chatgpt.com / linkedin.com
+      // 这类站点判成直连 → 打不开（智能模式的典型故障）。嗅探从 TLS/HTTP
+      // 握手里取回真实域名，规则改按域名匹配，路由判断立刻正确。
+      // parse-pure-ip：只对「纯 IP 目标」嗅探，域名连接不额外解析（省开销）。
+      // 只写 sniffer 最早期的三件套（enable / parse-pure-ip / sniff）：
+      // iOS 内置的是 mihomo 1.10.0（gomobile 静态库），新版本才有的字段
+      // （skip-domain / force-domain 等）在那上面会让内核 parse 失败直接退出。
+      'sniffer': {
+        'enable': true,
+        'parse-pure-ip': true,
+        'sniff': {
+          'HTTP': {'ports': [80, 8080, 8880]},
+          'TLS': {'ports': [443, 8443]},
+        },
+      },
 
       // ===== DNS =====
       // 桌面（系统代理/无 TUN）：内核内部解析用于 GEOSITE/GEOIP 规则匹配；
@@ -387,6 +429,91 @@ class MihomoConfigBuilder {
   ///   内核绝不会在启动时联网下载 geodata；
   /// - `proxies` 与真实连接完全一致（同一份 [buildProxyMaps]），保证
   ///   「测速通过 ⇔ 真连接可用」。
+  /// 内置「必须走代理」域名后缀。
+  ///
+  /// 覆盖国内网络下**必须**走代理的常见站点，避免智能模式把它们判成直连：
+  ///   · AI：ChatGPT / OpenAI、Gemini / Google AI Studio、Claude / Anthropic、
+  ///     Copilot、Perplexity、Grok；
+  ///   · 社交/内容：LinkedIn、TikTok、X/Twitter、Facebook/Instagram、Reddit、
+  ///     Telegram、Discord、YouTube（含 googlevideo CDN，避免部分 CDN 域名走直连）；
+  ///   · 流媒体：Netflix、Disney+、Spotify。
+  ///
+  /// 只放「后缀」，命中即走代理；用户可在设置里追加自己的域名。
+  /// 注意：不要放 google.com 这种过宽的后缀 —— 国内可直连的 Google 静态资源
+  /// （gstatic 等）走代理反而更慢，宽泛的域名交给规则里的 MATCH 兜底即可。
+  static const List<String> defaultForceProxyDomains = [
+    // AI
+    'openai.com',
+    'chatgpt.com',
+    'chat.com',
+    'oaistatic.com',
+    'oaiusercontent.com',
+    'anthropic.com',
+    'claude.ai',
+    'gemini.google.com',
+    'aistudio.google.com',
+    'generativelanguage.googleapis.com',
+    'copilot.microsoft.com',
+    'perplexity.ai',
+    'grok.com',
+    'x.ai',
+    // 社交 / 内容
+    'linkedin.com',
+    'licdn.com',
+    'tiktok.com',
+    'tiktokv.com',
+    'tiktokcdn.com',
+    'tiktokcdn-us.com',
+    'byteoversea.com',
+    'ibytedtos.com',
+    'musical.ly',
+    'x.com',
+    'twitter.com',
+    'twimg.com',
+    'facebook.com',
+    'fbcdn.net',
+    'instagram.com',
+    'cdninstagram.com',
+    'reddit.com',
+    'redd.it',
+    'redditmedia.com',
+    'redditstatic.com',
+    'telegram.org',
+    't.me',
+    'telegram.me',
+    'telesco.pe',
+    'discord.com',
+    'discordapp.com',
+    'discord.gg',
+    'youtube.com',
+    'youtu.be',
+    'ytimg.com',
+    'googlevideo.com',
+    'ggpht.com',
+    // 流媒体
+    'netflix.com',
+    'nflxvideo.net',
+    'nflximg.net',
+    'disneyplus.com',
+    'spotify.com',
+  ];
+
+  /// 域名清单规整：去空白、去协议/路径、小写、去重（保持顺序）
+  static List<String> _normalizeDomains(Iterable<String> raw) {
+    final out = <String>[];
+    for (final v in raw) {
+      var d = v.trim().toLowerCase();
+      if (d.isEmpty) continue;
+      if (d.contains('://')) d = d.split('://').last;
+      if (d.contains('/')) d = d.split('/').first;
+      if (d.startsWith('*.')) d = d.substring(2);
+      d = d.replaceAll(RegExp(r'^\\.+'), '');
+      if (d.isEmpty || out.contains(d)) continue;
+      out.add(d);
+    }
+    return out;
+  }
+
   static Map<String, dynamic> buildProbe({
     required List<ProxyNode> nodes,
     required int controllerPort,

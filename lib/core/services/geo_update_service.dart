@@ -2,7 +2,10 @@ import 'dart:io';
 
 import 'package:dio/dio.dart';
 
+import 'app_log.dart';
+
 import '../api/api_client.dart';
+import '../api/gh_mirror.dart';
 import '../proxy/geo_assets.dart';
 
 /// 分流数据(Geo)手动更新服务：在「设置 → 更新分流数据」中由用户主动触发，
@@ -85,26 +88,55 @@ class GeoUpdateService {
     return (ok: ok, errors: errors);
   }
 
+  /// 下载单个文件：**依次尝试直连 + 各国内加速镜像**，首个成功即用。
+  ///
+  /// 为什么必须走镜像（2026-10-18 客户实测「更新分流数据失败」的真因）：
+  /// 旧实现直连 `github.com/.../releases/latest/download/...`，国内网络下
+  /// 这个域名经常超时/被阻断（原本 120s 接收超时也救不回来），于是每次点
+  /// 「检查并更新」都失败 —— 而 App 的「检查更新」早就用上了镜像（GhMirror），
+  /// 这里漏了。
+  ///
+  /// 失败时把**每个候选的具体原因**汇总上抛，用户能看到"到底卡在哪"，
+  /// 而不是一句"更新失败"。
   Future<void> _downloadOne(String dir, String file) async {
     final tmp = File('$dir/.$file.part');
     final target = File('$dir/$file');
-    final r = await _dio.download(
-      '$_baseUrl/$file',
-      tmp.path,
-      deleteOnError: true,
-    );
-    if (r.statusCode != 200) {
-      throw HttpException('HTTP ${r.statusCode}');
+    final candidates = GhMirror.candidates('$_baseUrl/$file');
+    final failures = <String>[];
+
+    for (final url in candidates) {
+      final host = Uri.tryParse(url)?.host ?? 'direct';
+      try {
+        final r = await _dio.download(url, tmp.path, deleteOnError: true);
+        if (r.statusCode != 200) {
+          throw HttpException('HTTP ${r.statusCode}');
+        }
+        final size = await tmp.length();
+        if (size < _minSize) {
+          throw Exception('文件过小(${(size / 1024).round()}KB)');
+        }
+        // 原子替换：先删旧再改名（跨平台安全）
+        if (await target.exists()) {
+          try { await target.delete(); } catch (_) {}
+        }
+        await tmp.rename(target.path);
+        AppLog.log('GEO', '分流数据 $file 下载成功（$host，${(size / 1024 / 1024).toStringAsFixed(1)}MB）');
+        return; // 成功即止
+      } catch (e) {
+        failures.add('$host: ${_shortError(e)}');
+        try { if (await tmp.exists()) await tmp.delete(); } catch (_) {}
+      }
     }
-    final size = await tmp.length();
-    if (size < _minSize) {
-      try { await tmp.delete(); } catch (_) {}
-      throw Exception('文件过小(${(size / 1024).round()}KB)，疑似错误响应');
-    }
-    // 原子替换：先删旧再改名（跨平台安全）
-    if (await target.exists()) {
-      try { await target.delete(); } catch (_) {}
-    }
-    await tmp.rename(target.path);
+    throw Exception('所有下载通道都失败 → ${failures.join(' / ')}');
+  }
+
+  /// 把异常压成一句话（超时/HTTP 码/文件过小），便于展示与排查
+  static String _shortError(Object e) {
+    final s = e.toString();
+    if (s.contains('timeout') || s.contains('Timeout')) return '超时';
+    if (e is HttpException) return s.replaceFirst('HttpException: ', '');
+    if (s.contains('SocketException')) return '连接失败';
+    if (s.contains('HandshakeException')) return 'TLS 握手失败';
+    return s.length > 60 ? '${s.substring(0, 60)}…' : s;
   }
 }

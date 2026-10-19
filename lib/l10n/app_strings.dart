@@ -263,6 +263,10 @@ class AppStrings {
     'settings_geo_data': '更新分流数据',
     'settings_geo_data_desc': '国家 IP 库 / 分流规则（内置，可手动更新）',
     // 直连名单 / TUN 栈
+    'settings_force_proxy': '强制走代理的网站',
+    'settings_force_proxy_desc': '智能模式下这些网站一定走代理（如 ChatGPT / Gemini / LinkedIn / TikTok）',
+    'settings_force_proxy_hint': '每行一个域名，如 example.com（内置名单已含常用站，这里只填额外要加的）',
+    'settings_force_proxy_saved': '已保存 {n} 条，重连后生效',
     'settings_bypass': '直连名单',
     'settings_bypass_desc': '指定域名不走代理',
     'bypass_title': '直连名单',
@@ -1003,6 +1007,10 @@ class AppStrings {
     'settings_geo_data': 'Geo Data',
     'settings_geo_data_desc': 'Country IP DB & routing rules (bundled, updatable)',
     // Bypass list / TUN stack
+    'settings_force_proxy': 'Force-proxy sites',
+    'settings_force_proxy_desc': 'These sites always use the proxy in smart mode (e.g. ChatGPT / Gemini / LinkedIn / TikTok)',
+    'settings_force_proxy_hint': 'One domain per line, e.g. example.com (common sites are built in; add extras here)',
+    'settings_force_proxy_saved': 'Saved {n} entries, effective after reconnect',
     'settings_bypass': 'Bypass list',
     'settings_bypass_desc': 'Domains that skip the proxy',
     'bypass_title': 'Bypass list',
