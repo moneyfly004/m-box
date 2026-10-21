@@ -150,7 +150,16 @@ void main() {
 
       expect(find.text(AppStrings.t('upgrade_current')), findsOneWidget);
       // 30 元预览价：按钮文案带金额（口径与套餐页一致，不带 .00）
-      expect(find.text('${AppStrings.t('upgrade_pay_btn')} ¥30'), findsOneWidget,
+      // 天数选项从 5 个增加到 7 个（与后台月份卡片对齐）+ 多一行提示后，
+      // 页面变长，底部按钮可能落在首屏之外（ListView 懒构建）→ 先滚到可见。
+      final payText = '${AppStrings.t('upgrade_pay_btn')} ¥30';
+      await tester.scrollUntilVisible(
+        find.text(payText),
+        160,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+      expect(find.text(payText), findsOneWidget,
           reason: '30 元预览价应显示「立即支付 ¥30」');
       expect(tester.takeException(), isNull);
 

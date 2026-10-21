@@ -26,7 +26,8 @@ class UpgradeDevicesPage extends StatefulWidget {
 
 class _UpgradeDevicesPageState extends State<UpgradeDevicesPage> {
   static const _deviceOptions = [1, 2, 3, 4, 5];
-  static const _dayOptions = [0, 30, 90, 180, 365];
+  // 与后台「设备升级」的月份卡片一致：不延长 / 1 / 2 / 3 / 4 / 6 / 12 个月
+  static const _dayOptions = [0, 30, 60, 90, 120, 180, 360];
 
   int _addDevices = 1;
   int _addDays = 0;
@@ -50,6 +51,16 @@ class _UpgradeDevicesPageState extends State<UpgradeDevicesPage> {
   }
 
   Future<void> _init() async {
+    // 先确保账号订阅信息已加载：推荐时长依赖 remainingDays，
+    // 数据为空时会退回「不加时长」，金额又会和后台对不上。
+    // （测试环境用 debugDio 注入 mock，这里跳过，避免对未 mock 的端点发请求）
+    if (AccountService.instance.sub == null && ApiClient.debugDio == null) {
+      try {
+        await AccountService.instance.refresh(force: true);
+      } catch (_) {
+        // 拉取失败不影响页面：用户仍可手动选天数
+      }
+    }
     try {
       final methods = await PaymentService.instance.methods();
       if (mounted) {
@@ -63,7 +74,16 @@ class _UpgradeDevicesPageState extends State<UpgradeDevicesPage> {
         setState(() => _previewError = ApiClient.errorMsg(e));
       }
     } finally {
-      if (mounted) setState(() => _loading = false);
+      // 默认选中「推荐时长」：剩余不足 45 天时自动带 +90 天。
+      // 之前 _addDays 恒为 0，客户打开页面看到的是「仅加设备」的几块钱，
+      // 和后台按「+设备 + 90 天」算出来的金额对不上（用户反馈 susansg@qq.com）。
+      final rec = _recommendedDays;
+      if (mounted) {
+        setState(() {
+          if (rec > 0) _addDays = rec;
+          _loading = false;
+        });
+      }
     }
     // 置 _loading=false 后再算价：否则 _preview 开头的 if(_loading) return 会跳过首个算价
     await _preview();
@@ -325,6 +345,13 @@ class _UpgradeDevicesPageState extends State<UpgradeDevicesPage> {
                       child: Text(AppStrings.t('upgrade_expired_hint'),
                           style: TextStyle(
                               fontSize: 10.5, color: MFColors.amber)),
+                    )
+                  else if (_addDays == 0)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Text(AppStrings.t('upgrade_no_days_hint'),
+                          style: TextStyle(
+                              fontSize: 10.5, color: MFColors.txt3)),
                     ),
                   const SizedBox(height: 16),
                   // 金额
