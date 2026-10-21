@@ -344,6 +344,12 @@ class DeviceInfo {
   /// 设备是否在线（后端按最近访问时间窗口计算；与 is_active（注册启用）
   /// 区分：is_active 只增不减导致「永久在线」，online 才反映真实活跃状态）
   final bool online;
+  /// 后端按「设备自己的回拉节奏」算出的三档状态：active / recent / offline。
+  /// 比 online 布尔更细（活跃 / 近期用过 / 离线），列表直接显示中文标签。
+  final String activityState;
+  final String activityStateLabel;
+  /// 距最近一次拉订阅的秒数（负数/缺省表示未知），用于显示「X 前」
+  final int activityAgoSeconds;
   final String lastSeen;
   final String lastAccess;
   final String firstSeen;
@@ -367,6 +373,9 @@ class DeviceInfo {
     required this.isActive,
     required this.isAllowed,
     this.online = false,
+    this.activityState = '',
+    this.activityStateLabel = '',
+    this.activityAgoSeconds = -1,
     required this.lastSeen,
     required this.lastAccess,
     required this.firstSeen,
@@ -395,6 +404,9 @@ class DeviceInfo {
         // is_active 兜底，避免升级过渡期整列表误判离线。
         online: j['online'] == true ||
             (j['online'] == null && j['is_active'] == true),
+        activityState: j['activity_state']?.toString() ?? '',
+        activityStateLabel: j['activity_state_label']?.toString() ?? '',
+        activityAgoSeconds: (j['activity_ago_seconds'] as num?)?.toInt() ?? -1,
         lastSeen: j['last_seen']?.toString() ?? '',
         lastAccess: j['last_access']?.toString() ?? '',
         firstSeen: j['first_seen']?.toString() ?? '',

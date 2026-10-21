@@ -478,17 +478,16 @@ class _DevicesPageState extends State<DevicesPage> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: (d.online ? MFColors.green : MFColors.txt3)
-                      .withValues(alpha: .1),
+                  color: _stateColor(d).withValues(alpha: .1),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                      color: (d.online ? MFColors.green : MFColors.txt3)
-                          .withValues(alpha: .3)),
+                  border: Border.all(color: _stateColor(d).withValues(alpha: .3)),
                 ),
-                child: Text(d.online ? AppStrings.t('online') : AppStrings.t('offline'),
+                // 状态优先用后端三档（活跃 / 近期用过 / 离线）：online 布尔只有两档，
+                // 「20 小时前拉过一次」也会被当成在线，用户分不清哪台还在用。
+                child: Text(_stateText(d),
                     style: TextStyle(
                         fontSize: 10,
-                        color: d.online ? MFColors.green : MFColors.txt3,
+                        color: _stateColor(d),
                         fontWeight: FontWeight.w600)),
               ),
             ],
@@ -505,8 +504,11 @@ class _DevicesPageState extends State<DevicesPage> {
               if (d.softwareVersion.isNotEmpty)
                 _meta(AppStrings.t('version'), d.softwareVersion),
               _meta(AppStrings.t('access'), '${d.accessCount}'),
-              if (d.lastSeen.isNotEmpty)
-                _meta(AppStrings.t('recent'), d.lastSeen),
+              // 最后访问：老接口只有 last_access 时也要显示，别整行消失；
+              // 两者都为空就如实写「从未访问」，而不是让客户以为这一栏不存在。
+              // （状态本身由右上角徽章表达，这里不再重复一遍）
+              _meta(AppStrings.t('last_visit'),
+                  _lastVisitText(d)),
             ],
           ),
           const SizedBox(height: 12),
@@ -552,6 +554,47 @@ class _DevicesPageState extends State<DevicesPage> {
   /// 元信息一项：`键 值`。
   /// 值必须有宽度上限 + 省略号：IPv6 / 长的地理位置串在 380 宽的最小窗口里
   /// 无法换行也无法省略，会把整张卡片顶出 RenderFlex overflow（审计 P2）。
+  /// 状态文案：优先后端三档标签，缺失时回落在线/离线
+  String _stateText(DeviceInfo d) {
+    if (d.activityStateLabel.isNotEmpty) return d.activityStateLabel;
+    return d.online ? AppStrings.t('online') : AppStrings.t('offline');
+  }
+
+  /// 状态颜色：活跃=绿、近期用过=琥珀、离线=灰
+  Color _stateColor(DeviceInfo d) {
+    switch (d.activityState) {
+      case 'active':
+        return MFColors.green;
+      case 'recent':
+        return MFColors.amber;
+      case 'offline':
+        return MFColors.txt3;
+    }
+    return d.online ? MFColors.green : MFColors.txt3;
+  }
+
+  /// 最后访问文案：绝对时间 +「X 前」；没有 last_seen 时用 last_access
+  String _lastVisitText(DeviceInfo d) {
+    final abs = d.lastSeen.isNotEmpty
+        ? d.lastSeen
+        : (d.lastAccess.isNotEmpty ? d.lastAccess : '');
+    if (abs.isEmpty) return AppStrings.t('never_visited');
+    final ago = d.activityAgoSeconds;
+    if (ago < 0) return abs;
+    return '$abs（${_agoText(ago)}）';
+  }
+
+  String _agoText(int seconds) {
+    if (seconds < 60) return AppStrings.t('ago_seconds', {'n': '$seconds'});
+    if (seconds < 3600) {
+      return AppStrings.t('ago_minutes', {'n': '${seconds ~/ 60}'});
+    }
+    if (seconds < 86400) {
+      return AppStrings.t('ago_hours', {'n': '${seconds ~/ 3600}'});
+    }
+    return AppStrings.t('ago_days', {'n': '${seconds ~/ 86400}'});
+  }
+
   Widget _meta(String k, String v) => ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 168),
         child: Row(
