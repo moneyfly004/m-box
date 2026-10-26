@@ -18,6 +18,14 @@ class SettingsStore {
   static final SettingsStore instance = SettingsStore._();
   static const _p = 'moneyfly_settings_v1';
 
+  /// 设置快照版本（「默认值变更」的一次性迁移依据）。
+  ///
+  /// **老快照里没有这个 key** → 视为 1（旧版本写的）。读取时按版本号跑迁移，
+  /// 写回的快照自动带上当前版本，因此同一个迁移只会发生一次。
+  /// - 1（隐含）：测速方式默认值 = TCP 测速
+  /// - 2：测速方式默认值 = **内核测速**（见 [_migrateSpeedTestModeToKernel]）
+  static const schemaVersion = 2;
+
   /// 默认测速探测地址：**必须 HTTPS**。
   static const defaultTestUrl = 'https://www.gstatic.com/generate_204';
 
@@ -62,12 +70,15 @@ class SettingsStore {
         'clashApiPort': 9090,
         // 测速探测地址（内核 delay 测试；网络环境特殊时可改）
         'testUrl': defaultTestUrl,
-        // 测速方式：tcp=仅 TCP 端口连通（**默认**）/ kernel=内核测速(真连接)。
+        // 测速方式：kernel=内核测速，真连接（**默认**）/ tcp=仅 TCP 端口连通。
         // **老用户本地设置里没有这个 key** —— load() 会把 _defaults() 合并进
-        // 读到的快照，缺 key 时自然取到这里的 'tcp'；即使有人手改坏了值，
-        // parseSpeedTestMode 也会回落到默认（TCP 测速），绝不因缺 key 异常。
-        // 显式选了内核测速的用户不受影响：'kernel' 被显式识别，不会被回落吃掉。
+        // 读到的快照，缺 key 时自然取到这里的 'kernel'；即使有人手改坏了值，
+        // parseSpeedTestMode 也会回落到默认（内核测速），绝不因缺 key 异常。
+        // 显式选了 TCP 测速的用户不受影响：'tcp' 被显式识别，不会被回落吃掉。
         'speedTestMode': speedTestModeKey(defaultSpeedTestMode),
+        // 快照版本：缺失 = 1（旧版本写的）→ 触发旧默认值迁移。
+        // 注意它必须参与默认值合并：merge 后快照永远带当前版本，迁移不会重跑。
+        'schemaVersion': schemaVersion,
         // 桌面端默认「仅系统代理」（TUN 需 root，默认开会导致连接失败）；
         // Android/iOS 默认「TUN + 系统代理双通道」（VpnService 授权后 TUN 接管）
         'tunMode': (Platform.isAndroid || Platform.isIOS) ? 'auto' : 'off',
@@ -118,11 +129,45 @@ class SettingsStore {
     try {
       final decoded = jsonDecode(raw);
       if (decoded is Map) {
+        final stored = Map<String, dynamic>.from(decoded);
         return _migrateLegacyTestUrl(_migrateLegacyDns(
-            {..._defaults(), ...Map<String, dynamic>.from(decoded)}));
+            _migrateSpeedTestModeToKernel(
+                {..._defaults(), ...stored},
+                // 版本号必须在合并**之前**读：合并会让快照恒带当前版本，
+                // 那样「老快照没版本」这个信号就丢了，迁移永远不会触发。
+                rawVersion: stored['schemaVersion'])));
       }
     } catch (_) {}
     return _defaults();
+  }
+
+  /// 旧默认值迁移：`speedTestMode: 'tcp'` → 内核测速。
+  ///
+  /// 为什么需要：'tcp' 曾经是**我们写进去的默认值**（不是用户的选择），老用户
+  /// 的快照里几乎都有它。默认值改成内核测速后，如果只改 [_defaults]，老用户
+  /// 升级后仍然是 TCP —— 等于「默认改了但没人感知到」，假阳性问题原样保留。
+  ///
+  /// 判据：快照里**没有** [schemaVersion]（= 旧版本写的）→ 里面的 'tcp' 是旧默认
+  /// 值，一并升级。已经带版本号的快照（用户升级后自己选过 TCP 会写回版本号）
+  /// 一律不动 —— 尊重显式选择。
+  static Map<String, dynamic> _migrateSpeedTestModeToKernel(
+    Map<String, dynamic> s, {
+    required Object? rawVersion,
+  }) {
+    final version = switch (rawVersion) {
+      final num n => n.toInt(),
+      final String v => int.tryParse(v.trim()) ?? 0,
+      _ => 0,
+    };
+    if (version >= schemaVersion) return s;
+    // 旧版本写的快照：里面的 'tcp'（或缺 key）是**旧默认值**，不是用户的选择
+    // → 升级成当前默认。显式 'kernel' 保持原样；写坏的值收敛到当前默认
+    // （与 parseSpeedTestMode 的宽容回落同一口径）。
+    final mode = parseSpeedTestMode(s['speedTestMode']);
+    s['speedTestMode'] = speedTestModeKey(
+        mode == SpeedTestMode.tcp ? defaultSpeedTestMode : mode);
+    s['schemaVersion'] = schemaVersion;
+    return s;
   }
 
   /// 兼容遗留的明文测速地址（见 [legacyHttpTestUrl]）。

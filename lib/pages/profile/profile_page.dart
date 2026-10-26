@@ -29,8 +29,20 @@ class ProfilePage extends StatefulWidget {
 
 class _ProfilePageState extends State<ProfilePage> {
   DashboardInfo? get _dashboard => UserService.instance.cachedDashboard;
-  bool _loading = false;
+
+  /// 后台刷新中（**不阻塞页面渲染**：只在数据区顶部显示一条细提示）。
+  ///
+  /// 旧实现用 `_loading` 把整页替换成大转圈 —— 于是「我的」页每次进来都要等
+  /// 数据回来才长出内容（设置/订单/客服/退出登录这些**固定项**也被一起挡住）。
+  /// 用户看到的就��「位置会跳、要等一下、刷新才出来」。
+  bool _refreshing = false;
   bool _loadFailed = false; // 上次加载失败(数据区给重试,避免全零误读)
+
+  /// 最近一次**成功**拉取数据的时间：切回本页只有超过 TTL 才自动刷新。
+  /// 为什么要 TTL：这个页面 90% 是固定布局，只有到期/设备/账号几个数字会变；
+  /// 每次切 tab 都强制走一次网络只会让页面"等一下才出来"。
+  DateTime? _lastLoadAt;
+  static const _autoRefreshTtl = Duration(seconds: 60);
   /// 上次失败的分类：登录态失效（401）与真正的网络异常要给出**不同**的出路。
   /// 旧实现一律提示"账户信息加载失败"，用户只能反复点重试（对过期令牌永远无效）。
   SubscribeIssue? _failIssue;
@@ -56,34 +68,48 @@ class _ProfilePageState extends State<ProfilePage> {
   /// 切回本页时重新拉取（设备增删、后台改设备数后立刻见效，
   /// 不再出现「首页已刷新、我的还是旧数字」）
   void _onTabChanged() {
-    if (mainTabIndex.value == _profileTabIndex && mounted) {
-      unawaited(_load());
+    if (mainTabIndex.value != _profileTabIndex || !mounted) return;
+    // 进来就先用「内存 → 磁盘」缓存直接上屏（setState 只补数字，不动布局），
+    // 只有超过 TTL / 还没有任何数据时才在后台刷新。
+    final at = _lastLoadAt;
+    final stale = at == null || DateTime.now().difference(at) > _autoRefreshTtl;
+    if (_dashboard == null || stale) {
+      unawaited(_load(force: false));
     }
   }
 
-  /// 冷启动：先展示磁盘缓存（不再转圈），再后台静默刷新；无缓存才走网络 loading。
+  /// 冷启动：先展示磁盘缓存（不转圈、不等网络），再后台静默刷新。
   Future<void> _initLoad() async {
     if (_dashboard == null) {
       final disk = await UserService.instance.loadCachedDashboard();
       if (!mounted) return;
       if (disk != null) {
         UserService.instance.adoptCachedDashboard(disk);
+        _lastLoadAt = DateTime.now(); // 磁盘数据也算"有数据"，TTL 从这里起算
         setState(() {});
       }
     }
-    await _load();
+    // 首次进入：后台刷新（不 await 阻塞渲染）
+    unawaited(_load(force: true));
   }
 
-  Future<void> _load() async {
+  /// 拉数据。[force] = false 时走 内存→磁盘→网络 的逐级命中（切 tab / 冷启动用），
+  /// true = 强制走网络（下拉刷新、错误重试用）。
+  ///
+  /// **无论成败都不会把页面清空**：失败只在数据区顶部挂一条可重试的提示，
+  /// 固定项（设置/订单/客服/退出登录）始终可点。
+  Future<void> _load({bool force = false}) async {
+    if (_refreshing) return;
     final hadCache = _dashboard != null;
-    if (!hadCache) {
+    if (mounted) {
       setState(() {
-        _loading = true;
-        _loadFailed = false;
+        _refreshing = true;
+        if (!hadCache) _loadFailed = false;
       });
     }
     try {
-      await UserService.instance.dashboard(force: true);
+      await UserService.instance.dashboard(force: force);
+      _lastLoadAt = DateTime.now();
       if (mounted) {
         setState(() {
           _loadFailed = false;
@@ -93,7 +119,7 @@ class _ProfilePageState extends State<ProfilePage> {
     } catch (e) {
       if (!mounted) return;
       if (!hadCache) {
-        // 无缓存且失败：给「错误+重试」占位，并按原因给出**正确出路**
+        // 无数据显示失败提示（带重试 / 重新登录的**正确出路**）
         setState(() {
           _loadFailed = true;
           _failIssue = SubscriptionService.classifyFromError(ApiClient.errorMsg(e));
@@ -102,14 +128,14 @@ class _ProfilePageState extends State<ProfilePage> {
       }
       // 已有缓存时静默失败：保留旧数据继续浏览，不打断用户
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) setState(() => _refreshing = false);
     }
     // 与首页**同源**刷新设备数字：首页的「设备数」读 AccountService 的订阅信息
     // （/user/subscribe），本页此前只刷 dashboard（/users/dashboard-info）。
     // 两个接口刷新时机不同，设备增删后同一个客户就会出现「首页 7 台、我的 6 台」。
     // 单独 try：订阅信息拉取失败不影响本页展示（设备数字退回 dashboard 字段）。
     try {
-      await AccountService.instance.refresh(force: true);
+      await AccountService.instance.refresh(force: force);
       if (mounted) setState(() {});
     } catch (_) {}
   }
@@ -135,12 +161,13 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   Widget build(BuildContext context) {
     final dash = _dashboard;
+    final hasData = dash != null;
     final name = dash?.username ?? '—';
     final email = dash?.email ?? '';
     final balance = dash?.balance ?? 0;
     final remaining = dash?.remainingDays ?? 0;
     final expire = (dash?.expireTime ?? '').toString().isEmpty
-        ? AppStrings.t('expire_na')
+        ? (hasData ? AppStrings.t('expire_na') : '—')
         : dash!.expireTime.toString();
     // 设备「已用/上限」与首页**同一来源**（AccountService 的 /user/subscribe），
     // 保证两页永远显示同一组数字；订阅信息尚未就绪时才退回 dashboard 的字段。
@@ -151,85 +178,32 @@ class _ProfilePageState extends State<ProfilePage> {
     // 到期展示取日期部分
     final expireShort = expire.length > 10 ? expire.substring(0, 10) : expire;
 
+    // 关键：**布局固定、立即上屏**。数据（到期/设备/账号）只是卡片里的值，
+    // 没到之前显示「—」，不再用大转圈把整页（含设置/订单/客服/退出登录）挡住。
     return Scaffold(
       body: SafeArea(
         child: RefreshIndicator(
-          onRefresh: _load,
+          // 下拉 = 强制刷新（唯一会等网络的地方，且是用户主动要的）
+          onRefresh: () => _load(force: true),
           child: ListView(
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.fromLTRB(22, 14, 22, 24),
             children: [
-              _buildHeader(name, email, balance),
+              _buildHeader(name, email, balance, hasData: hasData),
               const SizedBox(height: 16),
-              if (_loading && _dashboard == null)
-                Padding(
-                  padding: EdgeInsets.symmetric(vertical: 40),
-                  child: Center(child: CircularProgressIndicator(color: MFColors.brand)),
-                )
-              else if (_loadFailed && _dashboard == null)
-                // 加载失败:给"错误+重试"占位,避免全零/占位误读为无套餐。
-                // 这一段本身在 ListView 里（可滚动、不会 RenderFlex overflow）；
-                // 文案仍然限行 + 省略号，防止超长本地化/服务端文案把卡片撑变形。
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 30),
-                  child: Column(
-                    children: [
-                      Icon(Icons.cloud_off_outlined, size: 40, color: MFColors.txt3),
-                      const SizedBox(height: 10),
-                      Text(
-                          _failIssue == SubscribeIssue.authRequired
-                              ? AppStrings.t('issue_auth_title')
-                              : AppStrings.t('profile_load_fail'),
-                          textAlign: TextAlign.center,
-                          maxLines: 3,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontSize: 12.5, color: MFColors.txt2)),
-                      if (_failIssue == SubscribeIssue.authRequired)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 6),
-                          child: Text(AppStrings.t('issue_auth_body'),
-                              textAlign: TextAlign.center,
-                              maxLines: 4,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(fontSize: 11.5, color: MFColors.txt3)),
-                        ),
-                      const SizedBox(height: 14),
-                      // 审计 P2：小控件一律 InkWell（有按压反馈）+ 命中区够大
-                      Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                        borderRadius: BorderRadius.circular(12),
-                        onTap: _failIssue == SubscribeIssue.authRequired
-                            ? _relogin
-                            : _load,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-                          constraints: const BoxConstraints(minHeight: 44),
-                          decoration: BoxDecoration(
-                              gradient: MFColors.brandGradient,
-                              borderRadius: BorderRadius.circular(12)),
-                          child: Text(
-                              _failIssue == SubscribeIssue.authRequired
-                                  ? AppStrings.t('profile_relogin')
-                                  : AppStrings.t('retry'),
-                              style: const TextStyle(fontSize: 13, color: Colors.white, fontWeight: FontWeight.w600)),
-                        ),
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              else ...[
-                // 账号状态横幅（禁用 > 套餐停用 > 到期 > 设备满），
-                // 之后才是「剩余 < 7 天」的普通续费提醒
-                if (_dashboard != null) ..._buildStatusBanners(_dashboard!),
-                // #7 浅色玻璃信息卡（不再深色看不清）
-                _buildInfoCard(hasSub, remaining, expireShort, online, total),
-                const SizedBox(height: 18),
-                _buildMenu(context, online, total),
-                const SizedBox(height: 18),
-                _buildLogout(context),
-              ],
+              // 后台刷新中：一条细提示，不改变布局、不阻塞点击
+              if (_refreshing && hasData) _buildRefreshingHint(),
+              // 真的没有数据且失败了：顶部挂一条可重试的提示（不替换整页）
+              if (_loadFailed && !hasData) _buildInlineError(),
+              if (hasData) ..._buildStatusBanners(dash),
+              // 浅色玻璃信息卡（固定位置；值未知时显示「—」）
+              _buildInfoCard(hasSub, remaining, expireShort, online, total,
+                  hasData: hasData),
+              const SizedBox(height: 18),
+              // 固定入口（设置/订单/设备/通知/检查更新）—— 永远可点
+              _buildMenu(context, online, total, hasData: hasData),
+              const SizedBox(height: 18),
+              _buildLogout(context),
             ],
           ),
         ),
@@ -237,7 +211,96 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget _buildHeader(String name, String email, double balance) {
+  /// 后台刷新中的细提示（替代原来的整页转圈）
+  Widget _buildRefreshingHint() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: 11,
+            height: 11,
+            child: CircularProgressIndicator(
+                strokeWidth: 1.6, color: MFColors.brand),
+          ),
+          const SizedBox(width: 7),
+          Text(AppStrings.t('refreshing'),
+              style: TextStyle(fontSize: 10.5, color: MFColors.txt3)),
+        ],
+      ),
+    );
+  }
+
+  /// 加载失败提示（内联在数据区，带重试 / 重新登录的正确出路）
+  Widget _buildInlineError() {
+    final authIssue = _failIssue == SubscribeIssue.authRequired;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      decoration: BoxDecoration(
+        color: MFColors.card,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: MFColors.amber.withValues(alpha: .45)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.cloud_off_outlined, size: 18, color: MFColors.amber),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                    authIssue
+                        ? AppStrings.t('issue_auth_title')
+                        : AppStrings.t('profile_load_fail'),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 12, color: MFColors.txt)),
+                const SizedBox(height: 2),
+                Text(
+                    authIssue
+                        ? AppStrings.t('issue_auth_body')
+                        : AppStrings.t('profile_load_fail_hint'),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 10.5, color: MFColors.txt3)),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(10),
+              onTap: authIssue ? _relogin : () => _load(force: true),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                constraints: const BoxConstraints(minHeight: 36),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                    gradient: MFColors.brandGradient,
+                    borderRadius: BorderRadius.circular(10)),
+                child: Text(
+                    authIssue
+                        ? AppStrings.t('profile_relogin')
+                        : AppStrings.t('retry'),
+                    style: const TextStyle(
+                        fontSize: 12,
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600)),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader(String name, String email, double balance,
+      {required bool hasData}) {
     return Row(
       children: [
         Container(
@@ -267,7 +330,7 @@ class _ProfilePageState extends State<ProfilePage> {
           children: [
             // 金额口径与套餐页/支付弹窗统一走 formatPrice()：200 显示「¥200」
             // 而不是「¥200.00」，0.02 也不会被凑整成 0。
-            Text('¥${formatPrice(balance)}',
+            Text(hasData ? '¥${formatPrice(balance)}' : '—',
                 style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: MFColors.brandLight, fontFamily: kNumFont)),
             Text(AppStrings.t('balance'), style: TextStyle(fontSize: 9.5, color: MFColors.txt3)),
           ],
@@ -417,7 +480,8 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   /// #7 浅色信息卡：到期 / 设备 / 剩余天数 三格（柔光底色 + 清晰深色文字）
-  Widget _buildInfoCard(bool hasSub, int remaining, String expire, int online, int total) {
+  Widget _buildInfoCard(bool hasSub, int remaining, String expire, int online,
+      int total, {required bool hasData}) {
     return Container(
       padding: const EdgeInsets.fromLTRB(6, 15, 6, 14),
       decoration: BoxDecoration(
@@ -439,22 +503,46 @@ class _ProfilePageState extends State<ProfilePage> {
             padding: const EdgeInsets.symmetric(horizontal: 10),
             child: Row(
               children: [
-                Text(hasSub
-                    ? ((_dashboard?.membership ?? '').isNotEmpty
-                        ? _dashboard!.membership
-                        : AppStrings.t('member'))
-                    : AppStrings.t('no_plan_yet'),
+                Text(!hasData
+                    ? AppStrings.t('member')
+                    : hasSub
+                        ? ((_dashboard?.membership ?? '').isNotEmpty
+                            ? _dashboard!.membership
+                            : AppStrings.t('member'))
+                        : AppStrings.t('no_plan_yet'),
                     style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: MFColors.txt)),
                 const Spacer(),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
                   decoration: BoxDecoration(
-                    color: (hasSub ? MFColors.green : MFColors.amber).withValues(alpha: .15),
+                    color: (!hasData
+                            ? MFColors.txt3
+                            : hasSub
+                                ? MFColors.green
+                                : MFColors.amber)
+                        .withValues(alpha: .15),
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: (hasSub ? MFColors.green : MFColors.amber).withValues(alpha: .35)),
+                    border: Border.all(
+                        color: (!hasData
+                                ? MFColors.txt3
+                                : hasSub
+                                    ? MFColors.green
+                                    : MFColors.amber)
+                            .withValues(alpha: .35)),
                   ),
-                  child: Text(hasSub ? '● ${AppStrings.t('active')}' : '● ${AppStrings.t('inactive')}',
-                      style: TextStyle(fontSize: 10, color: hasSub ? MFColors.green : MFColors.amber, fontWeight: FontWeight.w600)),
+                  child: Text(!hasData
+                          ? '● …'
+                          : hasSub
+                              ? '● ${AppStrings.t('active')}'
+                              : '● ${AppStrings.t('inactive')}',
+                      style: TextStyle(
+                          fontSize: 10,
+                          color: !hasData
+                              ? MFColors.txt3
+                              : hasSub
+                                  ? MFColors.green
+                                  : MFColors.amber,
+                          fontWeight: FontWeight.w600)),
                 ),
               ],
             ),
@@ -462,9 +550,9 @@ class _ProfilePageState extends State<ProfilePage> {
           const SizedBox(height: 13),
           Row(
             children: [
-              _SubItem(value: '$remaining', unit: AppStrings.t('days'), label: AppStrings.t('remaining_days'), highlight: true),
+              _SubItem(value: hasData ? '$remaining' : '—', unit: hasData ? AppStrings.t('days') : '', label: AppStrings.t('remaining_days'), highlight: true),
               _SubItem(value: expire, label: AppStrings.t('expire_time')),
-              _SubItem(value: '$online/$total', label: AppStrings.t('plan_devices')),
+              _SubItem(value: hasData ? '$online/$total' : '—', label: AppStrings.t('plan_devices')),
             ],
           ),
         ],
@@ -472,14 +560,15 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget _buildMenu(BuildContext context, int online, int total) {
+  Widget _buildMenu(BuildContext context, int online, int total,
+      {required bool hasData}) {
     // 「检查更新」放在这里（原先设置页里那份已移除）：与版本号同处，且有新版时
     // 直接显示红点，不需要用户在「我的 → 关于」与「设置 → 检查更新」之间二选一。
     return ValueListenableBuilder<bool>(
       valueListenable: UpdateService.hasUpdate,
       builder: (context, hasUpdate, _) {
         final rows = <(String, String, String?, bool, VoidCallback)>[
-          ('📱', AppStrings.t('profile_devices'), '$online/$total', false, () => _push(context, const DevicesPage())),
+          ('📱', AppStrings.t('profile_devices'), hasData ? '$online/$total' : null, false, () => _push(context, const DevicesPage())),
           ('🧾', AppStrings.t('profile_orders'), null, false, () => _push(context, const OrdersPage())),
           ('🔔', AppStrings.t('profile_notifications'), null, false, () => _push(context, const NotificationsPage())),
           ('⚙️', AppStrings.t('settings'), null, false, () => _push(context, const SettingsPage())),

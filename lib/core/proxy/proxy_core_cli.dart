@@ -8,9 +8,11 @@ import 'package:flutter/foundation.dart';
 import 'proxy_core.dart';
 import 'geo_assets.dart';
 import 'kernel_delay_api.dart';
+import 'port_guard.dart';
 import 'singbox_config.dart';
 import 'system_proxy.dart';
 import 'tun_failure.dart';
+import '../../l10n/app_strings.dart';
 import '../services/app_log.dart';
 import '../services/kernel_log.dart';
 import '../services/local_paths.dart';
@@ -402,6 +404,22 @@ class ProxyCoreCli extends ProxyCore {
     // sing-box 读 JSON：SingBoxConfigBuilder.encode 会剥离 `_` 前缀元数据键
     await File(_configPath!).writeAsString(SingBoxConfigBuilder.encode(config), flush: true);
 
+    // 端口预检（`bind: address already in use` 的根治点）。
+    //
+    // 为什么必须在起进程**之前**做：[killStaleKernels] 只收「父进程已消失」的真
+    // 孤儿；而占着端口的两类进程它按设计不会动 —— 上一版/另一实例残留的内核
+    // （父进程还活着）、桌面端的测速探测内核。这些不处理，内核必然 bind 失败，
+    // 而失败信息只有内核那句 FATAL，用户完全无从下手（线上日志里连续 7 次
+    // `listen tcp 127.0.0.1:2080: bind: address already in use` 就是这么来的）。
+    //
+    // 处理口径：我方残留 → 杀掉并等端口真正释放（用户无感自愈）；
+    // 别人的程序 → 抛类型化错误（带进程名/PID），UI 给「换端口并重连」。
+    // TUN force 模式下没有 mixed 入站，本地端口不参与监听，跳过即可。
+    if (!_tunForceMode) {
+      await PortGuard.ensureFree(_localPort, what: AppStrings.t('port_what_local'));
+    }
+    await PortGuard.ensureFree(_clashApiPort, what: AppStrings.t('port_what_api'));
+
     _proc = await Process.start(
       binary,
       ['run', '-c', _configPath!, '-D', dir.path],
@@ -427,6 +445,14 @@ class ProxyCoreCli extends ProxyCore {
         final why = (_lastError?.isNotEmpty ?? false)
             ? _lastError!
             : '内核进程启动后立即退出';
+        // 端口被占用：翻译成**类型化 + 短文案**。内核那句 FATAL 又长又是英文
+        // （还夹着多行上下文），塞进首页错误区用户根本读不懂 —— 而它其实只说明
+        // 一件事：端口被占了，要么关掉占用者，要么换端口。完整日志仍在
+        // kernel_log.txt（错误提示里已给出路径）。
+        if (PortGuard.looksLikePortInUse(why)) {
+          await stop();
+          throw await _portInUseError(why);
+        }
         throw UnsupportedError('内核启动失败：$why$_winKernelHint');
       }
       try {
@@ -480,10 +506,29 @@ class ProxyCoreCli extends ProxyCore {
       await Future.delayed(const Duration(milliseconds: 100));
     }
     await stop();
-    throw UnsupportedError(apiReadyButPortDead
-        ? '内核已启动但本地端口 $_localPort 未在监听（端口被占用或非法），'
-            '已停止以避免误判为「已连接」。请在设置中更换端口。日志：${_tail()}'
-        : '内核启动超时（${_readyTimeout.inSeconds}s）。日志：${_tail()}$_winKernelHint');
+    if (apiReadyButPortDead) {
+      // 内核跑着但 mixed 端口没监听：最常见就是端口被别人抢先占了（sing-box
+      // 只打 error 日志、Clash API 照样 200）。类型化后 UI 才能给出
+      // 「换端口并重连」这个真正能解决的动作。
+      throw await _portInUseError(_tail());
+    }
+    throw UnsupportedError(
+        '内核启动超时（${_readyTimeout.inSeconds}s）。日志：${_tail()}$_winKernelHint');
+  }
+
+  /// 把内核的 bind 失败翻译成**可执行**的类型化错误。
+  ///
+  /// 端口号优先从内核日志里抠（`listen tcp 127.0.0.1:2080: bind: ...` 里那个
+  /// 才是真正失败的端口），抠不到才退回本地代理端口；占用者再从系统里查，
+  /// 于是提示能精确到「sing-box（PID 80160）」这种程度。
+  Future<TypedConnError> _portInUseError(String log) async {
+    final port = PortGuard.portFromLog(log) ?? _localPort;
+    final what = port == _clashApiPort
+        ? AppStrings.t('port_what_api')
+        : AppStrings.t('port_what_local');
+    final msg = await PortGuard.portInUseMessage(port, what: what);
+    AppLog.error('[PORT] 内核启动失败（端口占用）：$msg');
+    return TypedConnError(ConnErrorKind.portInUse, msg);
   }
 
   /// 本地端口探活：内核是否真的在 [port] 上监听。

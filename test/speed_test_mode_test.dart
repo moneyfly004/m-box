@@ -1,7 +1,8 @@
 // 测速方式（内核测速 = 真连接 / TCP 测速 = 仅端口握手）的单元与组件测试。
 //
 // 覆盖本次改动的关键契约：
-//   1) 默认是 TCP 测速；老用户设置里**没有这个 key** 时回落默认（TCP），显式的 kernel 仍被识别；
+//   1) 默认是**内核测速**；老用户设置里的旧默认值 'tcp' 会被迁移成内核测速，
+//      显式选了 TCP 的用户（带快照版本号）不被改写；
 //   2) 节点名带 emoji/空格/斜杠/中文时必须 URL 编码（否则内核收到截断的名字）；
 //   3) 内核 delay 响应解析：成功 / 失败 / 超时 的口径（绝不返回假数字）；
 //   4) 切换测速方式后**清空**另一种方式测出的延迟（不混用旧值）；
@@ -59,27 +60,28 @@ void main() {
   });
 
   group('测速方式解析（SpeedTestMode）', () {
-    test('默认是 TCP 测速', () {
-      expect(defaultSpeedTestMode, SpeedTestMode.tcp);
-      expect(speedTestModeKey(defaultSpeedTestMode), 'tcp');
+    test('默认是内核测速（保证「有延迟就能连」）', () {
+      expect(defaultSpeedTestMode, SpeedTestMode.kernel);
+      expect(speedTestModeKey(defaultSpeedTestMode), 'kernel');
     });
 
-    test('缺 key / null / 空串 / 无法识别的值 一律回落默认（TCP）', () {
-      // 老用户本地设置里没有 speedTestMode 这个 key → 回落到默认（TCP 测速），
-      // 不能抛异常；显式的 kernel 仍必须被识别（见下一条用例）。
-      expect(parseSpeedTestMode(null), SpeedTestMode.tcp);
-      expect(parseSpeedTestMode(''), SpeedTestMode.tcp);
-      expect(parseSpeedTestMode('   '), SpeedTestMode.tcp);
-      expect(parseSpeedTestMode('内核'), SpeedTestMode.tcp);
-      expect(parseSpeedTestMode(123), SpeedTestMode.tcp);
+    test('缺 key / null / 空串 / 无法识别的值 一律回落默认（内核测速）', () {
+      // 完全没有 speedTestMode 这个 key → 回落到默认（内核测速），不能抛异常；
+      // 显式的 tcp 仍必须被识别（见下一条用例）。
+      expect(parseSpeedTestMode(null), SpeedTestMode.kernel);
+      expect(parseSpeedTestMode(''), SpeedTestMode.kernel);
+      expect(parseSpeedTestMode('   '), SpeedTestMode.kernel);
+      expect(parseSpeedTestMode('内核'), SpeedTestMode.kernel);
+      expect(parseSpeedTestMode(123), SpeedTestMode.kernel);
+      expect(parseSpeedTestMode(<String>[]), SpeedTestMode.kernel);
       // 显式选了内核测速的用户：不能被默认值回落吃掉
       expect(parseSpeedTestMode('kernel'), SpeedTestMode.kernel);
       expect(parseSpeedTestMode('KERNEL'), SpeedTestMode.kernel);
       expect(parseSpeedTestMode('connect'), SpeedTestMode.kernel);
-      expect(parseSpeedTestMode(<String>[]), SpeedTestMode.tcp);
     });
 
     test('显式 tcp（以及 Shadowrocket 叫法的 ping）解析为 TCP 测速', () {
+      // 用户主动选了「快但可能不准」→ 必须被尊重，不能被默认值吃掉
       expect(parseSpeedTestMode('tcp'), SpeedTestMode.tcp);
       expect(parseSpeedTestMode(' TCP '), SpeedTestMode.tcp);
       expect(parseSpeedTestMode('ping'), SpeedTestMode.tcp);
@@ -87,14 +89,14 @@ void main() {
   });
 
   group('SettingsStore 持久化与回落', () {
-    test('默认值里 speedTestMode = tcp（TCP 测速）', () async {
+    test('默认值里 speedTestMode = kernel（内核测速）', () async {
       await SettingsStore.instance.reset();
       final s = await SettingsStore.instance.load();
-      expect(s['speedTestMode'], 'tcp');
-      expect(parseSpeedTestMode(s['speedTestMode']), SpeedTestMode.tcp);
+      expect(s['speedTestMode'], 'kernel');
+      expect(parseSpeedTestMode(s['speedTestMode']), SpeedTestMode.kernel);
     });
 
-    test('老用户快照缺 key → 读取后回落 TCP 测速（不异常）', () async {
+    test('老用户快照缺 key → 读取后是内核测速（不异常）', () async {
       // 模拟 2.2.21 及更早版本写下的设置：整份 JSON 里没有 speedTestMode
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('moneyfly_settings_v1',
@@ -102,9 +104,23 @@ void main() {
       final s = await SettingsStore.instance.load();
       expect(s.containsKey('speedTestMode'), isTrue,
           reason: '缺 key 时 defaults 必须补齐');
-      expect(parseSpeedTestMode(s['speedTestMode']), SpeedTestMode.tcp);
+      expect(parseSpeedTestMode(s['speedTestMode']), SpeedTestMode.kernel);
       // 老字段没被丢掉
       expect(s['lastSelectedTag'], '香港-01');
+    });
+
+    test('老快照里的旧默认值 tcp → 迁移成内核测速（默认值变更要真的生效）', () async {
+      // 旧版本会把默认值 'tcp' 写进快照，那不是用户的选择；只改 _defaults
+      // 而不管旧快照，等于「默认改了但老用户感知不到」。
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('moneyfly_settings_v1',
+          '{"localPort":2080,"speedTestMode":"tcp"}');
+      final s = await SettingsStore.instance.load();
+      expect(parseSpeedTestMode(s['speedTestMode']), SpeedTestMode.kernel,
+          reason: '旧快照的 tcp 是旧默认值 → 升级为内核测速');
+      expect(s['schemaVersion'], SettingsStore.schemaVersion,
+          reason: '迁移后快照必须带上版本号，否则每次读盘都会重跑迁移');
+      expect(s['localPort'], 2080, reason: '迁移只动测速方式，其它字段原样保留');
     });
 
     test('用户显式选了 TCP → 读取得到 TCP（切换真的生效）', () async {
@@ -112,13 +128,28 @@ void main() {
           .update((s) => s['speedTestMode'] = speedTestModeKey(SpeedTestMode.tcp));
       final s = await SettingsStore.instance.load();
       expect(parseSpeedTestMode(s['speedTestMode']), SpeedTestMode.tcp);
+      // 写回的快照带当前版本号 → 迁移不会再把它改回内核测速
+      expect(s['schemaVersion'], SettingsStore.schemaVersion);
       // 只改这一个键，其它字段不被覆盖
       expect(s['localPort'], 2080);
     });
 
-    test('值被写坏（key 存在但内容非法）→ 回落默认（TCP）', () {
-      expect(parseSpeedTestMode('tpc'), SpeedTestMode.tcp);
-      expect(parseSpeedTestMode('1'), SpeedTestMode.tcp);
+    test('迁移只跑一次：升级后用户改选 TCP 不会被再改回内核测速', () async {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('moneyfly_settings_v1', '{"speedTestMode":"tcp"}');
+      final first = await SettingsStore.instance.load();
+      expect(parseSpeedTestMode(first['speedTestMode']), SpeedTestMode.kernel,
+          reason: '旧快照首次读取 → 迁移');
+      await SettingsStore.instance
+          .update((s) => s['speedTestMode'] = speedTestModeKey(SpeedTestMode.tcp));
+      final second = await SettingsStore.instance.load();
+      expect(parseSpeedTestMode(second['speedTestMode']), SpeedTestMode.tcp,
+          reason: '带版本号的快照不再被迁移改写（尊重显式选择）');
+    });
+
+    test('值被写坏（key 存在但内容非法）→ 回落默认（内核测速）', () {
+      expect(parseSpeedTestMode('tpc'), SpeedTestMode.kernel);
+      expect(parseSpeedTestMode('1'), SpeedTestMode.kernel);
     });
   });
 
@@ -390,10 +421,10 @@ proxies:
       expect(conn.autoTest, isFalse);
     });
 
-    test('applySettings 缺 key 时保持默认（TCP）', () async {
+    test('applySettings 缺 key 时保持默认（内核测速）', () async {
       final conn = ConnectionController.instance;
       conn.applySettings({'localPort': 2080});
-      expect(conn.speedTestMode, SpeedTestMode.tcp);
+      expect(conn.speedTestMode, SpeedTestMode.kernel);
     });
 
     test('测速完成后记录「结果是哪种方式测的」', () async {

@@ -140,6 +140,8 @@ class AppStrings {
     'profile_orders': '我的订单',
     'profile_coupons': '优惠券',
     'profile_load_fail': '账户信息加载失败，请重试',
+    'profile_load_fail_hint': '固定入口仍可使用；点「重试」或下拉刷新重新拉取',
+    'refreshing': '正在刷新…',
     'profile_notifications': '通知中心',
     'profile_about': '关于 MBox',
     'logout': '退出登录',
@@ -169,15 +171,16 @@ class AppStrings {
     'settings_clash_api_port_desc': '内核管理端口（切节点/测速/流量），默认 9090',
     'clash_api_port_invalid': '端口需在 1024–65535，且不能与本地代理端口相同',
     // 测速方式（对标 Shadowrocket 的 Ping / Connect）：
-    // **默认 TCP 测速** = Ping（只测端口握手，快、不额外拉起内核；可能给假阳性）；
-    // 内核测速 = Connect（内核真的通过节点发请求，保证节点可用），用户可自行切换。
+    // **默认内核测速** = Connect（内核真的通过节点发请求，测出延迟的节点就真能用）；
+    // TCP 测速 = Ping（只测端口握手，快、不额外拉起内核；可能给假阳性），
+    // 用户可自行切换。
     'settings_speed_mode': '测速方式',
-    'settings_speed_mode_desc': '默认 TCP 测速＝仅测端口连通，较快但可能不准；'
-        '内核测速＝让内核真实连接节点，更准确（稍慢）',
+    'settings_speed_mode_desc': '内核测速＝让内核真实连接节点，测出延迟的节点保证能用（默认）；'
+        'TCP 测速＝仅测端口连通，较快但可能不准',
     'speed_mode_kernel': '内核测速（真连接）',
-    'speed_mode_kernel_desc': '真实连接测试，更准确，稍慢',
+    'speed_mode_kernel_desc': '真实连接测试，保证节点能用（默认）',
     'speed_mode_tcp': 'TCP 测速',
-    'speed_mode_tcp_desc': '仅测试端口连通，较快但可能不准（默认）',
+    'speed_mode_tcp_desc': '仅测试端口连通，较快但可能不准',
     'speed_mode_kernel_needs_connect': '内核测速需要内核运行：请先连接，或改用 TCP 测速',
     'speed_mode_probe_failed': '内核测速启动内核失败：{err}',
     'speed_mode_label': '测速方式：{mode}',
@@ -648,6 +651,18 @@ class AppStrings {
     'sub_updated_click_connect': '订阅已更新，请点击上方连接按钮',
     'auto_connect_no_nodes': '已开启「启动时自动连接」，但当前没有可用线路，未自动连接',
     'retry_btn': '重试',
+    // 端口被占用（`bind: address already in use`）：必须说清「谁占的 + 该怎么办」，
+    // 而不是把内核那句 FATAL 原样丢给用户。
+    'port_what_local': '本地代理端口',
+    'port_what_api': 'Clash API 端口',
+    'err_port_in_use': '{what} {port} 已被「{holder}」占用，内核无法监听。'
+        '请退出它，或点「换端口并重连」',
+    'err_port_in_use_unknown': '{what} {port} 已被其它程序占用'
+        '（可能是上次没退干净的内核或其它代理软件）。请退出它，或点「换端口并重连」',
+    'err_port_in_use_other_instance': '{what} {port} 正被另一个 MBox 实例的内核占用（{holder}）。'
+        '请先退出那个实例，或点「换端口并重连」',
+    'fix_port_btn': '换端口并重连',
+    'port_switched': '已改用端口 {port}，正在重连…',
     'tap_connect': '点击连接 · 再次点击断开',
     'tap_to_switch': '点击切换节点',
     'node_switch': '切换',
@@ -896,6 +911,8 @@ class AppStrings {
     'profile_orders': 'Orders',
     'profile_coupons': 'Coupons',
     'profile_load_fail': 'Failed to load account info. Please retry',
+    'profile_load_fail_hint': 'Fixed entries still work; tap Retry or pull to refresh',
+    'refreshing': 'Refreshing…',
     'profile_notifications': 'Notifications',
     'profile_about': 'About MBox',
     'logout': 'Sign Out',
@@ -924,13 +941,13 @@ class AppStrings {
     'settings_clash_api_port_desc': 'Core admin port (switch/test/traffic), default 9090',
     'clash_api_port_invalid': 'Port must be 1024-65535 and not equal to the local proxy port',
     'settings_speed_mode': 'Test method',
-    'settings_speed_mode_desc': 'TCP test is the default = port reachability only, '
-        'faster but may mislead; Kernel = the core really connects through the node, '
-        'more accurate (slower)',
+    'settings_speed_mode_desc': 'Kernel test = the core really connects through the node, '
+        'so any node showing a latency is usable (default); '
+        'TCP test = port reachability only, faster but may mislead',
     'speed_mode_kernel': 'Kernel (real connection)',
-    'speed_mode_kernel_desc': 'Real connection test — accurate, slightly slower',
+    'speed_mode_kernel_desc': 'Real connection test — guarantees the node works (default)',
     'speed_mode_tcp': 'TCP test',
-    'speed_mode_tcp_desc': 'Port reachability only — faster but may be inaccurate (default)',
+    'speed_mode_tcp_desc': 'Port reachability only — faster but may be inaccurate',
     'speed_mode_kernel_needs_connect': 'Kernel test needs a running core: connect first, or switch to TCP test',
     'speed_mode_probe_failed': 'Kernel test could not start the core: {err}',
     'speed_mode_label': 'Method: {mode}',
@@ -1399,6 +1416,16 @@ class AppStrings {
     'sub_updated_click_connect': 'Subscription updated — tap the connect button above',
     'auto_connect_no_nodes': 'Auto-connect on launch is on, but no lines are available yet — not connected',
     'retry_btn': 'Retry',
+    'port_what_local': 'Local proxy port',
+    'port_what_api': 'Clash API port',
+    'err_port_in_use': '{what} {port} is already used by "{holder}", so the core cannot listen. '
+        'Quit it, or tap "Change port & reconnect"',
+    'err_port_in_use_unknown': '{what} {port} is already used by another program '
+        '(a leftover core or another proxy app). Quit it, or tap "Change port & reconnect"',
+    'err_port_in_use_other_instance': '{what} {port} is in use by the core of another MBox instance ({holder}). '
+        'Quit that instance first, or tap "Change port & reconnect"',
+    'fix_port_btn': 'Change port & reconnect',
+    'port_switched': 'Switched to port {port}, reconnecting…',
     'tap_connect': 'Tap to connect · tap again to disconnect',
     'tap_to_switch': 'Tap to switch node',
     'node_switch': 'Switch',

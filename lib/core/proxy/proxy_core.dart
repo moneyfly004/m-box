@@ -15,6 +15,7 @@ import '../services/subscription_service.dart';
 import '../services/speed_test_mode.dart';
 import '../services/speed_tester.dart';
 import 'geo_assets.dart';
+import 'port_guard.dart';
 import 'speed_probe_kernel.dart';
 import 'proxy_core_embedded.dart';
 import 'proxy_core_cli.dart';
@@ -250,11 +251,11 @@ class ConnectionController extends ChangeNotifier {
   static const defaultTestUrl = SettingsStore.defaultTestUrl;
   String testUrl = defaultTestUrl;
 
-  /// 当前测速方式（设置页可切；**默认 TCP 测速**，用户可自行切到内核测速）。
+  /// 当前测速方式（设置页可切；**默认内核测速**，用户可自行切到 TCP 测速）。
   ///
   /// Shadowrocket 的 Ping/Connect 对应关系：
-  /// - [SpeedTestMode.tcp]（Ping，默认）：只测 `服务器:端口` TCP 握手，快但会假阳性；
-  /// - [SpeedTestMode.kernel]（Connect）：内核真的通过节点发请求，保证可用。
+  /// - [SpeedTestMode.kernel]（Connect，默认）：内核真的通过节点发请求，保证可用；
+  /// - [SpeedTestMode.tcp]（Ping）：只测 `服务器:端口` TCP 握手，快但会假阳性。
   SpeedTestMode speedTestMode = defaultSpeedTestMode;
 
   /// **产出当前列表里那些延迟数字的**测速方式 + 时刻。
@@ -1080,16 +1081,16 @@ class ConnectionController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// 统一测速入口：**按用户选定的测速方式**分流（设置页可切，默认 TCP 测速）。
+  /// 统一测速入口：**按用户选定的测速方式**分流（设置页可切，默认内核测速）。
   ///
-  /// - [SpeedTestMode.tcp]（TCP 测速 / Ping，默认）：始终走纯 TCP 探测，
-  ///   即使已连接也不会偷偷换成内核实测（用户的选择必须被尊重）。
-  /// - [SpeedTestMode.kernel]（内核测速 / 真连接，用户可选）：
+  /// - [SpeedTestMode.kernel]（内核测速 / 真连接，默认）：
   ///   1. 已连接且内核在跑 → 直接走内核 Clash API delay（复用连接中的内核）；
   ///   2. 未连接（桌面端）→ 拉起**测速专用临时内核**再测（可取消、空闲自动回收）；
   ///   3. 移动端（内核在系统隧道进程里，App 起不了第二个）或临时内核启动失败
   ///      → 抛 [KernelProbeException]，由调用方明确提示用户「先连接」，
   ///      **绝不静默退回 TCP**。
+  /// - [SpeedTestMode.tcp]（TCP 测速 / Ping，用户可选）：始终走纯 TCP 探测，
+  ///   即使已连接也不会偷偷换成内核实测（用户的选择必须被尊重）。
   ///
   /// [onEach] 每测完一个节点即回调 (tag, 延迟, 在线)，供上层实时回填 UI。
   Future<List<ProxyNode>> testAllNodes(List<ProxyNode> list,
@@ -1513,6 +1514,40 @@ class ConnectionController extends ChangeNotifier {
     } catch (_) {}
     if (identical(_stopInFlight, stopFut)) _stopInFlight = null;
     notifyListeners();
+  }
+
+  /// 端口被占用时的自救：换一个空闲端口写回设置，然后重连。
+  ///
+  /// 为什么必须是**用户点一下**才执行（首页错误区的「换端口并重连」）：
+  /// 本地端口是用户配置项（系统代理也会指向它），静默改掉等于「我明明设的是
+  /// 2080，怎么自己变了」。做成显式动作，用户知道发生了什么、也随时能改回去。
+  ///
+  /// 只会改**真的被占用**的那个端口：本地代理端口 / Clash API 端口各自判断，
+  /// 两者永远不同号（内核要求）。
+  Future<void> fixPortAndReconnect() async {
+    if (status != ConnStatus.disconnected) {
+      try {
+        await disconnect();
+      } catch (_) {}
+    }
+    final s = await SettingsStore.instance.load();
+    final local = _asPort(s['localPort'], 2080);
+    final clash = _asPort(s['clashApiPort'], 9090);
+    var newLocal = local;
+    if (!await PortGuard.isFree(local)) {
+      newLocal = await PortGuard.pickFree(from: local + 1, avoid: {clash});
+    }
+    var newClash = clash;
+    if (newClash == newLocal || !await PortGuard.isFree(clash)) {
+      newClash = await PortGuard.pickFree(from: clash + 1, avoid: {newLocal});
+    }
+    await SettingsStore.instance.update((m) {
+      m['localPort'] = newLocal;
+      m['clashApiPort'] = newClash;
+    });
+    AppLog.log('PORT', '端口自救：本地代理 $local→$newLocal，Clash API $clash→$newClash');
+    notifyListeners();
+    await connect();
   }
 
   Future<void> resetForLogout() async {

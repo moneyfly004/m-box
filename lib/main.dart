@@ -26,6 +26,7 @@ import 'core/services/subscription_scheduler.dart';
 import 'core/services/tray_service.dart';
 import 'core/services/update_service.dart';
 import 'core/services/settings_store.dart';
+import 'core/services/user_service.dart';
 import 'core/services/single_instance.dart';
 import 'core/proxy/system_proxy.dart';
 import 'l10n/app_strings.dart';
@@ -275,6 +276,17 @@ class _MoneyFlyAppState extends State<MoneyFlyApp> with WidgetsBindingObserver, 
         .then(ConnectionController.instance.applySettings)
         .catchError((_) {});
     ThemeController.instance.restore();
+    // 预热「我的」页数据缓存（磁盘 → 内存）：这个页面 90% 是固定布局，
+    // 只有到期/设备/账号几个数字会变。启动时把上次的仪表盘读进内存，
+    // 用户第一次点「我的」时数字就已经在了，不用等网络（无缓存则无副作用）。
+    unawaited(() async {
+      try {
+        if (UserService.instance.cachedDashboard == null) {
+          final cached = await UserService.instance.loadCachedDashboard();
+          if (cached != null) UserService.instance.adoptCachedDashboard(cached);
+        }
+      } catch (_) {}
+    }());
     // 恢复用户语言(设置页选择/首次按设备语言),否则每次启动都回到中文
     AppStrings.restore().then((_) {
       // 通知 UI 用恢复后的语言重建(不重复持久化)

@@ -42,6 +42,30 @@ void main() {
       }
     });
 
+    test('端口被占用 → 给「换端口并重连」（换端口才是解法）+ 保留重试', () {
+      final g = guideForConnError(ConnErrorKind.portInUse);
+      expect(g.showFixPort, isTrue, reason: '端口被占用时必须能换端口');
+      expect(g.showRetry, isTrue, reason: '占用者刚退出时会想直接重试');
+      expect(g.showGrantVpn, isFalse);
+      expect(g.showGrantNotify, isFalse);
+      expect(g.foregroundHint, isFalse);
+    });
+
+    test('其余类型都不显示「换端口」（别把无关故障引导成改端口）', () {
+      for (final k in [
+        ConnErrorKind.none,
+        ConnErrorKind.unknown,
+        ConnErrorKind.kernelTimeout,
+        ConnErrorKind.kernelExited,
+        ConnErrorKind.noVpnPermission,
+        ConnErrorKind.noNotificationPermission,
+        ConnErrorKind.backgroundStartBlocked,
+        ConnErrorKind.androidMultiUserBlocked,
+      ]) {
+        expect(guideForConnError(k).showFixPort, isFalse, reason: '$k 不该显示换端口');
+      }
+    });
+
     test('none（无错误）→ 无任何按钮', () {
       final g = guideForConnError(ConnErrorKind.none);
       expect(g.showRetry, isFalse);

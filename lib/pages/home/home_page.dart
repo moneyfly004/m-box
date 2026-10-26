@@ -1253,6 +1253,12 @@ class _HomePageState extends State<HomePage>
           label: AppStrings.t('grant_notify_btn'),
           onTap: () => _retryConnect(ConnErrorKind.noNotificationPermission)));
     }
+    // 端口被占用：换端口是唯一能真正解决的动作（重试只会再撞一次同一个占用者）
+    if (guide.showFixPort) {
+      actions.add(_ErrorBtn(
+          label: AppStrings.t('fix_port_btn'),
+          onTap: () => _retryConnect(ConnErrorKind.portInUse)));
+    }
     if (guide.showRetry) {
       actions.add(
           _ErrorBtn(label: AppStrings.t('retry_btn'), onTap: () => _retryConnect(conn.errorKind)));
@@ -1266,9 +1272,15 @@ class _HomePageState extends State<HomePage>
     );
   }
 
-  /// 授权类失败：先引导权限（授权成功再重连）；普通失败直接重连
+  /// 授权类失败：先引导权限（授权成功再重连）；端口被占用：换端口后重连；
+  /// 其余普通失败直接重连
   Future<void> _retryConnect(ConnErrorKind kind) async {
     final conn = ConnectionController.instance;
+    if (kind == ConnErrorKind.portInUse) {
+      // 换端口 + 重连：只改真正被占用的那个端口，成功后用户仍可在设置里改回来
+      await conn.fixPortAndReconnect();
+      return;
+    }
     if (kind == ConnErrorKind.noVpnPermission ||
         kind == ConnErrorKind.noNotificationPermission) {
       final ok = await _ensurePermissionsGuided();

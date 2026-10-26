@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
+import '../../l10n/app_strings.dart';
 import '../models/models.dart';
 import '../services/app_log.dart';
 import 'kernel_delay_api.dart';
@@ -129,7 +130,14 @@ class SpeedProbeKernel {
     if (_proc != null) return;
     if (!isSupported) {
       _lastError = 'platform-unsupported';
-      throw KernelProbeException('当前平台不支持单独启动测速内核');
+      // 移动端（Android/iOS）：内核跑在系统隧道进程里，App 起不了第二个实例，
+      // 未连接时**无法**做内核测速。而「内核测速」正是默认测速方式（见
+      // SpeedTestMode），所以这条失败路径必须给用户**可执行的自救说明**
+      // （先连接 / 或临时改成 TCP 测速），而不是一句技术性的「不支持」。
+      // 不带 detail：UI 拿到 message 就足够，detail 会让提示变成
+      // 「…启动内核失败：<技术细节>」反而更难懂。
+      AppLog.log('PROBE', '未连接且平台不支持探测内核（$Platform.operatingSystem）');
+      throw KernelProbeException(AppStrings.t('speed_mode_kernel_needs_connect'));
     }
     if (_starting) {
       // 并发调用（用户连点 / 多页面同时测速）：等第一轮启动结束
