@@ -48,6 +48,7 @@ import top.moneyfly.libbox.TunOptions
 import top.moneyfly.libbox.WIFIState
 import java.io.File
 import java.io.FileOutputStream
+import java.io.RandomAccessFile
 import java.util.ArrayDeque
 import java.util.concurrent.Executors
 
@@ -104,10 +105,48 @@ class MoneyFlyVpnService : VpnService(), PlatformInterface, CommandServerHandler
         var lastStartWarning: String? = null
             private set
 
-        /** 内核日志环形缓冲（CommandClient 采集；最多 2000 行） */
+        /** 内核日志环形缓冲（app 侧生命周期记录 + 内核日志文件增量） */
         private val logBuffer = ArrayDeque<String>()
+
+        /** sing-box 自己的日志文件（由配置 log.output 指定）读完的字节偏移 */
+        private var kernelLogOffset: Long = 0L
         private var logReadPos = 0
         private const val LOG_MAX = 2000
+
+        /** 内核日志文件路径（startBox 时按实际工作目录设置） */
+        @Volatile
+        var kernelLogFile: File? = null
+
+        /**
+         * 增量把 sing-box 日志文件的新内容读进缓冲。
+         *
+         * 为什么不用 libbox 的 CommandClient/CommandLog：实测在 1.14.0 AAR 上
+         * 它会在 connect 后立刻报
+         *   `get default log level: rpc error: code = Unknown desc = invalid argument`
+         * 并反复重连，「内核日志」页因此几乎永远空白。改成让内核把日志直接写
+         * 文件（配置 log.output），由这里按字节偏移增量读，稳定且不受 RPC 影响。
+         */
+        private fun drainKernelLogFile() {
+            val f = kernelLogFile ?: return
+            try {
+                if (!f.exists()) return
+                val len = f.length()
+                if (len <= kernelLogOffset) return
+                RandomAccessFile(f, "r").use { raf ->
+                    raf.seek(kernelLogOffset)
+                    val buf = ByteArray((len - kernelLogOffset).toInt().coerceAtMost(256 * 1024))
+                    val read = raf.read(buf)
+                    if (read <= 0) return
+                    kernelLogOffset += read
+                    buf.copyOf(read).toString(Charsets.UTF_8)
+                        .split('\n')
+                        .filter { it.isNotBlank() }
+                        .forEach { appendLog(it.trimEnd()) }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "drainKernelLogFile: ${e.message}")
+            }
+        }
 
         private fun appendLog(line: String) {
             synchronized(logBuffer) {
@@ -130,6 +169,7 @@ class MoneyFlyVpnService : VpnService(), PlatformInterface, CommandServerHandler
 
         /** 自上次调用以来的内核日志增量（「内核日志」实时页轮询） */
         fun fetchKernelLogs(): String {
+            drainKernelLogFile()
             return try {
                 synchronized(logBuffer) {
                     if (logReadPos >= logBuffer.size) return ""
@@ -238,7 +278,9 @@ class MoneyFlyVpnService : VpnService(), PlatformInterface, CommandServerHandler
         // 语义：收到新的启动请求 → 先关旧内核再按新配置启动（重启）。
         if (commandServer != null) {
             Log.d(TAG, "收到新启动请求，先关闭旧内核再重启")
-            runCatching { commandServer?.closeService() }
+            kernelLogFile = null
+        kernelLogOffset = 0L
+        runCatching { commandServer?.closeService() }
             runCatching { commandClient?.disconnect() }
             runCatching { commandServer?.close() }
             commandServer = null
@@ -280,10 +322,16 @@ class MoneyFlyVpnService : VpnService(), PlatformInterface, CommandServerHandler
             val server = CommandServer(this, this)
             server.start()
             commandServer = server
-            startLogClient()
+
+            // 让内核把日志写文件：比 CommandClient 的日志 RPC 稳（见 drainKernelLogFile）
+            val logFile = File(workDir, "singbox.log")
+            try { if (logFile.exists()) logFile.delete() } catch (_: Exception) {}
+            kernelLogFile = logFile
+            kernelLogOffset = 0L
+            val effectiveConfig = injectLogOutput(configJson, logFile.absolutePath)
 
             // 阻塞直到配置解析完成/失败
-            server.startOrReloadService(configJson, override)
+            server.startOrReloadService(effectiveConfig, override)
             currentConfig = configJson
             isRunning = true
             appendLog("[app] sing-box 内核已启动（${Libbox.version()}）")
@@ -297,6 +345,24 @@ class MoneyFlyVpnService : VpnService(), PlatformInterface, CommandServerHandler
             commandClient = null
             isRunning = false
             throw e
+        }
+    }
+
+    /**
+     * 在 sing-box 配置里补上 `log.output`（内核日志落盘路径）。
+     * 解析失败时原样返回，绝不因为日志配置把内核搞挂。
+     */
+    private fun injectLogOutput(configJson: String, path: String): String {
+        return try {
+            val root = JSONObject(configJson)
+            val log = root.optJSONObject("log") ?: JSONObject()
+            log.put("output", path)
+            log.put("timestamp", true)
+            root.put("log", log)
+            root.toString()
+        } catch (e: Exception) {
+            Log.w(TAG, "injectLogOutput failed: ${e.message}")
+            configJson
         }
     }
 
@@ -397,6 +463,8 @@ class MoneyFlyVpnService : VpnService(), PlatformInterface, CommandServerHandler
     private fun stopBox() {
         isRunning = false
         currentConfig = null
+        kernelLogFile = null
+        kernelLogOffset = 0L
         runCatching { commandServer?.closeService() }
         runCatching { commandClient?.disconnect() }
         runCatching { commandServer?.close() }

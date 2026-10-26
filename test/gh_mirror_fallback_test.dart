@@ -33,10 +33,10 @@ class _MirrorAdapter implements HttpClientAdapter {
   "tag_name": "v9.9.9",
   "assets": [
     {"name": "MBox-setup-9.9.9.exe",
-     "browser_download_url": "https://github.com/moneyfly004/moneyfly/releases/download/v9.9.9/MBox-setup-9.9.9.exe",
+     "browser_download_url": "https://github.com/moneyfly004/m-box/releases/download/v9.9.9/MBox-setup-9.9.9.exe",
      "size": ${assetBytes.length}},
     {"name": "SHA256SUMS-windows.txt",
-     "browser_download_url": "https://github.com/moneyfly004/moneyfly/releases/download/v9.9.9/SHA256SUMS-windows.txt",
+     "browser_download_url": "https://github.com/moneyfly004/m-box/releases/download/v9.9.9/SHA256SUMS-windows.txt",
      "size": 120}
   ]
 }
@@ -257,7 +257,7 @@ void main() {
           'size_bytes': 27262976,
           'sha256': 'a' * 64,
           'download_url':
-              'https://github.com/moneyfly004/moneyfly/releases/download/v2.2.20/MBox-setup-2.2.20.exe',
+              'https://github.com/moneyfly004/m-box/releases/download/v2.2.20/MBox-setup-2.2.20.exe',
         };
       };
 
@@ -284,7 +284,7 @@ void main() {
             'size_bytes': bytes.length,
             'sha256': UpdateService.sha256HexForTest(bytes),
             'download_url':
-                'https://github.com/moneyfly004/moneyfly/releases/download/v2.2.20/MBox-setup-2.2.20.exe',
+                'https://github.com/moneyfly004/m-box/releases/download/v2.2.20/MBox-setup-2.2.20.exe',
           };
 
       final info = await UpdateService.instance.check();

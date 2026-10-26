@@ -1,7 +1,7 @@
 // 发布前机械防线：仓库里**不允许出现真实节点信息**。
 //
 // 背景（为什么必须有这道防线）：
-//   moneyfly004/moneyfly 是**公开仓库**。`test/subscription_b64_test.dart` 与
+//   moneyfly004/m-box 是**公开仓库**。`test/subscription_b64_test.dart` 与
 //   `test/ss_parse_test.dart` 曾经直接内嵌真实机场订阅的原文（真实公网 IP:端口、
 //   hy2 UUID 密码、vless REALITY 公钥/short-id、真实节点域名、ss 密码）。
 //   `test/` 不会被打进安装包，所以客户产物没受影响；但**公开仓库本身**就是泄露
