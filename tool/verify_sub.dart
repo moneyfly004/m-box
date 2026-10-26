@@ -1,7 +1,7 @@
 // ignore_for_file: avoid_print, unnecessary_brace_in_string_interps
 // 真实订阅全链路验证（运维/验收用）：
 //   1) 解析订阅 Clash YAML（与生产同路径 ProxyNode.fromClashMap）
-//   2) SingBoxConfigBuilder 生成配置 → mihomo -t 校验
+//   2) SingBoxConfigBuilder 生成配置 → sing-box check 校验
 //   3) 启动真实内核 → Clash API 核对 select/GLOBAL 组
 //   4) 对全部节点并发 delay 测速（走真实隧道），按协议类型统计成功率
 //   5) 热切节点 + rule/global 模式切换
@@ -10,12 +10,28 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
-import 'package:moneyfly/core/models/models.dart';
-import 'package:moneyfly/core/proxy/singbox_config.dart';
+import 'package:mbox/core/models/models.dart';
+import 'package:mbox/core/proxy/singbox_config.dart';
 import 'package:yaml/yaml.dart';
 
-final mihomo =
-    Platform.environment['MONEYFLY_MIHOMO'] ?? 'mihomo-bin/mihomo-darwin-arm64';
+/// 定位 sing-box 内核：环境变量注入优先，其次仓库自带的开发内核（.core_dl），
+/// 最后退回 PATH 里的 sing-box。
+String _findKernel() {
+  final injected = Platform.environment['MBOX_SINGBOX'];
+  if (injected != null && injected.isNotEmpty && File(injected).existsSync()) {
+    return injected;
+  }
+  final coreDl = Directory('.core_dl');
+  if (coreDl.existsSync()) {
+    for (final d in coreDl.listSync().whereType<Directory>()) {
+      final candidate = '${d.path}/sing-box';
+      if (File(candidate).existsSync()) return candidate;
+    }
+  }
+  return 'sing-box';
+}
+
+final singBox = _findKernel();
 
 Future<void> main(List<String> args) async {
   final file = args.isNotEmpty ? args.first : '/tmp/mf_sub.yaml';
@@ -46,33 +62,45 @@ Future<void> main(List<String> args) async {
     smartMode: true,
     geoReady: true,
   );
+  // 端口改成本次验证专用：生产配置占 2080/9090，本机上 App 可能正在用，
+  // 直接用会 bind 失败（这正是这个工具最常见的「看起来内核起不来」）。
+  final apiPort = 20090 + (DateTime.now().millisecondsSinceEpoch % 2000);
+  final clashApi = ((cfg['experimental'] as Map?)?['clash_api'] as Map?);
+  if (clashApi == null) {
+    print('!!! 配置里没有 experimental.clash_api，无法做控制面校验');
+    exit(1);
+  }
+  clashApi['external_controller'] = '127.0.0.1:$apiPort';
+  final secret = (clashApi['secret'] as String?) ?? '';
+  for (final inb in (cfg['inbounds'] as List? ?? const []).cast<Map>()) {
+    if ('${inb['type']}' == 'mixed' || '${inb['type']}' == 'socks' ||
+        '${inb['type']}' == 'http') {
+      inb['listen_port'] = 22990;
+    }
+  }
   final yamlText = SingBoxConfigBuilder.encode(cfg);
   final tmp = Directory.systemTemp.createTempSync('mf_verify');
   try {
-    // geo 数据复制到 homeDir（生产由 GeoAssets 落盘）
-    for (final f in ['country.mmdb', 'geosite.dat']) {
+    // 离线规则集复制到 homeDir（生产由 GeoAssets 落盘）
+    for (final f in ['geosite-cn.srs', 'geoip-cn.srs']) {
       final src = File('assets/rules/$f');
       if (src.existsSync()) src.copySync('${tmp.path}/$f');
     }
-    File('${tmp.path}/config.yaml').writeAsStringSync(yamlText);
+    File('${tmp.path}/config.json').writeAsStringSync(yamlText);
 
-    // ===== 2. mihomo -t 校验 =====
-    final t = Process.runSync(mihomo, ['-d', tmp.path, '-t'],
+    // ===== 2. sing-box check 校验 =====
+    final t = Process.runSync(singBox, ['check', '-c', '${tmp.path}/config.json'],
         environment: {'PATH': Platform.environment['PATH'] ?? ''});
-    print('mihomo -t exit=${t.exitCode}');
+    print('sing-box check exit=${t.exitCode}');
     if (t.exitCode != 0) {
       stdout.write('${t.stdout}\n${t.stderr}\n');
       exit(1);
     }
-    print('=== 配置被 mihomo 接受 ✓ ===');
+    print('=== 配置被 sing-box 接受 ✓ ===');
 
     // ===== 3. 启动真实内核 =====
-    final apiPort = 20090 + (DateTime.now().millisecondsSinceEpoch % 2000);
-    final runYaml = yamlText
-        .replaceAll('127.0.0.1:9090', '127.0.0.1:$apiPort')
-        .replaceAll(RegExp(r'mixed-port: \d+'), 'mixed-port: 22990');
-    File('${tmp.path}/config.yaml').writeAsStringSync(runYaml);
-    final proc = await Process.start(mihomo, ['-d', tmp.path],
+    final proc = await Process.start(
+        singBox, ['run', '-c', '${tmp.path}/config.json', '-D', tmp.path],
         environment: {'PATH': Platform.environment['PATH'] ?? ''});
     proc.stdout.transform(utf8.decoder).listen((l) {});
     proc.stderr.transform(utf8.decoder).listen((l) {});
@@ -81,7 +109,6 @@ Future<void> main(List<String> args) async {
       connectTimeout: const Duration(seconds: 3),
       receiveTimeout: const Duration(seconds: 3),
     ));
-    final secret = (loadYaml(runYaml) as Map)['secret'] as String;
     dio.options.headers['Authorization'] = 'Bearer $secret';
     final api = 'http://127.0.0.1:$apiPort';
 
@@ -112,8 +139,9 @@ Future<void> main(List<String> args) async {
     print('select 组: ${members.length} 项(含 DIRECT)');
     final dup = members.length - members.toSet().length;
     print('组内重复名: $dup');
-    print('GLOBAL 组存在: ${pxMap.containsKey('GLOBAL')}, '
-        'now=${(pxMap['GLOBAL'] as Map)['now']}');
+    // sing-box 没有旧内核的 GLOBAL 组：全局模式由 clash_mode 规则实现，
+    // 这里核对的是我们自己的 select 组（热切节点的入口）。
+    print('GLOBAL 组存在: ${pxMap.containsKey('GLOBAL')}（sing-box 无此组，属预期）');
     print('select now=${select['now']}');
 
     // 核对每个解析节点都在组里（特殊字符名/超长名是否被 YAML 安全编码）
@@ -197,11 +225,11 @@ Future<void> main(List<String> args) async {
     await Future.delayed(const Duration(milliseconds: 300));
     final c1 = await dio.get('$api/configs');
     print('切到全局后 mode=${c1.data['mode']}');
-    await dio.put('$api/proxies/GLOBAL', data: {'name': okNode.tag},
+    await dio.put('$api/proxies/select', data: {'name': okNode.tag},
         options: Options(validateStatus: (s) => true));
     await Future.delayed(const Duration(milliseconds: 300));
     final px2 = await dio.get('$api/proxies');
-    print('GLOBAL now=${(px2.data as Map)['proxies']['GLOBAL']['now']}');
+    print('select now=${(px2.data as Map)['proxies']['select']['now']}');
     await dio.patch('$api/configs', data: {'mode': 'rule'},
         options: Options(validateStatus: (s) => true));
     final c2 = await dio.get('$api/configs');

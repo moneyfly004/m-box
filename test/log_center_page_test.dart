@@ -15,11 +15,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:moneyfly/core/proxy/proxy_core.dart';
-import 'package:moneyfly/core/proxy/proxy_core_cli.dart';
-import 'package:moneyfly/l10n/app_strings.dart';
-import 'package:moneyfly/pages/settings/log_center_page.dart';
-import 'package:moneyfly/theme/app_theme.dart';
+import 'package:mbox/core/proxy/proxy_core.dart';
+import 'package:mbox/core/proxy/proxy_core_cli.dart';
+import 'package:mbox/l10n/app_strings.dart';
+import 'package:mbox/pages/settings/log_center_page.dart';
+import 'package:mbox/theme/app_theme.dart';
 
 const Size _kMinWindow = Size(380, 620);
 const String _errLine = 'time="2024" level=error msg="boom-alpha"';
@@ -30,7 +30,7 @@ Future<void> _pump(WidgetTester tester) async {
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
   await tester.pumpWidget(MaterialApp(
-      theme: buildMoneyFlyTheme(), home: const LogCenterPage()));
+      theme: buildMBoxTheme(), home: const LogCenterPage()));
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 50));
 }
@@ -52,7 +52,7 @@ void main() {
   setUp(() async {
     // 级别设为 debug，保证两类日志行都可见（与本用例关注点无关）
     SharedPreferences.setMockInitialValues({
-      'moneyfly_settings_v1': jsonEncode({'kernelLogLevel': 'debug'}),
+      'mbox_settings_v1': jsonEncode({'kernelLogLevel': 'debug'}),
     });
     await AppStrings.setLang('zh', persist: false);
     ConnectionController.instance.status = ConnStatus.disconnected;
@@ -111,7 +111,7 @@ void main() {
   testWidgets('等级 chip：命中区 ≥40 且是 InkWell（点击即切换过滤）', (tester) async {
     // 这一个用例要看「过滤」，所以级别先用默认 warning
     SharedPreferences.setMockInitialValues({
-      'moneyfly_settings_v1': jsonEncode({'kernelLogLevel': 'warning'}),
+      'mbox_settings_v1': jsonEncode({'kernelLogLevel': 'warning'}),
     });
     await _pump(tester);
     await _feed(tester, _dbgLine);

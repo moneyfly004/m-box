@@ -11,10 +11,10 @@ import '../theme/app_theme.dart';
 ///
 /// 用法：
 /// ```dart
-/// if (_formError != null) MFFormError(message: _formError!),
+/// if (_formError != null) MBFormError(message: _formError!),
 /// ```
-class MFFormError extends StatelessWidget {
-  const MFFormError({super.key, required this.message, this.margin});
+class MBFormError extends StatelessWidget {
+  const MBFormError({super.key, required this.message, this.margin});
 
   /// 已本地化的错误文案
   final String message;
@@ -30,13 +30,13 @@ class MFFormError extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('⚠',
-              style: TextStyle(fontSize: 12, color: MFColors.red)),
+              style: TextStyle(fontSize: 12, color: MBColors.red)),
           const SizedBox(width: 6),
           Expanded(
             child: Text(message,
                 style: TextStyle(
                     fontSize: 12,
-                    color: MFColors.red,
+                    color: MBColors.red,
                     height: 1.5,
                     fontWeight: FontWeight.w600)),
           ),

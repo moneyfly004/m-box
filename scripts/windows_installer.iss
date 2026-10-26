@@ -13,7 +13,7 @@
 AppId={{B0C9E8F7-4D2A-4C5E-9F1B-6A3D2E7C8B1A}
 AppName=MBox
 AppVersion={#VERSION}
-AppPublisher=top.moneyfly
+AppPublisher=top.mbox
 AppPublisherURL=https://dy.moneyfly.top
 ; 默认安装目录：**C 盘**用户级目录 %LOCALAPPDATA%\Programs\MBox。
 ; 为什么不用 {autopf}：PrivilegesRequired=lowest 时它等于 {userpf}（同一个位置），
@@ -65,20 +65,20 @@ Filename: "{app}\mbox.exe"; Description: "{cm:LaunchProgram,MBox}"; Flags: nowai
 ; ===== 卸载清理 =====
 ; ⚠️ 这里**只能删纯缓存**，绝不能删应用数据目录：
 ; path_provider 在 Windows 上把 install_id（安装实例标记，客户端据此派生
-; X-MF-Device-Id / device_hash）写在 %APPDATA%\top.moneyfly\MoneyFly 下。
+; X-MF-Device-Id / device_hash）写在 %APPDATA%\top.mbox\MBox 下。
 ; Inno 升级时会**先静默运行旧版卸载程序**，旧版在这里删掉了整个
-; %APPDATA%\top.moneyfly\MoneyFly ⇒ install_id 丢失 ⇒ 同一台电脑在后台被
+; %APPDATA%\top.mbox\MBox ⇒ install_id 丢失 ⇒ 同一台电脑在后台被
 ; 登记成新设备。生产实证：老站用户 susanzhang1230 只有 iPhone + 一台 Windows
-; 两台设备，后台却显示 3 台（MoneyFly 2.2.25 与 2.2.28 是同一台 PC）。
+; 两台设备，后台却显示 3 台（MBox 2.2.25 与 2.2.28 是同一台 PC）。
 ; 应用数据的清理改到 [Code] 的 CurUninstallStepChanged，且**只在用户真正
 ; 手动卸载（非静默）时**执行；升级/应用内「重启即更新」都走静默卸载，数据保留。
 [UninstallDelete]
-Type: filesandordirs; Name: "{localappdata}\Temp\moneyfly_core"
+Type: filesandordirs; Name: "{localappdata}\Temp\mbox_core"
 
 [Code]
 // 默认安装目录（见 [Setup] DefaultDirName={code:GetDefaultDir}）：
 // 常规机器 = C:\Users\<用户>\AppData\Local\Programs\MBox；
-// 用户配置目录不在系统盘时 = <系统盘>:\MoneyFly（同样是免管理员的用户级位置）。
+// 用户配置目录不在系统盘时 = <系统盘>:\MBox（同样是免管理员的用户级位置）。
 function GetDefaultDir(Param: String): String;
 var
   AppDataDir, SysDrive: String;
@@ -87,9 +87,9 @@ begin
   SysDrive := ExpandConstant('{sd}');
   if (Length(AppDataDir) >= 2) and (Length(SysDrive) >= 2) and
      (CompareText(Copy(AppDataDir, 1, 2), Copy(SysDrive, 1, 2)) <> 0) then
-    Result := SysDrive + '\MoneyFly'
+    Result := SysDrive + '\MBox'
   else
-    Result := AppDataDir + '\Programs\MoneyFly';
+    Result := AppDataDir + '\Programs\MBox';
 end;
 
 // 升级安装时先结束正在运行的旧版本：/CLOSEAPPLICATIONS 靠 Restart Manager，
@@ -111,7 +111,7 @@ end;
 
 // ===== 真正的「卸载彻底」：只在用户手动卸载时清应用数据 =====
 // 升级安装与应用内「重启即更新」都会**静默**运行旧版卸载程序（/SILENT），
-// 那种情况下必须保留 %APPDATA%\top.moneyfly\MoneyFly —— 里面有 install_id，
+// 那种情况下必须保留 %APPDATA%\top.mbox\MBox —— 里面有 install_id，
 // 删了同一台电脑就会被后台当成新设备（幽灵设备、白占设备名额）。
 // 用户从控制面板/开始菜单真正卸载（交互式，无 /SILENT）时才清理，
 // 保证「卸载后重装 = 全新状态（重新登录 + 重新拉订阅）」的原意不变。
@@ -129,9 +129,9 @@ begin
   begin
     if not IsSilentRun then
     begin
-      DelTree(ExpandConstant('{userappdata}\top.moneyfly\MoneyFly'), True, True, True);
-      DelTree(ExpandConstant('{localappdata}\top.moneyfly\MoneyFly'), True, True, True);
-      DelTree(ExpandConstant('{localappdata}\Temp\moneyfly_core'), True, True, True);
+      DelTree(ExpandConstant('{userappdata}\top.mbox\MBox'), True, True, True);
+      DelTree(ExpandConstant('{localappdata}\top.mbox\MBox'), True, True, True);
+      DelTree(ExpandConstant('{localappdata}\Temp\mbox_core'), True, True, True);
     end;
   end;
 end;

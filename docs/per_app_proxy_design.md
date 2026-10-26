@@ -22,7 +22,7 @@ Android 上的分应用代理**已经有了**（设置 → 代理与分流 → �
 | UI | `lib/pages/settings/access_page.dart`（393 行） | ✅ 三种模式、搜索、已选计数、模式说明、读取失败可重试 |
 | 入口 | `settings_page.dart`：`📱 应用代理`（仅 Android 显示），值显示当前模式 | ✅ |
 | 应用列表 | `MainActivity.kt#getInstalledApps()`：`queryIntentActivities(ACTION_MAIN + CATEGORY_LAUNCHER)`，返回 `{package,label}` 按 label 排序 | ✅ 只含「有桌面图标」的 App |
-| 生效 | `MoneyFlyVpnService.kt#applyAccessControl()`：`addAllowedApplication` / `addDisallowedApplication`；**始终排除自身** | ✅ |
+| 生效 | `MBoxVpnService.kt#applyAccessControl()`：`addAllowedApplication` / `addDisallowedApplication`；**始终排除自身** | ✅ |
 
 ### 1.2 本机实测证据（同一台手机、同一版 App 2.2.11）
 
@@ -39,8 +39,8 @@ Android 上的分应用代理**已经有了**（设置 → 代理与分流 → �
 | G2 | ❗ **只列出有桌面图标的 App** | 想代理/排除某些系统组件、无图标 App 时**根本选不到** | `getInstalledApps()` 用 LAUNCHER 查询 |
 | G3 | ❗ **已选应用不置顶** | 已选 5 个散落在几百行里，改配置要翻半天 | 列表只按 label 排序 |
 | G4 | ❗ **无法折叠系统应用** | vivo 机器上系统应用占绝大多数，有效信息被淹没 | 无过滤开关 |
-| G5 | ❗ **自身出现在列表里** | 勾了也不生效（Kotlin 侧强制排除），用户会以为坏了 | `MoneyFly ｜ top.moneyfly.app` 实测在列表第 3 项 |
-| G6 | ❗ **卸载过的包会让规则只应用一半，`denied` 模式下还会漏掉「排除自身」** | `forEach { addAllowedApplication/addDisallowedApplication }` 抛 `NameNotFoundException` 后被外层 `catch` 吞掉，**循环中断**：前面的包加进去了、后面的没加。更严重的是 `denied` 分支里 `addDisallowedApplication(packageName)`（排除自身）写在循环**之后** → 异常时它同样被跳过 → **本进程流量进入隧道 → 自代理循环（连上也打不开网页）**，正是该函数注释里警告的那个后果。证据等级：**读代码得出**，未在真机复现（复现需要卸载一个已勾选的应用，会动到你的数据） | `MoneyFlyVpnService.kt#applyAccessControl`：try/catch 包住整个 `when`，自身排除在循环之后 |
+| G5 | ❗ **自身出现在列表里** | 勾了也不生效（Kotlin 侧强制排除），用户会以为坏了 | `MBox ｜ top.mbox.app` 实测在列表第 3 项 |
+| G6 | ❗ **卸载过的包会让规则只应用一半，`denied` 模式下还会漏掉「排除自身」** | `forEach { addAllowedApplication/addDisallowedApplication }` 抛 `NameNotFoundException` 后被外层 `catch` 吞掉，**循环中断**：前面的包加进去了、后面的没加。更严重的是 `denied` 分支里 `addDisallowedApplication(packageName)`（排除自身）写在循环**之后** → 异常时它同样被跳过 → **本进程流量进入隧道 → 自代理循环（连上也打不开网页）**，正是该函数注释里警告的那个后果。证据等级：**读代码得出**，未在真机复现（复现需要卸载一个已勾选的应用，会动到你的数据） | `MBoxVpnService.kt#applyAccessControl`：try/catch 包住整个 `when`，自身排除在循环之后 |
 | G7 | ❗ **改完不知道有没有生效** | 保存即写盘，但要重连才生效；界面上只有一句「更改已保存 · 重连或下次连接后生效」，连接中也没有主动提示，用户改完就走 → 以为没生效 | `access_page.dart` 顶部提示 + AppBar 的「重连生效」按钮 |
 | G8 | ❗ **没有批量操作/预设** | 「把银行类 App 都排除」只能一个个点 | 无全选/反选/预设 |
 | G9 | ❗ **没有已卸载包的清理入口** | 存了但已卸载的 package 永远留在 `accessControlApps` 里（计数虚高、触发 G6） | 无 UI |
@@ -118,7 +118,7 @@ Android 11+ 的包可见性限制决定了：**要列全量应用必须声明 `Q
 用户直觉是「微信走香港、浏览器走美国」。我们的架构里：
 
 ```
-App → VpnService(TUN) → 内核(mihomo) → 规则匹配 → 出站
+App → VpnService(TUN) → 内核(sing-box) → 规则匹配 → 出站
 ```
 
 - VpnService 只能做**「这个 App 进不进隧道」**这一件事，做不到「进隧道后走哪个出口」；
@@ -173,9 +173,9 @@ App → VpnService(TUN) → 内核(mihomo) → 规则匹配 → 出站
 | 元素 | 规格 |
 |---|---|
 | 图标 | 36×36，圆角 9；缺图标 → 品牌色首字母圆形 |
-| 名称 | 13.5，`MFColors.txt`，单行省略 |
-| 包名 | 9.5，`MFColors.txt3`，单行省略（保留：排障时有用） |
-| 勾选框 | 用 `MFChip`/`CheckboxListTile`，**整行可点**（命中区 ≥48） |
+| 名称 | 13.5，`MBColors.txt`，单行省略 |
+| 包名 | 9.5，`MBColors.txt3`，单行省略（保留：排障时有用） |
+| 勾选框 | 用 `MBChip`/`CheckboxListTile`，**整行可点**（命中区 ≥48） |
 | 已卸载标记 | 名称后追一个灰色「已卸载」小标签 |
 | 系统应用标记 | 折叠分组内不额外标记（分组标题已说明） |
 

@@ -35,11 +35,11 @@ case "$(uname -s)" in
         echo "已放入 $APP/Contents/MacOS/sing-box"
       fi
     done
-    # 同时复制一份到 build/singbox 备用（可用 MONEYFLY_SINGBOX 环境变量指向）
+    # 同时复制一份到 build/singbox 备用（可用 MBOX_SINGBOX 环境变量指向）
     mkdir -p build/singbox
     cp "$BIN" "build/singbox/sing-box"
     chmod +x build/singbox/sing-box
-    echo "备用: build/singbox/sing-box（export MONEYFLY_SINGBOX=$(pwd)/build/singbox/sing-box）"
+    echo "备用: build/singbox/sing-box（export MBOX_SINGBOX=$(pwd)/build/singbox/sing-box）"
     echo "如果刚才没有构建过 App，请先 flutter build macos --debug 再重跑本脚本。"
     ;;
   *)

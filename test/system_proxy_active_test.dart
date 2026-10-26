@@ -7,7 +7,7 @@
 // 客户看到「首页显示已连接、速率为 0」，甚至以本机 IP 直连出网（以为走了代理）。
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:moneyfly/core/proxy/system_proxy.dart';
+import 'package:mbox/core/proxy/system_proxy.dart';
 
 void main() {
   group('macProxyNeedsApply：保活是否需要重新写代理', () {

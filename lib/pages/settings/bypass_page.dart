@@ -200,9 +200,9 @@ class _BypassPageState extends State<BypassPage> {
       };
 
   Color _kindColor(_BypassKind k) => switch (k) {
-        _BypassKind.cidr => MFColors.green,
-        _BypassKind.domain => MFColors.amber,
-        _BypassKind.suffix => MFColors.brand,
+        _BypassKind.cidr => MBColors.green,
+        _BypassKind.domain => MBColors.amber,
+        _BypassKind.suffix => MBColors.brand,
       };
 
   String _kindIcon(_BypassKind k) => switch (k) {
@@ -280,7 +280,7 @@ class _BypassPageState extends State<BypassPage> {
       ),
       body: SafeArea(
         child: !_loaded
-            ? Center(child: CircularProgressIndicator(color: MFColors.brand))
+            ? Center(child: CircularProgressIndicator(color: MBColors.brand))
             : _loadError != null
                 ? _errorBody()
                 : _body(),
@@ -301,7 +301,7 @@ class _BypassPageState extends State<BypassPage> {
             Text(_loadError!,
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                    fontSize: 12.5, color: MFColors.txt2, height: 1.6)),
+                    fontSize: 12.5, color: MBColors.txt2, height: 1.6)),
             const SizedBox(height: 6),
             TextButton(
                 onPressed: _retryLoad, child: Text(AppStrings.t('retry'))),
@@ -320,10 +320,10 @@ class _BypassPageState extends State<BypassPage> {
       color: Colors.transparent,
       child: Ink(
         decoration: BoxDecoration(
-          gradient: enabled ? MFColors.brandGradient : null,
-          color: enabled ? null : MFColors.card2,
+          gradient: enabled ? MBColors.brandGradient : null,
+          color: enabled ? null : MBColors.card2,
           borderRadius: radius,
-          border: enabled ? null : Border.all(color: MFColors.line),
+          border: enabled ? null : Border.all(color: MBColors.line),
         ),
         child: InkWell(
           onTap: enabled ? _add : null,
@@ -336,7 +336,7 @@ class _BypassPageState extends State<BypassPage> {
                 style: TextStyle(
                     fontSize: 13.5,
                     fontWeight: FontWeight.w600,
-                    color: enabled ? Colors.white : MFColors.txt3)),
+                    color: enabled ? Colors.white : MBColors.txt3)),
           ),
         ),
       ),
@@ -350,7 +350,7 @@ class _BypassPageState extends State<BypassPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(AppStrings.t('bypass_desc'),
-              style: TextStyle(fontSize: 11.5, color: MFColors.txt3, height: 1.6)),
+              style: TextStyle(fontSize: 11.5, color: MBColors.txt3, height: 1.6)),
           const SizedBox(height: 12),
           // 输入行（输入框与添加按钮同高对齐，无重叠）
           Row(
@@ -362,7 +362,7 @@ class _BypassPageState extends State<BypassPage> {
                   child: TextField(
                     controller: _input,
                     focusNode: _inputFocus,
-                    style: TextStyle(fontSize: 13.5, color: MFColors.txt),
+                    style: TextStyle(fontSize: 13.5, color: MBColors.txt),
                     keyboardType: TextInputType.url,
                     autocorrect: false,
                     enableSuggestions: false,
@@ -383,19 +383,19 @@ class _BypassPageState extends State<BypassPage> {
           // 输入格式说明（三种条目类型示例）
           Text(AppStrings.t('bypass_help'),
               style:
-                  TextStyle(fontSize: 10, color: MFColors.txt3, height: 1.6)),
+                  TextStyle(fontSize: 10, color: MBColors.txt3, height: 1.6)),
           const SizedBox(height: 12),
           Text(
               '${AppStrings.t('bypass_count', {'n': '${_domains.length}'})}'
               ' · ${AppStrings.t('bypass_effect')}',
-              style: TextStyle(fontSize: 11, color: MFColors.txt3)),
+              style: TextStyle(fontSize: 11, color: MBColors.txt3)),
           const SizedBox(height: 8),
           Expanded(
             child: _domains.isEmpty
                 ? Center(
                     child: Text(AppStrings.t('bypass_empty'),
                         style: TextStyle(
-                            fontSize: 12.5, color: MFColors.txt3)))
+                            fontSize: 12.5, color: MBColors.txt3)))
                 : ListView.separated(
                     itemCount: _domains.length,
                     separatorBuilder: (_, _) => const SizedBox(height: 8),
@@ -410,9 +410,9 @@ class _BypassPageState extends State<BypassPage> {
                             horizontal: 16, vertical: 3),
                         height: 48,
                         decoration: BoxDecoration(
-                            color: MFColors.card,
+                            color: MBColors.card,
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: MFColors.line)),
+                            border: Border.all(color: MBColors.line)),
                         child: Row(
                           children: [
                             Text(_kindIcon(kind),
@@ -424,7 +424,7 @@ class _BypassPageState extends State<BypassPage> {
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
                                       fontSize: 13.5,
-                                      color: MFColors.txt,
+                                      color: MBColors.txt,
                                       fontWeight: FontWeight.w500)),
                             ),
                             const SizedBox(width: 8),
@@ -458,12 +458,12 @@ class _BypassPageState extends State<BypassPage> {
                                       width: 30,
                                       height: 30,
                                       decoration: BoxDecoration(
-                                          color: MFColors.red
+                                          color: MBColors.red
                                               .withValues(alpha: .1),
                                           borderRadius:
                                               BorderRadius.circular(9)),
                                       child: Icon(Icons.close,
-                                          size: 15, color: MFColors.red),
+                                          size: 15, color: MBColors.red),
                                     ),
                                   ),
                                 ),

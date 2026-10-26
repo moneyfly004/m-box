@@ -647,7 +647,7 @@ class SubscriptionService {
     }
   }
 
-  /// 订阅自定义 UA（设置为空时返回 null → 用默认 MoneyFly/<版本>）。
+  /// 订阅自定义 UA（设置为空时返回 null → 用默认 MBox/<版本>）。
   /// 部分机场按 UA 返回不同客户端格式，用户需要能自救。
   static Future<String?> _subscriptionUa() async {
     try {

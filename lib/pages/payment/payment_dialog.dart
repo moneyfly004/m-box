@@ -184,10 +184,10 @@ class _PaymentQrDialogState extends State<PaymentQrDialog> with WidgetsBindingOb
     final String text;
     var spinner = false;
     if (_closedStatus != null) {
-      color = MFColors.red;
+      color = MBColors.red;
       text = AppStrings.t('order_status_tip', {'status': _closedStatus!});
     } else if (_timedOut) {
-      color = MFColors.amber;
+      color = MBColors.amber;
       text = AppStrings.t('pay_poll_stopped');
     } else {
       color = Colors.white70;
@@ -232,7 +232,7 @@ class _PaymentQrDialogState extends State<PaymentQrDialog> with WidgetsBindingOb
           gradient: const LinearGradient(
               begin: Alignment.topCenter, end: Alignment.bottomCenter,
               colors: [Color(0xFF171E2E), Color(0xFF10141F)]),
-          border: Border.all(color: MFColors.line2),
+          border: Border.all(color: MBColors.line2),
         ),
         // 窄窗口（最小 380×620）下「二维码 196 + 金额 + 跳转按钮 + 底部按钮」
         // 可能超过可视高度：内容整体可滚动，绝不抛 RenderFlex overflow。
@@ -312,7 +312,7 @@ class _PaymentQrDialogState extends State<PaymentQrDialog> with WidgetsBindingOb
                   onTap: _launching ? null : _openPayApp,
                   child: Container(
                     height: 48,
-                    decoration: BoxDecoration(gradient: MFColors.brandGradient, borderRadius: BorderRadius.circular(14)),
+                    decoration: BoxDecoration(gradient: MBColors.brandGradient, borderRadius: BorderRadius.circular(14)),
                     alignment: Alignment.center,
                     child: _launching
                         ? const SizedBox(width: 18, height: 18,
@@ -361,7 +361,7 @@ class _PaymentQrDialogState extends State<PaymentQrDialog> with WidgetsBindingOb
                       child: Container(
                         height: _actionBtnHeight,
                         padding: const EdgeInsets.symmetric(horizontal: 8),
-                        decoration: BoxDecoration(gradient: MFColors.brandGradient, borderRadius: BorderRadius.circular(14)),
+                        decoration: BoxDecoration(gradient: MBColors.brandGradient, borderRadius: BorderRadius.circular(14)),
                         alignment: Alignment.center,
                         child: Text(AppStrings.t('i_paid'),
                             maxLines: 1,

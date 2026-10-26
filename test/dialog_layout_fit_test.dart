@@ -12,19 +12,19 @@ import 'package:http_mock_adapter/http_mock_adapter.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:moneyfly/core/api/api_client.dart';
-import 'package:moneyfly/core/proxy/proxy_core.dart';
-import 'package:moneyfly/core/proxy/proxy_core_cli.dart';
-import 'package:moneyfly/core/services/account_service.dart';
-import 'package:moneyfly/core/services/subscription_service.dart';
-import 'package:moneyfly/core/services/user_service.dart';
-import 'package:moneyfly/l10n/app_strings.dart';
-import 'package:moneyfly/main.dart';
-import 'package:moneyfly/pages/package/package_page.dart';
-import 'package:moneyfly/pages/package/upgrade_devices_page.dart';
-import 'package:moneyfly/pages/payment/payment_dialog.dart';
-import 'package:moneyfly/pages/profile/profile_page.dart';
-import 'package:moneyfly/theme/app_theme.dart';
+import 'package:mbox/core/api/api_client.dart';
+import 'package:mbox/core/proxy/proxy_core.dart';
+import 'package:mbox/core/proxy/proxy_core_cli.dart';
+import 'package:mbox/core/services/account_service.dart';
+import 'package:mbox/core/services/subscription_service.dart';
+import 'package:mbox/core/services/user_service.dart';
+import 'package:mbox/l10n/app_strings.dart';
+import 'package:mbox/main.dart';
+import 'package:mbox/pages/package/package_page.dart';
+import 'package:mbox/pages/package/upgrade_devices_page.dart';
+import 'package:mbox/pages/payment/payment_dialog.dart';
+import 'package:mbox/pages/profile/profile_page.dart';
+import 'package:mbox/theme/app_theme.dart';
 
 Map<String, dynamic> _env(dynamic data) =>
     {'success': true, 'code': 0, 'message': '', 'data': data};
@@ -38,7 +38,7 @@ Dio _mockDio(void Function(DioAdapter a) routes) {
 }
 
 Widget _wrap(Widget child) => MaterialApp(
-      theme: buildMoneyFlyTheme(),
+      theme: buildMBoxTheme(),
       home: MultiProvider(
         providers: [
           ChangeNotifierProvider.value(value: SessionState()..setLoggedIn(true)),

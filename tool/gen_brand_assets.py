@@ -160,16 +160,14 @@ def main():
                    append_images=frames[1:])
     print(f"  {os.path.relpath(ico_path, ROOT)}  ICO {sizes}")
 
-    # ---- Flutter 资源：应用内 logo（保留原文件名，避免改动业务代码） ----
-    assets = f'{ROOT}/assets'
-    master.resize((512, 512), Image.LANCZOS).save(f'{assets}/moneyfly-logo.png', 'PNG')
-    print(f"  assets/moneyfly-logo.png  512x512")
-    # 托盘图标（Windows 只认 ico；macOS 用 png）
-    tray = [16, 32, 48, 64]
-    tf = [rounded(master, s) for s in tray]
-    tf[0].save(f'{assets}/tray_icon.ico', format='ICO',
-               sizes=[(s, s) for s in tray], append_images=tf[1:])
-    print(f"  assets/tray_icon.ico  ICO {tray}")
+    # ---- Flutter 资源：交给 tool/gen_app_icons_white.py 产出 ----
+    # 应用内 logo / 托盘图标都是**白底**版本的产物（用户要求图标底色白色），
+    # 这里不再写 assets/mbox-logo.png、assets/tray_icon.ico —— 否则本脚本
+    # 一跑就会用渐变底版本把白底版本盖回去，出现「桌面图标白底、App 内彩色」
+    # 的两套视觉。只负责画稿留档，图形资源统一由下面那个脚本生成：
+    #   python3 tool/gen_brand_assets.py        # 画稿 → design/mbox-logo.png
+    #   python3 tool/gen_app_icons_white.py     # 画稿 → 各平台图标 + App 内 logo
+    print("  （图标/App 内 logo 由 tool/gen_app_icons_white.py 生成）")
 
     # ---- 设计稿留档 ----
     master.resize((1024, 1024), Image.LANCZOS).save(f'{ROOT}/design/mbox-logo.png', 'PNG')

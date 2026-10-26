@@ -6,8 +6,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:moneyfly/core/models/models.dart';
-import 'package:moneyfly/core/proxy/proxy_core.dart';
+import 'package:mbox/core/models/models.dart';
+import 'package:mbox/core/proxy/proxy_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -15,13 +15,13 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   HttpOverrides.global = null;
 
-  final env = Platform.environment['MONEYFLY_MIHOMO'];
+  final env = Platform.environment['MBOX_SINGBOX'];
   final hasBinary = env != null && File(env).existsSync();
-  final skip = hasBinary ? null : '未找到 mihomo 内核';
+  final skip = hasBinary ? null : '未找到 sing-box 内核';
 
   test('连接立即生效 + 后台测速不阻塞（Hiddify 模式）', skip: skip, () async {
     // mock 设置存储（测试环境无插件）
-    SharedPreferences.setMockInitialValues({'moneyfly_lang': 'zh'});
+    SharedPreferences.setMockInitialValues({'mbox_lang': 'zh'});
 
     final proxiesFile = File('/tmp/mf_proxies.json');
     if (!proxiesFile.existsSync()) {

@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:moneyfly/core/services/subscription_service.dart';
+import 'package:mbox/core/services/subscription_service.dart';
 
 void main() {
   group('Clash YAML 解析', () {

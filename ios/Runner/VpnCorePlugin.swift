@@ -4,7 +4,7 @@ import NetworkExtension
 
 /// App 侧 VPN 控制通道。
 ///
-/// 与 Android 的 `top.moneyfly/vpn_core` **同名同参**，因此 Dart 侧
+/// 与 Android 的 `top.mbox/vpn_core` **同名同参**，因此 Dart 侧
 /// （`ProxyCoreEmbedded`）可以复用 Android 那套结构：
 ///   startVpn / stopVpn / isVpnRunning / kernelVersion / fetchKernelLogs / lastStartError
 /// 另外为 iOS 增加诊断方法（Android 无对应实现，Dart 侧按需调用）：
@@ -15,8 +15,8 @@ import NetworkExtension
 /// 127.0.0.1:<apiPort>）。
 class VpnCorePlugin {
 
-    private static let appGroupId = "group.top.moneyfly.app"
-    private static let tunnelBundleId = "top.moneyfly.app.tunnel"
+    private static let appGroupId = "group.top.mbox.app"
+    private static let tunnelBundleId = "top.mbox.app.tunnel"
 
     /// 最近一次启动失败原因（Dart 侧连接失败时读取，给出可诊断信息）
     private static var lastError: String?
@@ -32,7 +32,7 @@ class VpnCorePlugin {
         let ms = Int(Date().timeIntervalSince(diagStart) * 1000)
         diagNotes.append("[\(ms)ms] \(message)")
         if diagNotes.count > 300 { diagNotes.removeFirst(diagNotes.count - 300) }
-        NSLog("[moneyfly] %@", message)
+        NSLog("[mbox] %@", message)
     }
 
     private static func statusName(_ s: NEVPNStatus) -> String {
@@ -52,7 +52,7 @@ class VpnCorePlugin {
 
     static func register(with messenger: FlutterBinaryMessenger) {
         let channel = FlutterMethodChannel(
-            name: "top.moneyfly/vpn_core", binaryMessenger: messenger)
+            name: "top.mbox/vpn_core", binaryMessenger: messenger)
         channel.setMethodCallHandler { call, result in
             switch call.method {
             case "startVpn":
@@ -134,7 +134,7 @@ class VpnCorePlugin {
 
         let proto = NETunnelProviderProtocol()
         proto.providerBundleIdentifier = tunnelBundleId
-        proto.serverAddress = "MoneyFly"
+        proto.serverAddress = "MBox"
         proto.providerConfiguration = providerConf
 
         NETunnelProviderManager.loadAllFromPreferences { managers, error in
@@ -150,7 +150,7 @@ class VpnCorePlugin {
             }
             let manager = existing ?? NETunnelProviderManager()
             manager.protocolConfiguration = proto
-            manager.localizedDescription = "MoneyFly"
+            manager.localizedDescription = "MBox"
             manager.isEnabled = true
             manager.saveToPreferences { error in
                 if let error {

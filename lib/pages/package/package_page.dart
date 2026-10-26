@@ -213,13 +213,13 @@ class _PackagePageState extends State<PackagePage> {
     Widget block(double w, double h, {double r = 8}) => Container(
           width: w,
           height: h,
-          decoration: BoxDecoration(color: MFColors.card2, borderRadius: BorderRadius.circular(r)),
+          decoration: BoxDecoration(color: MBColors.card2, borderRadius: BorderRadius.circular(r)),
         );
     Widget planRow() => Container(
           margin: const EdgeInsets.only(bottom: 10),
           padding: const EdgeInsets.fromLTRB(15, 13, 15, 13),
           decoration: BoxDecoration(
-              color: MFColors.card, borderRadius: BorderRadius.circular(16), border: Border.all(color: MFColors.line)),
+              color: MBColors.card, borderRadius: BorderRadius.circular(16), border: Border.all(color: MBColors.line)),
           child: Row(children: [
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -236,7 +236,7 @@ class _PackagePageState extends State<PackagePage> {
           margin: const EdgeInsets.only(bottom: 8),
           padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
           decoration: BoxDecoration(
-              color: MFColors.card, borderRadius: BorderRadius.circular(15), border: Border.all(color: MFColors.line)),
+              color: MBColors.card, borderRadius: BorderRadius.circular(15), border: Border.all(color: MBColors.line)),
           child: Row(children: [
             block(34, 34, r: 10),
             const SizedBox(width: 12),
@@ -273,7 +273,7 @@ class _PackagePageState extends State<PackagePage> {
 
   /// 错误态 / 空态的固定高度盒子：**可滚动**。
   ///
-  /// MFEmpty 的主文案在错误态直接是服务端原文（[ApiClient.errorMsg] 对
+  /// MBEmpty 的主文案在错误态直接是服务端原文（[ApiClient.errorMsg] 对
   /// 「响应体是字符串」会原样返回，例如网关吐的整页 HTML），长度不可控；
   /// 固定 320 高 + 不可滚动的居中 Column 在最小窗口（380×620）下会抛
   /// RenderFlex overflow（实测长正文溢出 1000+ px，文字被整段裁掉）。
@@ -304,49 +304,49 @@ class _PackagePageState extends State<PackagePage> {
                         style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w700)),
                     const SizedBox(height: 3),
                     Text(AppStrings.t('purchase_sub'),
-                        style: TextStyle(fontSize: 12, color: MFColors.txt3)),
+                        style: TextStyle(fontSize: 12, color: MBColors.txt3)),
                     const SizedBox(height: 16),
                     if (_error != null)
-                      _emptyBox(MFEmpty(
+                      _emptyBox(MBEmpty(
                         title: _error!,
                         icon: Icons.cloud_off_outlined,
                         actionLabel: AppStrings.t('retry'),
                         onAction: _load,
                       ))
                     else if (_plans.isEmpty)
-                      _emptyBox(MFEmpty(title: AppStrings.t('no_plans')))
+                      _emptyBox(MBEmpty(title: AppStrings.t('no_plans')))
                     else ...[
                       // #6 上下列表模式
                       for (var i = 0; i < _plans.length; i++) _buildPlanRow(i, _plans[i]),
                       const SizedBox(height: 6),
                       Text(AppStrings.t('pay_methods'),
-                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: MFColors.txt2)),
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: MBColors.txt2)),
                       const SizedBox(height: 10),
                       if (_methods.isEmpty)
                         Padding(
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           child: Text(AppStrings.t('no_pay_methods'),
-                              style: TextStyle(fontSize: 12.5, color: MFColors.txt3)),
+                              style: TextStyle(fontSize: 12.5, color: MBColors.txt3)),
                         )
                       else
                         for (var i = 0; i < _methods.length; i++) _buildMethod(i, _methods[i]),
                       const SizedBox(height: 10),
                       Text(AppStrings.t('pay_hint'),
-                          style: TextStyle(fontSize: 10.5, color: MFColors.txt3, height: 1.6)),
+                          style: TextStyle(fontSize: 10.5, color: MBColors.txt3, height: 1.6)),
                       const SizedBox(height: 18),
                       // 合计 + 支付
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                         decoration: BoxDecoration(
-                            color: MFColors.card, borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: MFColors.line)),
+                            color: MBColors.card, borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: MBColors.line)),
                         child: Row(
                           children: [
                             Text(AppStrings.t('total'),
-                                style: TextStyle(fontSize: 13, color: MFColors.txt2)),
+                                style: TextStyle(fontSize: 13, color: MBColors.txt2)),
                             const Spacer(),
                             Text.rich(TextSpan(children: [
-                              TextSpan(text: '¥', style: TextStyle(fontSize: 14, color: MFColors.txt3)),
+                              TextSpan(text: '¥', style: TextStyle(fontSize: 14, color: MBColors.txt3)),
                               TextSpan(text: formatPrice(_amount),
                                   style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700, fontFamily: kNumFont)),
                             ])),
@@ -354,7 +354,7 @@ class _PackagePageState extends State<PackagePage> {
                         ),
                       ),
                       const SizedBox(height: 14),
-                      MFPrimaryButton(label: AppStrings.t('pay_now'), loading: _paying, onPressed: _paying ? null : _pay),
+                      MBPrimaryButton(label: AppStrings.t('pay_now'), loading: _paying, onPressed: _paying ? null : _pay),
                     ],
                   ],
                 ),
@@ -374,17 +374,17 @@ class _PackagePageState extends State<PackagePage> {
         decoration: BoxDecoration(
           gradient: selected
               ? LinearGradient(colors: [
-                  MFColors.brand.withValues(alpha: .18),
-                  MFColors.brand.withValues(alpha: .06),
+                  MBColors.brand.withValues(alpha: .18),
+                  MBColors.brand.withValues(alpha: .06),
                 ])
               : null,
-          color: selected ? null : MFColors.card,
+          color: selected ? null : MBColors.card,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-              color: selected ? MFColors.brand.withValues(alpha: .7) : MFColors.line,
+              color: selected ? MBColors.brand.withValues(alpha: .7) : MBColors.line,
               width: selected ? 1.3 : 1),
           boxShadow: selected
-              ? [BoxShadow(color: MFColors.brand.withValues(alpha: .18), blurRadius: 22)]
+              ? [BoxShadow(color: MBColors.brand.withValues(alpha: .18), blurRadius: 22)]
               : null,
         ),
         child: Row(
@@ -398,13 +398,13 @@ class _PackagePageState extends State<PackagePage> {
                       Flexible(
                         child: Text(p.name,
                             maxLines: 1, overflow: TextOverflow.ellipsis,
-                            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: MFColors.txt)),
+                            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: MBColors.txt)),
                       ),
                       if (p.isRecommended) ...[
                         const SizedBox(width: 7),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(gradient: MFColors.brandGradient, borderRadius: BorderRadius.circular(99)),
+                          decoration: BoxDecoration(gradient: MBColors.brandGradient, borderRadius: BorderRadius.circular(99)),
                           child: Text(AppStrings.t('recommended'),
                               style: TextStyle(fontSize: 9, color: Colors.white, fontWeight: FontWeight.w700, letterSpacing: .5)),
                         ),
@@ -414,7 +414,7 @@ class _PackagePageState extends State<PackagePage> {
                   const SizedBox(height: 5),
                   Text(_desc(p),
                       maxLines: 2, overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 10.5, color: MFColors.txt2, height: 1.45)),
+                      style: TextStyle(fontSize: 10.5, color: MBColors.txt2, height: 1.45)),
                 ],
               ),
             ),
@@ -426,8 +426,8 @@ class _PackagePageState extends State<PackagePage> {
                       fontSize: 19,
                       fontWeight: FontWeight.w800,
                       fontFamily: kNumFont,
-                      color: selected ? MFColors.brandLight : MFColors.txt)),
-              TextSpan(text: _periodLabel(p), style: TextStyle(fontSize: 10.5, color: MFColors.txt3)),
+                      color: selected ? MBColors.brandLight : MBColors.txt)),
+              TextSpan(text: _periodLabel(p), style: TextStyle(fontSize: 10.5, color: MBColors.txt3)),
             ])),
           ],
         ),
@@ -438,21 +438,21 @@ class _PackagePageState extends State<PackagePage> {
   Widget _buildMethod(int index, PayMethod m) {
     final selected = _selectedMethod == index;
     final (icon, bg, label, sub) = m.isAlipay
-        ? ('支', MFColors.brand.withValues(alpha: .85), AppStrings.t('alipay'), AppStrings.t('recommended_sub'))
+        ? ('支', MBColors.brand.withValues(alpha: .85), AppStrings.t('alipay'), AppStrings.t('recommended_sub'))
         : m.isWechat
             ? ('微', const Color(0xFF07C160), AppStrings.t('wechat_pay'), AppStrings.t('scan_pay'))
             : m.isCrypto
                 ? ('₮', const Color(0xFF2A3242), AppStrings.t('usdt'), AppStrings.t('chain_confirm'))
-                : (m.name.isNotEmpty ? m.name.characters.first : '支', MFColors.card2, m.name, AppStrings.t('scan_pay'));
+                : (m.name.isNotEmpty ? m.name.characters.first : '支', MBColors.card2, m.name, AppStrings.t('scan_pay'));
     return GestureDetector(
       onTap: () => setState(() => _selectedMethod = index),
       child: Container(
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
         decoration: BoxDecoration(
-          color: selected ? MFColors.brand.withValues(alpha: .08) : MFColors.card,
+          color: selected ? MBColors.brand.withValues(alpha: .08) : MBColors.card,
           borderRadius: BorderRadius.circular(15),
-          border: Border.all(color: selected ? MFColors.brand.withValues(alpha: .65) : MFColors.line),
+          border: Border.all(color: selected ? MBColors.brand.withValues(alpha: .65) : MBColors.line),
         ),
         child: Row(
           children: [
@@ -468,7 +468,7 @@ class _PackagePageState extends State<PackagePage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                  Text(sub, style: TextStyle(fontSize: 10.5, color: MFColors.txt3)),
+                  Text(sub, style: TextStyle(fontSize: 10.5, color: MBColors.txt3)),
                 ],
               ),
             ),
@@ -476,12 +476,12 @@ class _PackagePageState extends State<PackagePage> {
               width: 20, height: 20,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                border: Border.all(color: selected ? MFColors.brandLight : MFColors.line2, width: 2),
+                border: Border.all(color: selected ? MBColors.brandLight : MBColors.line2, width: 2),
               ),
               child: selected
                   ? Padding(
                       padding: const EdgeInsets.all(3),
-                      child: DecoratedBox(decoration: BoxDecoration(color: MFColors.brandLight, shape: BoxShape.circle)),
+                      child: DecoratedBox(decoration: BoxDecoration(color: MBColors.brandLight, shape: BoxShape.circle)),
                     )
                   : null,
             ),

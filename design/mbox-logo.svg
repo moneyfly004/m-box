@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
-  <!-- MoneyFly 品牌图标：黑色圆角方块 + 品牌蓝紫 M（左侧笔划斜切，象征速度） -->
+  <!-- MBox 品牌图标：黑色圆角方块 + 品牌蓝紫 M（左侧笔划斜切，象征速度） -->
   <rect width="48" height="48" rx="11" fill="#000000"/>
   <path d="M9 35V13l15 15L39 13v22" stroke="#455FE9" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
 </svg>

@@ -54,7 +54,7 @@ class LocalNotify {
       body,
       NotificationDetails(
         android: AndroidNotificationDetails(
-          'moneyfly_expiry', 'Subscription Expiry',
+          'mbox_expiry', 'Subscription Expiry',
           importance: Importance.high, priority: Priority.high,
         ),
         macOS: const DarwinNotificationDetails(),
@@ -71,7 +71,7 @@ class LocalNotify {
       AppStrings.t('reconnect_fail_notify_body'),
       NotificationDetails(
         android: AndroidNotificationDetails(
-          'moneyfly_conn', 'Connection Status',
+          'mbox_conn', 'Connection Status',
           importance: Importance.defaultImportance,
         ),
         macOS: const DarwinNotificationDetails(),

@@ -18,7 +18,7 @@ import 'app_log.dart';
 /// 释放，不会像 pid 文件那样留下「假锁」把用户挡在门外 —— 强杀、崩溃、断电都
 /// 不会。锁文件句柄有意不关闭，随进程生命周期持有。
 ///
-/// 环境变量 `MONEYFLY_ALLOW_MULTI=1` 可显式放行（`flutter run` 连开两个调试
+/// 环境变量 `MBOX_ALLOW_MULTI=1` 可显式放行（`flutter run` 连开两个调试
 /// 实例时用）。
 class SingleInstance {
   SingleInstance._();
@@ -32,9 +32,9 @@ class SingleInstance {
   /// 取锁：true = 可以继续启动；false = 已有实例在跑，调用方应尽快退出。
   /// 任何异常（只读临时目录、权限不足…）都放行并记录 —— 单实例是防误操作，
   /// 不是安全边界，绝不能因为它起不来就让用户打不开软件。
-  static Future<bool> acquire({String name = 'moneyfly'}) async {
+  static Future<bool> acquire({String name = 'mbox'}) async {
     if (kIsWeb) return true;
-    if (Platform.environment['MONEYFLY_ALLOW_MULTI'] == '1') return true;
+    if (Platform.environment['MBOX_ALLOW_MULTI'] == '1') return true;
     if (_lock != null) return true;
     try {
       final dir = debugDir != null ? await debugDir!() : Directory.systemTemp;

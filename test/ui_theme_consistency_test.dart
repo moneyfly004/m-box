@@ -12,11 +12,11 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:moneyfly/l10n/app_strings.dart';
-import 'package:moneyfly/pages/auth/register_page.dart';
-import 'package:moneyfly/theme/app_theme.dart';
-import 'package:moneyfly/widgets/mf_input.dart';
-import 'package:moneyfly/theme/theme_controller.dart';
+import 'package:mbox/l10n/app_strings.dart';
+import 'package:mbox/pages/auth/register_page.dart';
+import 'package:mbox/theme/app_theme.dart';
+import 'package:mbox/widgets/mf_input.dart';
+import 'package:mbox/theme/theme_controller.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -28,7 +28,7 @@ void main() {
   ThemeData themeOf(String appearance) {
     ThemeController.instance.appearance = appearance;
     final isDark = mfThemeOf(appearance).isDark;
-    return buildMoneyFlyTheme(
+    return buildMBoxTheme(
         brightness: isDark ? Brightness.dark : Brightness.light);
   }
 
@@ -77,40 +77,40 @@ void main() {
       }
     }
     expect(offenders, isEmpty,
-        reason: '品牌色请用 MFColors.brand.withValues(alpha: ...)，否则 6 套外观里只有 1 套是对的');
+        reason: '品牌色请用 MBColors.brand.withValues(alpha: ...)，否则 6 套外观里只有 1 套是对的');
   });
 
   testWidgets('主按钮禁用态必须看得出来（旧实现和启用态长得一样）', (tester) async {
     // 启用态：品牌渐变 + 白字
     await tester.pumpWidget(MaterialApp(
-      theme: buildMoneyFlyTheme(brightness: Brightness.light),
+      theme: buildMBoxTheme(brightness: Brightness.light),
       home: Scaffold(
-          body: MFPrimaryButton(label: 'GO', onPressed: () {})),
+          body: MBPrimaryButton(label: 'GO', onPressed: () {})),
     ));
     final on = tester
         .widget<DecoratedBox>(find.descendant(
-            of: find.byType(MFPrimaryButton), matching: find.byType(DecoratedBox)).first)
+            of: find.byType(MBPrimaryButton), matching: find.byType(DecoratedBox)).first)
         .decoration as BoxDecoration;
     expect(on.gradient, isNotNull);
 
     // 禁用态：无渐变、卡片底色、文字用弱化色 —— 用户一眼能看出不可点
     await tester.pumpWidget(MaterialApp(
-      theme: buildMoneyFlyTheme(brightness: Brightness.light),
-      home: const Scaffold(body: MFPrimaryButton(label: 'GO')),
+      theme: buildMBoxTheme(brightness: Brightness.light),
+      home: const Scaffold(body: MBPrimaryButton(label: 'GO')),
     ));
     final off = tester
         .widget<DecoratedBox>(find.descendant(
-            of: find.byType(MFPrimaryButton), matching: find.byType(DecoratedBox)).first)
+            of: find.byType(MBPrimaryButton), matching: find.byType(DecoratedBox)).first)
         .decoration as BoxDecoration;
     expect(off.gradient, isNull, reason: '禁用态仍是完整渐变 = 看起来可点，点了没反应');
-    expect(off.color, MFColors.card2);
+    expect(off.color, MBColors.card2);
     final label = tester.widget<Text>(find.text('GO'));
-    expect(label.style!.color, MFColors.txt3);
+    expect(label.style!.color, MBColors.txt3);
   });
 
   test('输入框只有一套样式：mfInput 与全局 inputDecorationTheme 一致', () {
     final deco = mfInput(hint: 'hint', errorText: 'bad');
-    final theme = buildMoneyFlyTheme(brightness: Brightness.light);
+    final theme = buildMBoxTheme(brightness: Brightness.light);
     final t = theme.inputDecorationTheme;
     expect(deco.fillColor, t.fillColor, reason: '两处填充色不同 = 同一种输入框两个样子');
     expect(deco.hintStyle!.fontSize, t.hintStyle!.fontSize);
@@ -135,7 +135,7 @@ void main() {
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
     await tester.pumpWidget(MaterialApp(
-        theme: buildMoneyFlyTheme(brightness: Brightness.light),
+        theme: buildMBoxTheme(brightness: Brightness.light),
         home: const RegisterPage()));
     await tester.pump();
 

@@ -3,7 +3,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:moneyfly/widgets/traffic_chart.dart';
+import 'package:mbox/widgets/traffic_chart.dart';
 
 /// 用户要求：速率图要是**一张卡片里两条不同颜色的曲线**（上行/下行），
 /// 而不是"上行一张卡、下行一张卡"。这里把"两条曲线真的都画出来了"钉住：

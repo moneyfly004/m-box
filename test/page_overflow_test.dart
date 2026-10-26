@@ -5,20 +5,20 @@
 // 十几行，实测一次设置页停留就抛 37 次 RenderFlex overflow（中文也会），
 // 表现是文字被裁掉/画到卡片外面。同一个「一行」被复制到 kernel_page 与 geo_update_page。
 //
-// 现在三页统一用 lib/widgets/mf_row.dart 的 MFRow（最小高度 + 描述独占一行 + 省略号），
+// 现在三页统一用 lib/widgets/mf_row.dart 的 MBRow（最小高度 + 描述独占一行 + 省略号），
 // 这条用例在 380×620 与 420×780 下把三页从头滚到底，断言**一个渲染异常都没有**。
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:moneyfly/core/proxy/proxy_core.dart';
-import 'package:moneyfly/core/services/account_service.dart';
-import 'package:moneyfly/l10n/app_strings.dart';
-import 'package:moneyfly/pages/settings/geo_update_page.dart';
-import 'package:moneyfly/pages/settings/kernel_page.dart';
-import 'package:moneyfly/pages/settings/settings_page.dart';
-import 'package:moneyfly/theme/app_theme.dart';
+import 'package:mbox/core/proxy/proxy_core.dart';
+import 'package:mbox/core/services/account_service.dart';
+import 'package:mbox/l10n/app_strings.dart';
+import 'package:mbox/pages/settings/geo_update_page.dart';
+import 'package:mbox/pages/settings/kernel_page.dart';
+import 'package:mbox/pages/settings/settings_page.dart';
+import 'package:mbox/theme/app_theme.dart';
 
 Future<void> _pump(WidgetTester tester, Widget page, Size size) async {
   tester.view.physicalSize = size;
@@ -29,7 +29,7 @@ Future<void> _pump(WidgetTester tester, Widget page, Size size) async {
       ChangeNotifierProvider.value(value: ConnectionController.instance),
       ChangeNotifierProvider.value(value: AccountService.instance),
     ],
-    child: MaterialApp(theme: buildMoneyFlyTheme(), home: page),
+    child: MaterialApp(theme: buildMBoxTheme(), home: page),
   ));
   await tester.pump(const Duration(milliseconds: 300));
 }

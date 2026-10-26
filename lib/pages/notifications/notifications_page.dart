@@ -76,14 +76,14 @@ class _NotificationsPageState extends State<NotificationsPage> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        backgroundColor: MFColors.card2,
+        backgroundColor: MBColors.card2,
         title: Text(AppStrings.t('delete_notify'), style: TextStyle(fontSize: 16)),
-        content:  Text(AppStrings.t('delete_notify_body'), style: TextStyle(fontSize: 13.5, color: MFColors.txt2)),
+        content:  Text(AppStrings.t('delete_notify_body'), style: TextStyle(fontSize: 13.5, color: MBColors.txt2)),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: Text(AppStrings.t('cancel'))),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text(AppStrings.t('delete'), style: TextStyle(color: MFColors.red)),
+            child: Text(AppStrings.t('delete'), style: TextStyle(color: MBColors.red)),
           ),
         ],
       ),
@@ -131,25 +131,25 @@ class _NotificationsPageState extends State<NotificationsPage> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.cloud_off, size: 40, color: MFColors.txt3),
+                    Icon(Icons.cloud_off, size: 40, color: MBColors.txt3),
                     const SizedBox(height: 10),
                     Text(AppStrings.t('load_failed'),
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                            fontSize: 13.5, color: MFColors.txt2, fontWeight: FontWeight.w600)),
+                            fontSize: 13.5, color: MBColors.txt2, fontWeight: FontWeight.w600)),
                     const SizedBox(height: 6),
                     Text(_error!,
                         textAlign: TextAlign.center,
                         maxLines: 4,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 12.5, color: MFColors.txt3, height: 1.5)),
+                        style: TextStyle(fontSize: 12.5, color: MBColors.txt3, height: 1.5)),
                     const SizedBox(height: 14),
                     GestureDetector(
                       onTap: () => _load(),
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
                         decoration: BoxDecoration(
-                            gradient: MFColors.brandGradient,
+                            gradient: MBColors.brandGradient,
                             borderRadius: BorderRadius.circular(12)),
                         child: Text(AppStrings.t('retry'),
                             style: const TextStyle(fontSize: 13, color: Colors.white, fontWeight: FontWeight.w600)),
@@ -171,17 +171,17 @@ class _NotificationsPageState extends State<NotificationsPage> {
         title: Text(AppStrings.t('notify_center')),
         actions: [
           if (_items.any((n) => !n.isRead))
-            TextButton(onPressed: _markAll, child: Text(AppStrings.t('mark_all_read'), style: TextStyle(color: MFColors.brandLight))),
+            TextButton(onPressed: _markAll, child: Text(AppStrings.t('mark_all_read'), style: TextStyle(color: MBColors.brandLight))),
         ],
       ),
       body: SafeArea(
         child: _loading
             // 首屏用骨架屏而不是裸转圈：转圈→内容的跳变比骨架明显得多
-            ? const MFListSkeleton()
+            ? const MBListSkeleton()
             : _error != null
                 ? _buildError()
                 : _items.isEmpty
-                ? MFEmpty(title: AppStrings.t('no_notifications'))
+                ? MBEmpty(title: AppStrings.t('no_notifications'))
                 : ListView.separated(
                     padding: const EdgeInsets.fromLTRB(22, 8, 22, 24),
                     itemCount: _items.length,
@@ -194,10 +194,10 @@ class _NotificationsPageState extends State<NotificationsPage> {
                         child: Container(
                           padding: const EdgeInsets.all(14),
                           decoration: BoxDecoration(
-                            color: n.isRead ? MFColors.card : MFColors.brand.withValues(alpha: .07),
+                            color: n.isRead ? MBColors.card : MBColors.brand.withValues(alpha: .07),
                             borderRadius: BorderRadius.circular(15),
                             border: Border.all(
-                                color: n.isRead ? MFColors.line : MFColors.brand.withValues(alpha: .35)),
+                                color: n.isRead ? MBColors.line : MBColors.brand.withValues(alpha: .35)),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -207,17 +207,17 @@ class _NotificationsPageState extends State<NotificationsPage> {
                                   if (!n.isRead) ...[
                                     Container(
                                       width: 7, height: 7,
-                                      decoration: BoxDecoration(color: MFColors.brandLight, shape: BoxShape.circle),
+                                      decoration: BoxDecoration(color: MBColors.brandLight, shape: BoxShape.circle),
                                     ),
                                     const SizedBox(width: 7),
                                   ],
                                   Expanded(
                                     child: Text(n.title,
                                         style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600,
-                                            color: n.isRead ? MFColors.txt2 : MFColors.txt)),
+                                            color: n.isRead ? MBColors.txt2 : MBColors.txt)),
                                   ),
                                   Text(_formatTime(n.createdAt),
-                                      style:  TextStyle(fontSize: 10, color: MFColors.txt3, fontFamily: kNumFont)),
+                                      style:  TextStyle(fontSize: 10, color: MBColors.txt3, fontFamily: kNumFont)),
                                   // 可见的删除入口：桌面端没有长按手势，
                                   // 只靠 onLongPress 等于藏起来（长按仍可用）。
                                   // 点击区做到 ~35×35，触屏仍可长按。
@@ -230,7 +230,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                                       child: Padding(
                                         padding: const EdgeInsets.only(
                                             left: 12, top: 9, bottom: 9, right: 6),
-                                        child: Icon(Icons.delete_outline, size: 17, color: MFColors.txt3),
+                                        child: Icon(Icons.delete_outline, size: 17, color: MBColors.txt3),
                                       ),
                                     ),
                                   ),
@@ -239,7 +239,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                               if (n.content.isNotEmpty) ...[
                                 const SizedBox(height: 8),
                                 Text(n.content,
-                                    style:  TextStyle(fontSize: 12.5, color: MFColors.txt2, height: 1.6)),
+                                    style:  TextStyle(fontSize: 12.5, color: MBColors.txt2, height: 1.6)),
                               ],
                             ],
                           ),

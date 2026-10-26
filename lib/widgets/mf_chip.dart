@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 
-/// MoneyFly 统一的小控件（筛选/分段/行内操作按钮）。
+/// MBox 统一的小控件（筛选/分段/行内操作按钮）。
 ///
 /// ## 为什么要有它
 /// UI 审计发现全项目 13 处小控件都是 `GestureDetector` + 只有 5~9px 垂直内边距的
@@ -16,8 +16,8 @@ import '../theme/app_theme.dart';
 ///   （用 [ConstrainedBox] 撑开，多余部分透明）；
 /// - 一律用 `InkWell`，有按压反馈；
 /// - 禁用态必须看得出来（[enabled] = false → card2 底 + txt3 字 + 无边框高亮）。
-class MFChip extends StatelessWidget {
-  const MFChip({
+class MBChip extends StatelessWidget {
+  const MBChip({
     super.key,
     required this.label,
     this.icon,
@@ -58,18 +58,18 @@ class MFChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = color ?? MFColors.brand;
+    final c = color ?? MBColors.brand;
     final active = enabled && selected;
     final fg = !enabled
-        ? MFColors.txt3
-        : (active ? c : MFColors.txt2);
+        ? MBColors.txt3
+        : (active ? c : MBColors.txt2);
     final visual = Container(
       padding: EdgeInsets.symmetric(horizontal: dense ? 9 : 11, vertical: dense ? 5 : 7),
       decoration: BoxDecoration(
-        color: active ? c.withValues(alpha: .18) : (enabled ? MFColors.card2 : MFColors.card2.withValues(alpha: .5)),
+        color: active ? c.withValues(alpha: .18) : (enabled ? MBColors.card2 : MBColors.card2.withValues(alpha: .5)),
         borderRadius: BorderRadius.circular(dense ? 9 : 11),
         border: Border.all(
-            color: active ? c.withValues(alpha: .65) : MFColors.line),
+            color: active ? c.withValues(alpha: .65) : MBColors.line),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -116,9 +116,9 @@ class MFChip extends StatelessWidget {
 }
 
 /// 列表行里的文字操作按钮（取消订单 / 再次支付 / 删除设备 / 重试 等）。
-/// 与 [MFChip] 的区别：没有底色边框，像链接式按钮，但命中区同样 ≥40px。
-class MFActionButton extends StatelessWidget {
-  const MFActionButton({
+/// 与 [MBChip] 的区别：没有底色边框，像链接式按钮，但命中区同样 ≥40px。
+class MBActionButton extends StatelessWidget {
+  const MBActionButton({
     super.key,
     required this.label,
     this.onTap,
@@ -137,21 +137,21 @@ class MFActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = color ?? MFColors.brand;
-    final fg = enabled ? (filled ? Colors.white : c) : MFColors.txt3;
+    final c = color ?? MBColors.brand;
+    final fg = enabled ? (filled ? Colors.white : c) : MBColors.txt3;
     final visual = Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
       decoration: BoxDecoration(
-        gradient: filled && enabled ? MFColors.brandGradient : null,
+        gradient: filled && enabled ? MBColors.brandGradient : null,
         // 非实心：用主色的极淡底（原「取消订单」按钮就是这个观感）；禁用时置灰
         color: filled && enabled
             ? null
-            : (enabled ? c.withValues(alpha: .08) : MFColors.card2),
+            : (enabled ? c.withValues(alpha: .08) : MBColors.card2),
         borderRadius: BorderRadius.circular(10),
         border: filled
             ? null
             : Border.all(
-                color: enabled ? c.withValues(alpha: .3) : MFColors.line),
+                color: enabled ? c.withValues(alpha: .3) : MBColors.line),
       ),
       child: Text(label,
           maxLines: 1,

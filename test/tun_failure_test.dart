@@ -1,13 +1,13 @@
 // TUN 启动失败判定：只认真正的启动失败，不把正常告警当致命。
 //
 // 背景（旧实现 `_tunFailedInLog`）：判定是「行里同时含 tun 和 error/failed」，
-// 而 mihomo 有一批正常日志同样命中 —— 最典型的是
+// 而旧内核有一批正常日志同样命中 —— 最典型的是
 // `[TUN] Auto detect interface for <名> failed, return '<invalid>' …`
 // （多虚拟网卡 / Hyper-V / 某些 VPN 环境下探不到出口接口，属正常告警）。
 // 后果：一条本来正常的连接被判死、提示「请以管理员身份运行」，用户按提示提权
 // 后依旧失败，真因被掩盖。
 import 'package:flutter_test/flutter_test.dart';
-import 'package:moneyfly/core/proxy/tun_failure.dart';
+import 'package:mbox/core/proxy/tun_failure.dart';
 
 void main() {
   group('detectTunStartFailure：正常告警不得判为失败', () {
@@ -47,7 +47,7 @@ void main() {
       expect(detectTunStartFailure(const []), TunStartFailure.none);
       expect(
         detectTunStartFailure([
-          'level=info msg="[TUN] Tun adapter listening at: MoneyFly"',
+          'level=info msg="[TUN] Tun adapter listening at: MBox"',
         ]),
         TunStartFailure.none,
       );
@@ -129,7 +129,7 @@ void main() {
           isFatalTunLine(
               'msg="[TUN] Auto detect interface for X failed, return \'<invalid>\'"'),
           isFalse);
-      expect(isFatalTunLine('msg="[TUN] Tun adapter listening at: MoneyFly"'),
+      expect(isFatalTunLine('msg="[TUN] Tun adapter listening at: MBox"'),
           isFalse);
     });
   });

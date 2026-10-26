@@ -89,7 +89,7 @@ class _NodesPageState extends State<NodesPage> {
   void _pickSort() {
     showModalBottomSheet<String>(
       context: context,
-      backgroundColor: MFColors.card,
+      backgroundColor: MBColors.card,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => SafeArea(
@@ -107,7 +107,7 @@ class _NodesPageState extends State<NodesPage> {
               ListTile(
                 title: Text(l, style: const TextStyle(fontSize: 13.5)),
                 trailing: _sort == v
-                    ? Icon(Icons.check, size: 16, color: MFColors.brandLight)
+                    ? Icon(Icons.check, size: 16, color: MBColors.brandLight)
                     : null,
                 onTap: () {
                   Navigator.pop(ctx, v);
@@ -325,9 +325,9 @@ class _NodesPageState extends State<NodesPage> {
                     ),
                   ),
                   // 排序切换(默认国家/延迟/名称) + 刷新订阅。
-                  // 都用 MFChip：命中区 ≥40px 且有按压反馈（旧实现是 24~26px 的
+                  // 都用 MBChip：命中区 ≥40px 且有按压反馈（旧实现是 24~26px 的
                   // 裸 GestureDetector，触屏上很难点准）
-                  MFChip(
+                  MBChip(
                     dense: true,
                     icon: Icons.sort,
                     label: switch (_sort) {
@@ -338,7 +338,7 @@ class _NodesPageState extends State<NodesPage> {
                     onTap: _pickSort,
                   ),
                   const SizedBox(width: 8),
-                  MFChip(
+                  MBChip(
                     dense: true,
                     icon: Icons.refresh,
                     busy: _refreshing,
@@ -370,7 +370,7 @@ class _NodesPageState extends State<NodesPage> {
                         decoration: mfInput(hint: AppStrings.t('search_hint'))
                             .copyWith(
                           prefixIcon: Icon(Icons.search,
-                              size: 17, color: MFColors.txt3),
+                              size: 17, color: MBColors.txt3),
                           contentPadding: const EdgeInsets.symmetric(
                               horizontal: 12, vertical: 11),
                           suffixIcon: _query.isEmpty
@@ -382,7 +382,7 @@ class _NodesPageState extends State<NodesPage> {
                                     setState(() => _query = '');
                                   },
                                   child: Icon(Icons.close,
-                                      size: 16, color: MFColors.txt3),
+                                      size: 16, color: MBColors.txt3),
                                 ),
                         ),
                       ),
@@ -394,7 +394,7 @@ class _NodesPageState extends State<NodesPage> {
                     child: Container(
                       height: 44,
                       padding: const EdgeInsets.symmetric(horizontal: 14),
-                      decoration: BoxDecoration(gradient: MFColors.brandGradient, borderRadius: BorderRadius.circular(13)),
+                      decoration: BoxDecoration(gradient: MBColors.brandGradient, borderRadius: BorderRadius.circular(13)),
                       alignment: Alignment.center,
                       child: _testing
                           ? Row(
@@ -431,7 +431,7 @@ class _NodesPageState extends State<NodesPage> {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                           fontSize: 10.5,
-                          color: MFColors.txt3,
+                          color: MBColors.txt3,
                           fontFamily: kNumFont),
                     ),
                   ),
@@ -444,7 +444,7 @@ class _NodesPageState extends State<NodesPage> {
             Expanded(
               child: RefreshIndicator(
                 onRefresh: () => _load(force: true),
-                color: MFColors.brand,
+                color: MBColors.brand,
                 child: conn.nodes.isEmpty
                     ? _EmptyNodesView(
                         refreshing: _refreshing,
@@ -456,7 +456,7 @@ class _NodesPageState extends State<NodesPage> {
                               AppStrings.t('no_match_nodes'),
                               textAlign: TextAlign.center,
                               style: TextStyle(
-                                  fontSize: 13, color: MFColors.txt3),
+                                  fontSize: 13, color: MBColors.txt3),
                             ),
                           )
                         : _NodeListView(
@@ -519,16 +519,16 @@ class _NodesPageState extends State<NodesPage> {
         margin: _nodeMargin,
         padding: _nodePadding,
         decoration: BoxDecoration(
-          color: isCurrent ? MFColors.brand.withValues(alpha: .09) : MFColors.card,
+          color: isCurrent ? MBColors.brand.withValues(alpha: .09) : MBColors.card,
           borderRadius: _nodeRadius,
-          border: Border.all(color: isCurrent ? MFColors.brand.withValues(alpha: .6) : MFColors.line),
+          border: Border.all(color: isCurrent ? MBColors.brand.withValues(alpha: .6) : MBColors.line),
         ),
         child: Row(
           children: [
             Container(
               width: 34,
               height: 34,
-              decoration: BoxDecoration(color: MFColors.card2, borderRadius: _flagRadius),
+              decoration: BoxDecoration(color: MBColors.card2, borderRadius: _flagRadius),
               alignment: Alignment.center,
               child: CountryFlag(n.countryCode, size: 17),
             ),
@@ -541,14 +541,14 @@ class _NodesPageState extends State<NodesPage> {
                       maxLines: 1, overflow: TextOverflow.ellipsis),
                   const SizedBox(height: 2),
                   Text('${n.type} · ${n.port}',
-                      style:  TextStyle(fontSize: 10.5, color: MFColors.txt3, fontFamily: kNumFont)),
+                      style:  TextStyle(fontSize: 10.5, color: MBColors.txt3, fontFamily: kNumFont)),
                   if (conn.pinnedTag == n.tag) ...[
                     const SizedBox(height: 2),
                     Text('📌 ${AppStrings.t('node_pinned_hint')}',
-                        style: TextStyle(fontSize: 9.5, color: MFColors.brandLight, fontWeight: FontWeight.w700)),
+                        style: TextStyle(fontSize: 9.5, color: MBColors.brandLight, fontWeight: FontWeight.w700)),
                   ] else if (isCurrent) ...[
                     const SizedBox(height: 2),
-                    Text('✨ ${AppStrings.t('selected')}', style: TextStyle(fontSize: 9.5, color: MFColors.brandLight, fontWeight: FontWeight.w600)),
+                    Text('✨ ${AppStrings.t('selected')}', style: TextStyle(fontSize: 9.5, color: MBColors.brandLight, fontWeight: FontWeight.w600)),
                   ],
                 ],
               ),
@@ -599,7 +599,7 @@ class _NodesPageState extends State<NodesPage> {
               Container(
                 width: 18,
                 height: 18,
-                decoration: BoxDecoration(gradient: MFColors.brandGradient, shape: BoxShape.circle),
+                decoration: BoxDecoration(gradient: MBColors.brandGradient, shape: BoxShape.circle),
                 child: const Icon(Icons.check, size: 11, color: Colors.white),
               ),
             ],
@@ -721,7 +721,7 @@ class _CountryHeader extends StatelessWidget {
               child: Text(regionName(code),
                   style: TextStyle(
                       fontSize: 12,
-                      color: MFColors.txt3,
+                      color: MBColors.txt3,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 1),
                   maxLines: 1,
@@ -729,13 +729,13 @@ class _CountryHeader extends StatelessWidget {
             ),
             Text('$count ${AppStrings.t('nodes_count')}',
                 style: TextStyle(
-                    fontSize: 11, color: MFColors.txt3, fontFamily: kNumFont)),
+                    fontSize: 11, color: MBColors.txt3, fontFamily: kNumFont)),
             const SizedBox(width: 6),
             AnimatedRotation(
               turns: collapsed ? -0.25 : 0, // 展开↓ / 折叠→
               duration: const Duration(milliseconds: 180),
               child: Icon(Icons.keyboard_arrow_down,
-                  size: 20, color: MFColors.txt3),
+                  size: 20, color: MBColors.txt3),
             ),
           ],
         ),
@@ -789,14 +789,14 @@ class _EmptyNodesView extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(AppStrings.t('no_nodes'),
-                style: TextStyle(fontSize: 14, color: MFColors.txt3)),
+                style: TextStyle(fontSize: 14, color: MBColors.txt3)),
             const SizedBox(height: 10),
             GestureDetector(
               onTap: refreshing ? null : onRefresh,
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                 decoration: BoxDecoration(
-                    gradient: MFColors.brandGradient,
+                    gradient: MBColors.brandGradient,
                     borderRadius: BorderRadius.circular(12)),
                 child: refreshing
                     ? const SizedBox(
@@ -829,7 +829,7 @@ class _EmptyNodesView extends StatelessWidget {
           const SizedBox(height: 10),
           Text(acc.blockText,
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13.5, color: MFColors.txt2, height: 1.6)),
+              style: TextStyle(fontSize: 13.5, color: MBColors.txt2, height: 1.6)),
           const SizedBox(height: 16),
           if (isManageable)
             GestureDetector(
@@ -845,7 +845,7 @@ class _EmptyNodesView extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 22, vertical: 10),
                 decoration: BoxDecoration(
-                    gradient: MFColors.brandGradient,
+                    gradient: MBColors.brandGradient,
                     borderRadius: BorderRadius.circular(12)),
                 child: Text(
                   status == AccountStatus.deviceFull

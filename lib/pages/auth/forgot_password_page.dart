@@ -141,7 +141,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text(AppStrings.t('login_title'), style: TextStyle(color: MFColors.brandLight, fontWeight: FontWeight.w600)),
+            child: Text(AppStrings.t('login_title'), style: TextStyle(color: MBColors.brandLight, fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -172,7 +172,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                         width: 26,
                         height: 1,
                         child: ColoredBox(
-                            color: _codeSent ? MFColors.green : MFColors.line2)),
+                            color: _codeSent ? MBColors.green : MBColors.line2)),
                   ),
                   _Step(
                     key: const ValueKey('fp_step_pwd'),
@@ -199,18 +199,18 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                         ? Container(
                             alignment: Alignment.center,
                             decoration: BoxDecoration(
-                              color: MFColors.card,
+                              color: MBColors.card,
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: MFColors.line2),
+                              border: Border.all(color: MBColors.line2),
                             ),
                             child: Text('$_countdown${AppStrings.t('resend_in')}',
-                                style:  TextStyle(fontSize: 12, color: MFColors.txt3, fontFamily: kNumFont)),
+                                style:  TextStyle(fontSize: 12, color: MBColors.txt3, fontFamily: kNumFont)),
                           )
                         : GestureDetector(
                             onTap: _sending ? null : _sendCode,
                             child: Container(
                               alignment: Alignment.center,
-                              decoration: BoxDecoration(gradient: MFColors.brandGradient, borderRadius: BorderRadius.circular(12)),
+                              decoration: BoxDecoration(gradient: MBColors.brandGradient, borderRadius: BorderRadius.circular(12)),
                               child: Text(_sending ? AppStrings.t('sending') : AppStrings.t('send_code'),
                                   style: const TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.w600)),
                             ),
@@ -218,7 +218,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                   )),
               if (_codeSent) ...[
                 const SizedBox(height: 6),
-                Text(AppStrings.t('identity_ok'), style: TextStyle(fontSize: 10.5, color: MFColors.green, fontWeight: FontWeight.w600)),
+                Text(AppStrings.t('identity_ok'), style: TextStyle(fontSize: 10.5, color: MBColors.green, fontWeight: FontWeight.w600)),
               ],
               const SizedBox(height: 12),
               _field(AppStrings.t('new_pwd'), _newPassword,
@@ -229,17 +229,17 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
               _field(AppStrings.t('confirm_pwd'), _confirm, hint: AppStrings.t('confirm_pwd_hint'), obscure: _obscure, suffix: _eyeBtn()),
               const SizedBox(height: 14),
                Text(AppStrings.t('forgot_tip'),
-                  style: TextStyle(fontSize: 11, color: MFColors.txt3, height: 1.7)),
+                  style: TextStyle(fontSize: 11, color: MBColors.txt3, height: 1.7)),
               // 校验失败原因常驻此处（红字），键盘挡不住、不会一闪而过
               if (_formError != null) ...[
                 const SizedBox(height: 10),
                 Text('⚠ $_formError',
                     style: TextStyle(
-                        fontSize: 12, color: MFColors.red, height: 1.5,
+                        fontSize: 12, color: MBColors.red, height: 1.5,
                         fontWeight: FontWeight.w600)),
               ],
               const SizedBox(height: 22),
-              MFPrimaryButton(label: AppStrings.t('reset_pwd_btn'), loading: _loading, onPressed: _loading ? null : _reset),
+              MBPrimaryButton(label: AppStrings.t('reset_pwd_btn'), loading: _loading, onPressed: _loading ? null : _reset),
             ],
           ),
         ),
@@ -249,7 +249,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
   Widget _eyeBtn() => IconButton(
         icon: Icon(_obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-            size: 19, color: MFColors.txt3),
+            size: 19, color: MBColors.txt3),
         onPressed: () => setState(() => _obscure = !_obscure),
       );
 
@@ -261,7 +261,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       children: [
         Padding(
           padding: const EdgeInsets.only(left: 2, bottom: 7),
-          child: Text(label, style:  TextStyle(fontSize: 12.5, color: MFColors.txt2, fontWeight: FontWeight.w500)),
+          child: Text(label, style:  TextStyle(fontSize: 12.5, color: MBColors.txt2, fontWeight: FontWeight.w500)),
         ),
         Row(
           children: [
@@ -270,7 +270,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                 controller: c,
                 obscureText: obscure,
                 style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 15),
-                cursorColor: MFColors.brand,
+                cursorColor: MBColors.brand,
                 inputFormatters: inputFormatters,
                 decoration: InputDecoration(hintText: hint),
               ),
@@ -302,15 +302,15 @@ class _Step extends StatelessWidget {
     final Color color;
     final Color bg;
     if (done) {
-      color = MFColors.green;
-      bg = MFColors.green.withValues(alpha: .18);
+      color = MBColors.green;
+      bg = MBColors.green.withValues(alpha: .18);
     } else if (current) {
-      color = MFColors.brandLight;
-      bg = MFColors.brand.withValues(alpha: .18);
+      color = MBColors.brandLight;
+      bg = MBColors.brand.withValues(alpha: .18);
     } else {
       // 未开始：弱化，与「当前步骤」一眼可分
-      color = MFColors.txt3;
-      bg = MFColors.txt3.withValues(alpha: .12);
+      color = MBColors.txt3;
+      bg = MBColors.txt3.withValues(alpha: .12);
     }
     return Row(
       mainAxisSize: MainAxisSize.min,

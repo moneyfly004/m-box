@@ -16,10 +16,10 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:moneyfly/core/services/update_service.dart';
-import 'package:moneyfly/l10n/app_strings.dart';
-import 'package:moneyfly/theme/app_theme.dart';
-import 'package:moneyfly/widgets/update_prompt.dart';
+import 'package:mbox/core/services/update_service.dart';
+import 'package:mbox/l10n/app_strings.dart';
+import 'package:mbox/theme/app_theme.dart';
+import 'package:mbox/widgets/update_prompt.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 UpdateInfo _info(String version,
@@ -35,7 +35,7 @@ UpdateInfo _info(String version,
 
 Future<void> _pumpHost(WidgetTester tester, void Function(BuildContext) onCtx) async {
   await tester.pumpWidget(MaterialApp(
-    theme: buildMoneyFlyTheme(),
+    theme: buildMBoxTheme(),
     home: Builder(builder: (ctx) {
       onCtx(ctx);
       return const Scaffold(body: SizedBox());
@@ -117,7 +117,7 @@ void main() {
       // 只在 macOS 有意义：installMacDmg 在别的平台直接返回 failed（不是 damaged）
       if (!Platform.isMacOS) return;
       final dmg = File('${tmp.path}/broken.dmg')..writeAsStringSync('not a dmg');
-      UpdateService.debugAppBundlePath = '${tmp.path}/Apps/MoneyFly.app';
+      UpdateService.debugAppBundlePath = '${tmp.path}/Apps/MBox.app';
       UpdateService.debugRunProcess = (exe, args) async {
         if (exe == 'hdiutil' && args.first == 'attach') {
           return ProcessResult(1, 1, '', 'hdiutil: attach failed - 无法识别映像');
@@ -132,7 +132,7 @@ void main() {
     test('正常流程：新的 .app 就位、旧的让位、并启动新版本', () async {
       if (!Platform.isMacOS) return; // 同上：这条验证的是 macOS 就地安装
       final calls = <String>[];
-      final appDir = Directory('${tmp.path}/Apps/MoneyFly.app')
+      final appDir = Directory('${tmp.path}/Apps/MBox.app')
         ..createSync(recursive: true);
       File('${appDir.path}/old.txt').writeAsStringSync('old');
       final dmg = File('${tmp.path}/good.dmg')..writeAsStringSync('dmg-bytes');
@@ -143,7 +143,7 @@ void main() {
         if (exe == 'hdiutil' && args.first == 'attach') {
           // 模拟挂载：在 mountpoint 下造出 DMG 里的 .app
           final mnt = args[args.indexOf('-mountpoint') + 1];
-          final src = Directory('$mnt/MoneyFly.app')..createSync(recursive: true);
+          final src = Directory('$mnt/MBox.app')..createSync(recursive: true);
           File('${src.path}/new.txt').writeAsStringSync('new');
         } else if (exe == 'ditto') {
           // 模拟 ditto --noqtn -rsrc <src> <dst>
@@ -170,7 +170,7 @@ void main() {
       final leftovers = Directory('${tmp.path}/Apps')
           .listSync()
           .map((e) => e.path.split('/').last)
-          .where((n) => n.startsWith('MoneyFly.app.old-'))
+          .where((n) => n.startsWith('MBox.app.old-'))
           .toList();
       expect(leftovers, isNotEmpty, reason: '旧版本应先改名让位，而不是就地覆盖');
     });

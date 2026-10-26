@@ -82,7 +82,7 @@ class _SettingsPageState extends State<SettingsPage> {
 @override
   Widget build(BuildContext context) {
     if (!_loaded) {
-      return Scaffold(body: Center(child: CircularProgressIndicator(color: MFColors.brand)));
+      return Scaffold(body: Center(child: CircularProgressIndicator(color: MBColors.brand)));
     }
     return Scaffold(
       appBar: AppBar(
@@ -100,7 +100,7 @@ class _SettingsPageState extends State<SettingsPage> {
               ThemeController.instance.setAppearance(defaults['appearance']?.toString() ?? 'light');
               _toast(AppStrings.t('restored'));
             },
-            child: Text(AppStrings.t('restore_default'), style: TextStyle(fontSize: 12.5, color: MFColors.txt3)),
+            child: Text(AppStrings.t('restore_default'), style: TextStyle(fontSize: 12.5, color: MBColors.txt3)),
           ),
         ],
       ),
@@ -127,8 +127,8 @@ class _SettingsPageState extends State<SettingsPage> {
               for (final g in groups) ...g,
               const SizedBox(height: 12),
               Center(
-                child: Text('MoneyFly v${UpdateInfo.currentVersion} · dy.moneyfly.top',
-                    style: TextStyle(fontSize: 10.5, color: MFColors.txt3, fontFamily: kNumFont)),
+                child: Text('MBox v${UpdateInfo.currentVersion} · dy.moneyfly.top',
+                    style: TextStyle(fontSize: 10.5, color: MBColors.txt3, fontFamily: kNumFont)),
               ),
             ],
           );
@@ -354,7 +354,7 @@ class _SettingsPageState extends State<SettingsPage> {
         _item(['settings_licenses'], _row(icon: '📜', title: AppStrings.t('settings_licenses'),
             onTap: () => showLicensePage(
                   context: context,
-                  applicationName: 'MoneyFly',
+                  applicationName: 'MBox',
                   applicationVersion: UpdateInfo.currentVersion,
                 ))),
       ]);
@@ -390,7 +390,7 @@ class _SettingsPageState extends State<SettingsPage> {
       child: Center(
         child: Text(AppStrings.t('settings_search_empty'),
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 12.5, color: MFColors.txt3)),
+            style: TextStyle(fontSize: 12.5, color: MBColors.txt3)),
       ),
     );
   }
@@ -413,13 +413,13 @@ class _SettingsPageState extends State<SettingsPage> {
     return Padding(
       padding: const EdgeInsets.fromLTRB(2, 14, 2, 8),
       child: Text(title,
-          style:  TextStyle(fontSize: 11, color: MFColors.txt3, fontWeight: FontWeight.w700, letterSpacing: 2)),
+          style:  TextStyle(fontSize: 11, color: MBColors.txt3, fontWeight: FontWeight.w700, letterSpacing: 2)),
     );
   }
 
   /// 统一行组件。原实现是 `Container(height: 52)` + 「标题/描述」和「值(≤150px)」
   /// 挤同一行 —— 380 宽（最小窗口）下描述只剩 ~94px，中英文描述都会被裁掉并抛
-  /// RenderFlex overflow（实测 37 次）。现在委托给 MFRow：最小高度 + 描述独占一行。
+  /// RenderFlex overflow（实测 37 次）。现在委托给 MBRow：最小高度 + 描述独占一行。
   Widget _row({
     required String icon,
     required String title,
@@ -430,7 +430,7 @@ class _SettingsPageState extends State<SettingsPage> {
     bool showDot = false,
     VoidCallback? onTap,
   }) {
-    return MFRow(
+    return MBRow(
       icon: icon,
       title: title,
       desc: desc,
@@ -453,9 +453,9 @@ class _SettingsPageState extends State<SettingsPage> {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
       decoration: BoxDecoration(
-          color: MFColors.card,
+          color: MBColors.card,
           borderRadius: BorderRadius.circular(15),
-          border: Border.all(color: MFColors.line)),
+          border: Border.all(color: MBColors.line)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -465,7 +465,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 width: 28,
                 height: 28,
                 decoration: BoxDecoration(
-                    color: MFColors.card2, borderRadius: BorderRadius.circular(9)),
+                    color: MBColors.card2, borderRadius: BorderRadius.circular(9)),
                 alignment: Alignment.center,
                 child: const Text('🎨', style: TextStyle(fontSize: 12)),
               ),
@@ -475,14 +475,14 @@ class _SettingsPageState extends State<SettingsPage> {
                     style: TextStyle(
                         fontSize: 13.5,
                         fontWeight: FontWeight.w500,
-                        color: MFColors.txt)),
+                        color: MBColors.txt)),
               ),
               Text(
                   AppStrings.t(
                       mfThemeLabels[current] ?? 'appearance_light'),
                   style: TextStyle(
                       fontSize: 12,
-                      color: MFColors.brand,
+                      color: MBColors.brand,
                       fontWeight: FontWeight.w600)),
             ],
           ),
@@ -513,7 +513,7 @@ class _SettingsPageState extends State<SettingsPage> {
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(
                               color: current == key
-                                  ? MFColors.brand
+                                  ? MBColors.brand
                                   : mfThemeOf(key).line,
                               width: current == key ? 2 : 1,
                             ),
@@ -534,8 +534,8 @@ class _SettingsPageState extends State<SettingsPage> {
                             style: TextStyle(
                                 fontSize: 10,
                                 color: current == key
-                                    ? MFColors.brand
-                                    : MFColors.txt3,
+                                    ? MBColors.brand
+                                    : MBColors.txt3,
                                 fontWeight: current == key
                                     ? FontWeight.w700
                                     : FontWeight.w500)),
@@ -567,7 +567,7 @@ class _SettingsPageState extends State<SettingsPage> {
           color: Colors.transparent,
           child: Ink(
             decoration: BoxDecoration(
-              gradient: selected ? MFColors.brandGradient : null,
+              gradient: selected ? MBColors.brandGradient : null,
               borderRadius: BorderRadius.circular(7),
             ),
             child: InkWell(
@@ -580,7 +580,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     softWrap: false,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600,
-                        color: selected ? Colors.white : MFColors.txt3)),
+                        color: selected ? Colors.white : MBColors.txt3)),
               ),
             ),
           ),
@@ -590,7 +590,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
     return Container(
       padding: const EdgeInsets.all(2),
-      decoration: BoxDecoration(color: MFColors.card2, borderRadius: BorderRadius.circular(9)),
+      decoration: BoxDecoration(color: MBColors.card2, borderRadius: BorderRadius.circular(9)),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -680,7 +680,7 @@ class _SettingsPageState extends State<SettingsPage> {
           }
 
           return AlertDialog(
-            backgroundColor: MFColors.card2,
+            backgroundColor: MBColors.card2,
             title: Text(title,
                 style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
             content: TextField(
@@ -689,7 +689,7 @@ class _SettingsPageState extends State<SettingsPage> {
               keyboardType: keyboardType,
               minLines: minLines,
               maxLines: maxLines,
-              style: style ?? TextStyle(color: MFColors.txt),
+              style: style ?? TextStyle(color: MBColors.txt),
               onSubmitted: (_) => submit(),
               decoration: _mfInputErr(hint: hint, helper: helper, error: error),
             ),
@@ -701,7 +701,7 @@ class _SettingsPageState extends State<SettingsPage> {
               TextButton(
                 onPressed: submit,
                 child: Text(AppStrings.t('save'),
-                    style: TextStyle(color: MFColors.brandLight)),
+                    style: TextStyle(color: MBColors.brandLight)),
               ),
             ],
           );
@@ -774,7 +774,7 @@ class _SettingsPageState extends State<SettingsPage> {
   SpeedTestMode get _speedMode =>
       parseSpeedTestMode(_s['speedTestMode']);
 
-  /// 设置行右侧显示的当前方式（短文案，窄窗口不挤爆 MFRow 的值区）
+  /// 设置行右侧显示的当前方式（短文案，窄窗口不挤爆 MBRow 的值区）
   String _speedModeLabel() => _speedMode == SpeedTestMode.tcp
       ? AppStrings.t('speed_mode_tcp')
       : AppStrings.t('speed_mode_kernel');
@@ -830,20 +830,20 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   /// 订阅自定义 User-Agent：部分机场按 UA 返回不同客户端格式，留一个自救入口。
-  /// 留空 = 使用默认 `MoneyFly/<版本>`。
+  /// 留空 = 使用默认 `MBox/<版本>`。
   Future<void> _pickSubscribeUa() async {
     final cur = _s['subscribeUserAgent']?.toString() ?? '';
     final ctrl = TextEditingController(text: cur);
     final v = await showDialog<String>(
       context: context,
       builder: (_) => AlertDialog(
-        backgroundColor: MFColors.card2,
+        backgroundColor: MBColors.card2,
         title: Text(AppStrings.t('settings_subscribe_ua'),
             style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
         content: TextField(
           controller: ctrl,
           autofocus: true,
-          style: TextStyle(color: MFColors.txt),
+          style: TextStyle(color: MBColors.txt),
           decoration: mfInput(
             hint: 'clash-verge/v2.0.0',
             helper: AppStrings.t('settings_subscribe_ua_desc'),
@@ -857,7 +857,7 @@ class _SettingsPageState extends State<SettingsPage> {
           TextButton(
             onPressed: () => Navigator.pop(context, ctrl.text.trim()),
             child: Text(AppStrings.t('save'),
-                style: TextStyle(color: MFColors.brandLight)),
+                style: TextStyle(color: MBColors.brandLight)),
           ),
         ],
       ),
@@ -906,7 +906,7 @@ class _SettingsPageState extends State<SettingsPage> {
     final picked = await showDialog<String>(
       context: context,
       builder: (_) => SimpleDialog(
-        backgroundColor: MFColors.card2,
+        backgroundColor: MBColors.card2,
         title: Text(AppStrings.t('settings_server_line'),
             style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
         children: [
@@ -916,7 +916,7 @@ class _SettingsPageState extends State<SettingsPage> {
               child: Text(
                 AppStrings.t('settings_server_line_back_to_pin',
                     {'host': pool.userPinnedHost}),
-                style: TextStyle(color: MFColors.brandLight),
+                style: TextStyle(color: MBColors.brandLight),
               ),
             ),
           SimpleDialogOption(
@@ -925,8 +925,8 @@ class _SettingsPageState extends State<SettingsPage> {
               AppStrings.t('settings_server_line_auto'),
               style: TextStyle(
                   color: pool.usingCustom || pool.activeIndex != 0
-                      ? MFColors.txt
-                      : MFColors.brandLight),
+                      ? MBColors.txt
+                      : MBColors.brandLight),
             ),
           ),
           for (final base in all)
@@ -937,14 +937,14 @@ class _SettingsPageState extends State<SettingsPage> {
                 '${base == pool.activeBase ? '  ✓' : ''}',
                 style: TextStyle(
                     color: base == pool.activeBase
-                        ? MFColors.brandLight
-                        : MFColors.txt),
+                        ? MBColors.brandLight
+                        : MBColors.txt),
               ),
             ),
           SimpleDialogOption(
             onPressed: () => Navigator.pop(context, '__custom__'),
             child: Text(AppStrings.t('settings_server_line_custom'),
-                style: TextStyle(color: MFColors.txt)),
+                style: TextStyle(color: MBColors.txt)),
           ),
         ],
       ),
@@ -962,13 +962,13 @@ class _SettingsPageState extends State<SettingsPage> {
       final input = await showDialog<String>(
         context: context,
         builder: (_) => AlertDialog(
-          backgroundColor: MFColors.card2,
+          backgroundColor: MBColors.card2,
           title: Text(AppStrings.t('settings_server_line'),
               style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
           content: TextField(
             controller: ctrl,
             autofocus: true,
-            style: TextStyle(color: MFColors.txt),
+            style: TextStyle(color: MBColors.txt),
             decoration: mfInput(hint: AppStrings.t('settings_server_line_custom_hint')),
           ),
           actions: [
@@ -978,7 +978,7 @@ class _SettingsPageState extends State<SettingsPage> {
             TextButton(
                 onPressed: () => Navigator.pop(context, ctrl.text.trim()),
                 child: Text(AppStrings.t('save'),
-                    style: TextStyle(color: MFColors.brandLight))),
+                    style: TextStyle(color: MBColors.brandLight))),
           ],
         ),
       );
@@ -1158,7 +1158,7 @@ class _SettingsPageState extends State<SettingsPage> {
       keyboardType: TextInputType.multiline,
       minLines: 4,
       maxLines: 8,
-      style: TextStyle(color: MFColors.txt, fontSize: 13),
+      style: TextStyle(color: MBColors.txt, fontSize: 13),
       validate: (raw) {
         // 只校验"每行不是空、不含空格"——域名清单允许用户随意试，
         // 真正的匹配由内核按 DOMAIN-SUFFIX 做，写错了最多少生效一条
@@ -1188,7 +1188,7 @@ class _SettingsPageState extends State<SettingsPage> {
       keyboardType: TextInputType.multiline,
       minLines: 3,
       maxLines: 6,
-      style: TextStyle(color: MFColors.txt, fontSize: 13),
+      style: TextStyle(color: MBColors.txt, fontSize: 13),
       validate: (raw) {
         final items = _splitServerText(raw);
         for (var i = 0; i < items.length; i++) {
@@ -1216,7 +1216,7 @@ class _SettingsPageState extends State<SettingsPage> {
     final v = await showDialog<String>(
       context: context,
       builder: (_) => SimpleDialog(
-        backgroundColor: MFColors.card2,
+        backgroundColor: MBColors.card2,
         title: Text(AppStrings.t('tun_title'), style: TextStyle(fontSize: 15)),
         children: [
           if (isDesktop)
@@ -1225,15 +1225,15 @@ class _SettingsPageState extends State<SettingsPage> {
               child: Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: MFColors.amber.withValues(alpha: .1),
+                  color: MBColors.amber.withValues(alpha: .1),
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: MFColors.amber.withValues(alpha: .3)),
+                  border: Border.all(color: MBColors.amber.withValues(alpha: .3)),
                 ),
                 child: Text(
                   Platform.isWindows
                       ? AppStrings.t('tun_win_hint')
                       : AppStrings.t('tun_mac_hint'),
-                  style: TextStyle(fontSize: 11, color: MFColors.txt2, height: 1.6),
+                  style: TextStyle(fontSize: 11, color: MBColors.txt2, height: 1.6),
                 ),
               ),
             ),
@@ -1243,7 +1243,7 @@ class _SettingsPageState extends State<SettingsPage> {
               child: Row(
                 children: [
                   if (o == currentLabel) ...[
-                    Icon(Icons.check, size: 16, color: MFColors.brandLight),
+                    Icon(Icons.check, size: 16, color: MBColors.brandLight),
                     const SizedBox(width: 8),
                   ],
                   // 标签/说明都要能压缩：Row 里非 flex 的 Text 按无限宽测量，
@@ -1252,7 +1252,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     child: Text(o,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 13.5, color: MFColors.txt)),
+                        style: TextStyle(fontSize: 13.5, color: MBColors.txt)),
                   ),
                   const SizedBox(width: 8),
                   Flexible(
@@ -1261,7 +1261,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.end,
-                      style: TextStyle(fontSize: 10.5, color: MFColors.txt3),
+                      style: TextStyle(fontSize: 10.5, color: MBColors.txt3),
                     ),
                   ),
                 ],
@@ -1273,13 +1273,13 @@ class _SettingsPageState extends State<SettingsPage> {
             child: Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: MFColors.amber.withValues(alpha: .1),
+                color: MBColors.amber.withValues(alpha: .1),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: MFColors.amber.withValues(alpha: .3)),
+                border: Border.all(color: MBColors.amber.withValues(alpha: .3)),
               ),
               child: Text(
                 AppStrings.t('tun_game_tip'),
-                style: TextStyle(fontSize: 11, color: MFColors.txt2, height: 1.6),
+                style: TextStyle(fontSize: 11, color: MBColors.txt2, height: 1.6),
               ),
             ),
           ),
@@ -1309,27 +1309,27 @@ class _SettingsPageState extends State<SettingsPage> {
     final v = await showDialog<String>(
       context: context,
       builder: (_) => SimpleDialog(
-        backgroundColor: MFColors.card2,
+        backgroundColor: MBColors.card2,
         // 标题必须走 l10n：项目默认中文，旧实现写死英文 'Language'
         title: Text(AppStrings.t('settings_language'), style: TextStyle(fontSize: 15)),
         children: [
           SimpleDialogOption(
             onPressed: () => Navigator.pop(context, 'zh'),
             child: Row(children: [
-              Text(AppStrings.t('zh'), style: TextStyle(fontSize: 13.5, color: MFColors.txt)),
+              Text(AppStrings.t('zh'), style: TextStyle(fontSize: 13.5, color: MBColors.txt)),
               if (AppStrings.lang == 'zh') ...[
                 const Spacer(),
-                Icon(Icons.check, size: 16, color: MFColors.brandLight),
+                Icon(Icons.check, size: 16, color: MBColors.brandLight),
               ],
             ]),
           ),
           SimpleDialogOption(
             onPressed: () => Navigator.pop(context, 'en'),
             child: Row(children: [
-              Text(AppStrings.t('en'), style: TextStyle(fontSize: 13.5, color: MFColors.txt)),
+              Text(AppStrings.t('en'), style: TextStyle(fontSize: 13.5, color: MBColors.txt)),
               if (AppStrings.lang == 'en') ...[
                 const Spacer(),
-                Icon(Icons.check, size: 16, color: MFColors.brandLight),
+                Icon(Icons.check, size: 16, color: MBColors.brandLight),
               ],
             ]),
           ),
@@ -1350,11 +1350,11 @@ class _SettingsPageState extends State<SettingsPage> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        backgroundColor: MFColors.card2,
+        backgroundColor: MBColors.card2,
         title: Text(AppStrings.t('settings_clear_data'),
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
         content: Text(AppStrings.t('clear_data_confirm'),
-            style: TextStyle(fontSize: 13.5, color: MFColors.txt2, height: 1.6)),
+            style: TextStyle(fontSize: 13.5, color: MBColors.txt2, height: 1.6)),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
@@ -1362,7 +1362,7 @@ class _SettingsPageState extends State<SettingsPage> {
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             child: Text(AppStrings.t('confirm'),
-                style: TextStyle(color: MFColors.red, fontWeight: FontWeight.w600)),
+                style: TextStyle(color: MBColors.red, fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -1415,7 +1415,7 @@ class _SettingsPageState extends State<SettingsPage> {
     final v = await showDialog<String>(
       context: context,
       builder: (_) => SimpleDialog(
-        backgroundColor: MFColors.card2,
+        backgroundColor: MBColors.card2,
         title: Text(AppStrings.t('pick_option'), style: TextStyle(fontSize: 15)),
         children: [
           for (final o in options)
@@ -1429,11 +1429,11 @@ class _SettingsPageState extends State<SettingsPage> {
                     child: Text(o,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 13.5, color: MFColors.txt)),
+                        style: TextStyle(fontSize: 13.5, color: MBColors.txt)),
                   ),
                   if (o == current) ...[
                     const SizedBox(width: 8),
-                    Icon(Icons.check, size: 16, color: MFColors.brandLight),
+                    Icon(Icons.check, size: 16, color: MBColors.brandLight),
                   ],
                 ],
               ),

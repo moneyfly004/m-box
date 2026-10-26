@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# 为 moneyfly 的 iOS 工程创建 / 修复 PacketTunnel 扩展 target。
+# 为 mbox 的 iOS 工程创建 / 修复 PacketTunnel 扩展 target。
 #
 # 为什么用脚本而不是手点 Xcode：pbxproj 是结构化文件，脚本化后
 # 可重复执行、可 review、CI 与本地一致（幂等：重复运行会先移除旧 target）。
@@ -12,7 +12,7 @@ require 'xcodeproj'
 
 PROJECT = 'ios/Runner.xcodeproj'
 TARGET_NAME = 'PacketTunnel'
-BUNDLE_ID = 'top.moneyfly.app.tunnel'
+BUNDLE_ID = 'top.mbox.app.tunnel'
 DEPLOYMENT_TARGET = '14.0'
 FRAMEWORK = 'Libbox.xcframework'
 
@@ -81,7 +81,7 @@ target.build_configurations.each do |config|
   bs['OTHER_LDFLAGS'] = '$(inherited) -lc++ -lresolv'
 end
 
-# ---- 链接 mihomo（gomobile 静态 xcframework）----
+# ---- 链接 sing-box（gomobile 静态 xcframework）----
 if File.exist?("ios/#{FRAMEWORK}")
   fw_ref = project.main_group.files.find { |f| f.path == FRAMEWORK } ||
            project.main_group.new_file(FRAMEWORK)
@@ -167,7 +167,7 @@ end
 
 # Runner 需要知道扩展的 bundle id（App 侧用它筛选 VPN 配置）
 runner.build_configurations.each do |config|
-  config.build_settings['MONEYFLY_TUNNEL_BUNDLE_ID'] = BUNDLE_ID
+  config.build_settings['MBOX_TUNNEL_BUNDLE_ID'] = BUNDLE_ID
 end
 
 project.save

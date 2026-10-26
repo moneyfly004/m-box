@@ -56,4 +56,4 @@ jobs:
           flutter analyze
           flutter test
         env:
-          MONEYFLY_SINGBOX: ${{ github.workspace }}/singbox-bin/sing-box
+          MBOX_SINGBOX: ${{ github.workspace }}/singbox-bin/sing-box

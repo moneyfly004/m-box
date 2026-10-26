@@ -6,7 +6,7 @@
 （同一份画稿 `design/mbox-logo.png`：把其中的白色标记原样提取出来，重新上成
 品牌蓝 `#455FE9`，底换成白；轮廓/留白/圆角沿用原画稿 alpha 通道，逐像素一致）。
 
-为什么不用 `assets/moneyfly-logo.svg` 重画：那条 path 的 M 比现用画稿的标记大
+为什么不用 `assets/mbox-logo.svg` 重画：那条 path 的 M 比现用画稿的标记大
 （实测占宽 71% vs 现用 50%），重画会顺手把 logo 放大一圈 —— 用户只要求换底色，
 不该夹带改设计。
 
@@ -29,7 +29,7 @@ ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / 'design/mbox-logo.png'   # 原画稿：渐变底 + 白色标记（1024, RGBA）
 
 WHITE = (255, 255, 255)
-BRAND = (0x45, 0x5F, 0xE9)            # 品牌蓝紫（与 assets/moneyfly-logo.svg 的 stroke 同色）
+BRAND = (0x45, 0x5F, 0xE9)            # 品牌蓝紫（与 assets/mbox-logo.svg 的 stroke 同色）
 SS = 4                                # 超采样
 
 # 白度阈值：实测画稿里标记 min(r,g,b)>=240，底色 <160，中间只有 AA 边缘
@@ -194,6 +194,41 @@ def main() -> None:
     render(256, full_bleed=False).save(
         ico, format='ICO',
         sizes=[(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)])
+
+    # ---- App 内部用的品牌图（首页左上角 / 登录页 / 托盘）----------------
+    # 为什么必须单独出这一份：桌面/任务栏图标换了白底之后，App 内部如果还在
+    # 用旧画稿（渐变蓝底），同一个软件会出现两套 logo —— 用户实测就是这样。
+    # 内部图用**同一份白底圆角图形**，和图标逐像素一致，不存在「两套视觉」。
+    inner = ROOT / 'assets/mbox-logo.png'
+    inner.parent.mkdir(parents=True, exist_ok=True)
+    render(512, full_bleed=False).save(inner)
+    written.append(inner)
+
+    # 托盘（macOS 菜单栏）：只留标记、透明底。菜单栏高度只有 22pt，白底方块
+    # 在那里显得又重又糊；纯标记在任何壁纸/明暗菜单栏上都干净。
+    tray_png = ROOT / 'assets/tray_icon.png'
+    _, brand_layer, _, mark_alpha = _load_brand_layer((256, 256))
+    mark_only = Image.new('RGBA', brand_layer.size, BRAND + (255,))
+    mark_only.putalpha(mark_alpha)
+    bbox = mark_only.getbbox()
+    mark_only = mark_only.crop(bbox) if bbox else mark_only
+    side = 80
+    canvas = Image.new('RGBA', (side, side), (0, 0, 0, 0))
+    mw, mh = mark_only.size
+    scale = min(side * 0.92 / mw, side * 0.92 / mh)
+    mark_only = mark_only.resize((max(1, round(mw * scale)), max(1, round(mh * scale))),
+                                 Image.LANCZOS)
+    canvas.alpha_composite(mark_only, ((side - mark_only.width) // 2,
+                                       (side - mark_only.height) // 2))
+    canvas.save(tray_png)
+    written.append(tray_png)
+
+    # Windows 托盘：tray_manager 只认 .ico，同样换成白底新版（旧的是渐变底）
+    tray_ico = ROOT / 'assets/tray_icon.ico'
+    render(256, full_bleed=False).save(
+        tray_ico, format='ICO',
+        sizes=[(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)])
+    written.append(tray_ico)
 
     print('== 生成的图标（白底 + 品牌色标记，形状/大小与原画稿一致）==')
     for p in written:

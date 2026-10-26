@@ -49,14 +49,14 @@ static void BootLog(const wchar_t* msg) {
 //     · 1366×768  @125%：y=(768-780)/2=-6 逻辑 → 物理 -7，标题栏跑到屏幕上方之外，
 //       窗口只露出一部分且拖不回来 → 用户结论就是"打不开界面"，只看到托盘图标
 // 现在：取光标所在显示器的工作区（去掉任务栏），换算逻辑像素，尺寸按工作区收缩后居中。
-struct MFWindowGeometry {
+struct MBWindowGeometry {
   int x;
   int y;
   int w;
   int h;
 };
 
-static MFWindowGeometry ComputeWindowGeometry(int target_w, int target_h) {
+static MBWindowGeometry ComputeWindowGeometry(int target_w, int target_h) {
   POINT cursor = {0, 0};
   ::GetCursorPos(&cursor);
   HMONITOR mon = ::MonitorFromPoint(cursor, MONITOR_DEFAULTTOPRIMARY);
@@ -67,7 +67,7 @@ static MFWindowGeometry ComputeWindowGeometry(int target_w, int target_h) {
     const int sh = ::GetSystemMetrics(SM_CYSCREEN);
     int w = target_w < sw - 40 ? target_w : (sw > 520 ? sw - 40 : sw);
     int h = target_h < sh - 64 ? target_h : (sh > 640 ? sh - 64 : sh);
-    MFWindowGeometry g = {(sw - w) / 2, (sh - h) / 2, w, h};
+    MBWindowGeometry g = {(sw - w) / 2, (sh - h) / 2, w, h};
     return g;
   }
   const UINT dpi = FlutterDesktopGetDpiForMonitor(mon);
@@ -87,7 +87,7 @@ static MFWindowGeometry ComputeWindowGeometry(int target_w, int target_h) {
   int y = static_cast<int>(mi.rcWork.top / scale) + (work_h - h) / 2;
   if (x < 0) x = 0;
   if (y < 0) y = 0;
-  MFWindowGeometry g = {x, y, w, h};
+  MBWindowGeometry g = {x, y, w, h};
   return g;
 }
 
@@ -213,7 +213,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   // 竖版窗口（420×780），与手机端比例一致；
   // 位置/尺寸按「当前显示器工作区」计算，保证**一定在屏幕正中间且完整可见**
   // （DPI 换算见 ComputeWindowGeometry 的注释）
-  MFWindowGeometry geo = ComputeWindowGeometry(420, 780);
+  MBWindowGeometry geo = ComputeWindowGeometry(420, 780);
   {
     wchar_t glog[256] = {0};
     swprintf_s(glog, L"geometry x=%d y=%d w=%d h=%d", geo.x, geo.y, geo.w, geo.h);

@@ -24,7 +24,7 @@ if (hasReleaseSigning) {
 }
 
 android {
-    namespace = "top.moneyfly.app"
+    namespace = "top.mbox.app"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -43,7 +43,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "top.moneyfly.app"
+        applicationId = "top.mbox.app"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
@@ -91,15 +91,15 @@ flutter {
 }
 
 dependencies {
-    // libmoneyfly.aar（sing-box 内核库，Java 包名 top.moneyfly.libbox）由 CI
+    // libmbox.aar（sing-box 内核库，Java 包名 top.moneyfly.libbox）由 CI
     // 从 moneyfly004/sing-box-lib 预编译 release 下载
     // （.github/workflows/release.yml）；本地调试用
     // tool/build_singbox_aar.sh。缺失时构建出的 APK 无内核，属残次包，
     // 直接报错给出清晰指引。
-    val coreAar = file("libs/libmoneyfly.aar")
+    val coreAar = file("libs/libmbox.aar")
     if (!coreAar.exists()) {
         throw GradleException(
-            "缺少 android/app/libs/libmoneyfly.aar（sing-box 内核库）。\n" +
+            "缺少 android/app/libs/libmbox.aar（sing-box 内核库）。\n" +
                 "CI 构建会自动下载预编译 aar；本地调试请先运行: bash tool/build_singbox_aar.sh"
         )
     }

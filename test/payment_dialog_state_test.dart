@@ -13,10 +13,10 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http_mock_adapter/http_mock_adapter.dart';
-import 'package:moneyfly/core/api/api_client.dart';
-import 'package:moneyfly/l10n/app_strings.dart';
-import 'package:moneyfly/pages/payment/payment_dialog.dart';
-import 'package:moneyfly/theme/app_theme.dart';
+import 'package:mbox/core/api/api_client.dart';
+import 'package:mbox/l10n/app_strings.dart';
+import 'package:mbox/pages/payment/payment_dialog.dart';
+import 'package:mbox/theme/app_theme.dart';
 
 Dio _mockDio(DioAdapter adapter, String status) {
   adapter.onGet('/orders/ORD1/status', (s) => s.reply(200, {
@@ -33,7 +33,7 @@ Dio _mockDio(DioAdapter adapter, String status) {
 }
 
 Future<void> _pump(WidgetTester tester, String status) async {
-  final dio = Dio(BaseOptions(baseUrl: 'https://test.moneyfly.top/api/v1'));
+  final dio = Dio(BaseOptions(baseUrl: 'https://test.mbox.top/api/v1'));
   ApiClient.debugDio = _mockDio(DioAdapter(dio: dio), status);
   ApiClient.persistTokens = false;
   ApiClient.resetInstance();
@@ -43,7 +43,7 @@ Future<void> _pump(WidgetTester tester, String status) async {
     PaymentQrDialog.debugTimeoutSecsOverride = null;
   });
   await tester.pumpWidget(MaterialApp(
-    theme: buildMoneyFlyTheme(),
+    theme: buildMBoxTheme(),
     home: const Scaffold(
       body: PaymentQrDialog(
         qrContent: 'https://qr.alipay.com/xxx',

@@ -5,8 +5,8 @@ import 'theme_controller.dart';
 /// 完整「外观模式」：一套完整配色（背景/卡片/文字/品牌/边框）。
 /// 每个模式自带明暗属性（isDark）：浅色模式用浅色卡片 + 深色文字，
 /// 深色模式用深色卡片 + 浅色文字 —— 6 套模式整套切换，而非只换品牌色。
-class MFTheme {
-  const MFTheme({
+class MBTheme {
+  const MBTheme({
     required this.isDark,
     required this.bg,
     required this.bg2,
@@ -38,43 +38,43 @@ class MFTheme {
 
 /// 6 套外观模式（key → 完整配色），颜色严格对应 design/theme_design.html：
 /// ①浅色 ②暖白 ③浅灰（浅色系） ④深灰 ⑤深蓝 ⑥纯黑（深色系）。
-const Map<String, MFTheme> _mfThemes = {
-  'light': MFTheme(
+const Map<String, MBTheme> _mfThemes = {
+  'light': MBTheme(
       isDark: false,
       bg: Color(0xFFF5F6FA), bg2: Color(0xFFFFFFFF),
       card: Color(0xFFFFFFFF), card2: Color(0xFFF0F2F8),
       txt: Color(0xFF1A2233), txt2: Color(0xFF4A5568), txt3: Color(0xFF8A94A6),
       brand: Color(0xFF455FE9), brandLight: Color(0xFF6C7BFF), brandDeep: Color(0xFF3346C4),
       line: Color(0xFFE5E8F0), line2: Color(0xFFD6DBE6)),
-  'warm': MFTheme(
+  'warm': MBTheme(
       isDark: false,
       bg: Color(0xFFFAF6F1), bg2: Color(0xFFFFFFFF),
       card: Color(0xFFFFFFFF), card2: Color(0xFFF5EDE3),
       txt: Color(0xFF2A2118), txt2: Color(0xFF5C5344), txt3: Color(0xFF948A79),
       brand: Color(0xFFE8862E), brandLight: Color(0xFFF0A35C), brandDeep: Color(0xFFC96E1E),
       line: Color(0xFFEDE4D8), line2: Color(0xFFE0D4C4)),
-  'gray': MFTheme(
+  'gray': MBTheme(
       isDark: false,
       bg: Color(0xFFEEF0F4), bg2: Color(0xFFFFFFFF),
       card: Color(0xFFFFFFFF), card2: Color(0xFFE8EBF0),
       txt: Color(0xFF22262E), txt2: Color(0xFF4B5058), txt3: Color(0xFF82868E),
       brand: Color(0xFF5B7CFA), brandLight: Color(0xFF7D97FB), brandDeep: Color(0xFF4560D8),
       line: Color(0xFFDFE3EA), line2: Color(0xFFCFD4DD)),
-  'darkgray': MFTheme(
+  'darkgray': MBTheme(
       isDark: true,
       bg: Color(0xFF1B1E24), bg2: Color(0xFF20232A),
       card: Color(0xFF242830), card2: Color(0xFF2E333D),
       txt: Color(0xFFF2F4F8), txt2: Color(0xFFB6BEC8), txt3: Color(0xFF8A929C),
       brand: Color(0xFF5B8DEF), brandLight: Color(0xFF7DA6F2), brandDeep: Color(0xFF4370CC),
       line: Color(0xFF343A45), line2: Color(0xFF3E4552)),
-  'darkblue': MFTheme(
+  'darkblue': MBTheme(
       isDark: true,
       bg: Color(0xFF0F1626), bg2: Color(0xFF141C2E),
       card: Color(0xFF182036), card2: Color(0xFF222B44),
       txt: Color(0xFFF2F5FB), txt2: Color(0xFFB4BFD2), txt3: Color(0xFF8A97AC),
       brand: Color(0xFF4E7CF6), brandLight: Color(0xFF729AF8), brandDeep: Color(0xFF3A5FD0),
       line: Color(0xFF2A3550), line2: Color(0xFF35415F)),
-  'black': MFTheme(
+  'black': MBTheme(
       isDark: true,
       bg: Color(0xFF0A0A0C), bg2: Color(0xFF101216),
       card: Color(0xFF16181D), card2: Color(0xFF20232A),
@@ -99,16 +99,16 @@ const Map<String, String> mfThemeLabels = {
 };
 
 /// 取某外观模式（设置页色卡预览用）
-MFTheme mfThemeOf(String key) => _mfThemes[key] ?? _mfThemes['light']!;
+MBTheme mfThemeOf(String key) => _mfThemes[key] ?? _mfThemes['light']!;
 
-/// MoneyFly 设计令牌（与 design/theme_design.html 一致）
+/// MBox 设计令牌（与 design/theme_design.html 一致）
 /// 颜色为动态 getter：随 ThemeController.appearance 整套切换，
-/// 页面里 `MFColors.xxx` 的写法不用改，切外观模式自动生效。
-class MFColors {
-  MFColors._();
+/// 页面里 `MBColors.xxx` 的写法不用改，切外观模式自动生效。
+class MBColors {
+  MBColors._();
 
   /// 当前选中的外观模式（key → 完整配色）
-  static MFTheme get _theme =>
+  static MBTheme get _theme =>
       _mfThemes[ThemeController.instance.appearance] ?? _mfThemes['light']!;
 
   /// 当前是否为深色外观模式（模式 ④⑤⑥ 为深色）
@@ -161,7 +161,7 @@ const EdgeInsets kInputPadding =
 const EdgeInsets kInputPaddingDense =
     EdgeInsets.symmetric(horizontal: 14, vertical: 14);
 
-ThemeData buildMoneyFlyTheme({Brightness brightness = Brightness.dark}) {
+ThemeData buildMBoxTheme({Brightness brightness = Brightness.dark}) {
   // 关键：颜色必须跟 brightness 参数绑定（MaterialApp 同时构建 light/dark 两套主题）。
   // 若选中深色外观，light 主题回退到默认浅色配色；反之亦然 —— 保证任意模式下
   // 被展示的那套主题颜色自洽（输入框底/文字不出现白底白字、黑底黑字错位）。
@@ -271,7 +271,7 @@ ThemeData buildMoneyFlyTheme({Brightness brightness = Brightness.dark}) {
 
 /// 按请求的 brightness 取配色：选中外观的明暗与请求一致则用之，
 /// 否则回退到该明暗的默认外观（保证被展示主题自洽）。
-MFTheme _paletteFor(Brightness brightness) {
+MBTheme _paletteFor(Brightness brightness) {
   final key = ThemeController.instance.appearance;
   final theme = _mfThemes[key] ?? _mfThemes['light']!;
   if (theme.isDark == (brightness == Brightness.dark)) return theme;
@@ -281,8 +281,8 @@ MFTheme _paletteFor(Brightness brightness) {
 }
 
 /// 渐变主按钮
-class MFPrimaryButton extends StatelessWidget {
-  const MFPrimaryButton({
+class MBPrimaryButton extends StatelessWidget {
+  const MBPrimaryButton({
     super.key,
     required this.label,
     this.onPressed,
@@ -303,20 +303,20 @@ class MFPrimaryButton extends StatelessWidget {
     // 白字 + 光晕，看起来完全可点 —— 用户点了没反应，会以为「按钮坏了」。
     // （loading 不算禁用：请求在飞，进度圈本身就是反馈，保留品牌渐变。）
     final disabled = onPressed == null && !loading;
-    final labelColor = disabled ? MFColors.txt3 : Colors.white;
+    final labelColor = disabled ? MBColors.txt3 : Colors.white;
     return SizedBox(
       height: height,
       width: double.infinity,
       child: DecoratedBox(
         decoration: BoxDecoration(
-          gradient: disabled ? null : MFColors.brandGradient,
-          color: disabled ? MFColors.card2 : null,
-          border: disabled ? Border.all(color: MFColors.line) : null,
+          gradient: disabled ? null : MBColors.brandGradient,
+          color: disabled ? MBColors.card2 : null,
+          border: disabled ? Border.all(color: MBColors.line) : null,
           borderRadius: BorderRadius.circular(16),
           boxShadow: disabled
               ? const []
               : [
-                  BoxShadow(color: MFColors.brand.withValues(alpha: .35), blurRadius: 24, offset: const Offset(0, 10)),
+                  BoxShadow(color: MBColors.brand.withValues(alpha: .35), blurRadius: 24, offset: const Offset(0, 10)),
                 ],
         ),
         child: Material(
@@ -345,11 +345,11 @@ class MFPrimaryButton extends StatelessWidget {
 /// 延迟色阶(全局唯一口径,列表/弹层/当前节点卡共用):
 /// 离线→红;在线未测→txt3; <100ms 绿; <300ms 琥珀; 其余 红。
 Color mfLatencyColor(int latencyMs, bool online) {
-  if (!online) return MFColors.red;
-  if (latencyMs < 0) return MFColors.txt3;
-  if (latencyMs < 100) return MFColors.green;
-  if (latencyMs < 300) return MFColors.amber;
-  return MFColors.red;
+  if (!online) return MBColors.red;
+  if (latencyMs < 0) return MBColors.txt3;
+  if (latencyMs < 100) return MBColors.green;
+  if (latencyMs < 300) return MBColors.amber;
+  return MBColors.red;
 }
 
 /// 日期显示（统一口径）：`2026-09-19`。
@@ -382,6 +382,6 @@ class RedDot extends StatelessWidget {
         width: size,
         height: size,
         decoration:
-            BoxDecoration(color: MFColors.red, shape: BoxShape.circle),
+            BoxDecoration(color: MBColors.red, shape: BoxShape.circle),
       );
 }

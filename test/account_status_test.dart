@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:moneyfly/core/models/models.dart';
-import 'package:moneyfly/core/services/account_service.dart';
+import 'package:mbox/core/models/models.dart';
+import 'package:mbox/core/services/account_service.dart';
 
 SubscriptionInfo _sub({
   String subscribeUrl = 'https://x/client/subscribe?token=t&type=clash',

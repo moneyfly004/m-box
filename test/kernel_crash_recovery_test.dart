@@ -5,7 +5,7 @@
 // 「断线自动重连」默认关闭，控制器一次都没重试，用户过了一小时才发现断网。
 // 内核进程消失属于客户端自身故障，必须与用户偏好解耦、无条件自愈。
 import 'package:flutter_test/flutter_test.dart';
-import 'package:moneyfly/core/proxy/proxy_core.dart';
+import 'package:mbox/core/proxy/proxy_core.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 CrashRecoveryAction _decide({

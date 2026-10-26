@@ -11,7 +11,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:moneyfly/core/services/update_service.dart';
+import 'package:mbox/core/services/update_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Windows 上 File.path 用的是反斜杠，断言前统一成正斜杠再比

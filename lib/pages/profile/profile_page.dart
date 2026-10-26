@@ -222,11 +222,11 @@ class _ProfilePageState extends State<ProfilePage> {
             width: 11,
             height: 11,
             child: CircularProgressIndicator(
-                strokeWidth: 1.6, color: MFColors.brand),
+                strokeWidth: 1.6, color: MBColors.brand),
           ),
           const SizedBox(width: 7),
           Text(AppStrings.t('refreshing'),
-              style: TextStyle(fontSize: 10.5, color: MFColors.txt3)),
+              style: TextStyle(fontSize: 10.5, color: MBColors.txt3)),
         ],
       ),
     );
@@ -239,13 +239,13 @@ class _ProfilePageState extends State<ProfilePage> {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
       decoration: BoxDecoration(
-        color: MFColors.card,
+        color: MBColors.card,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: MFColors.amber.withValues(alpha: .45)),
+        border: Border.all(color: MBColors.amber.withValues(alpha: .45)),
       ),
       child: Row(
         children: [
-          Icon(Icons.cloud_off_outlined, size: 18, color: MFColors.amber),
+          Icon(Icons.cloud_off_outlined, size: 18, color: MBColors.amber),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -257,7 +257,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         : AppStrings.t('profile_load_fail'),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 12, color: MFColors.txt)),
+                    style: TextStyle(fontSize: 12, color: MBColors.txt)),
                 const SizedBox(height: 2),
                 Text(
                     authIssue
@@ -265,7 +265,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         : AppStrings.t('profile_load_fail_hint'),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 10.5, color: MFColors.txt3)),
+                    style: TextStyle(fontSize: 10.5, color: MBColors.txt3)),
               ],
             ),
           ),
@@ -281,7 +281,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 constraints: const BoxConstraints(minHeight: 36),
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                    gradient: MFColors.brandGradient,
+                    gradient: MBColors.brandGradient,
                     borderRadius: BorderRadius.circular(10)),
                 child: Text(
                     authIssue
@@ -306,10 +306,10 @@ class _ProfilePageState extends State<ProfilePage> {
         Container(
           width: 50, height: 50,
           decoration: BoxDecoration(
-              color: MFColors.isDark ? Colors.black : MFColors.card2,
-              border: Border.all(color: MFColors.line),
+              color: MBColors.isDark ? Colors.black : MBColors.card2,
+              border: Border.all(color: MBColors.line),
               borderRadius: BorderRadius.circular(15)),
-          child: Icon(Icons.flight_takeoff, color: MFColors.brand, size: 26),
+          child: Icon(Icons.flight_takeoff, color: MBColors.brand, size: 26),
         ),
         const SizedBox(width: 13),
         Expanded(
@@ -320,7 +320,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
               Text(email.isEmpty ? AppStrings.t('no_email_hint') : email,
                   maxLines: 1, overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 11.5, color: MFColors.txt3)),
+                  style: TextStyle(fontSize: 11.5, color: MBColors.txt3)),
             ],
           ),
         ),
@@ -331,8 +331,8 @@ class _ProfilePageState extends State<ProfilePage> {
             // 金额口径与套餐页/支付弹窗统一走 formatPrice()：200 显示「¥200」
             // 而不是「¥200.00」，0.02 也不会被凑整成 0。
             Text(hasData ? '¥${formatPrice(balance)}' : '—',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: MFColors.brandLight, fontFamily: kNumFont)),
-            Text(AppStrings.t('balance'), style: TextStyle(fontSize: 9.5, color: MFColors.txt3)),
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: MBColors.brandLight, fontFamily: kNumFont)),
+            Text(AppStrings.t('balance'), style: TextStyle(fontSize: 9.5, color: MBColors.txt3)),
           ],
         ),
       ],
@@ -346,7 +346,7 @@ class _ProfilePageState extends State<ProfilePage> {
       decoration: BoxDecoration(
         gradient: const LinearGradient(colors: [Color(0x33FFB020), Color(0x0DFFB020)]),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: MFColors.amber.withValues(alpha: .45)),
+        border: Border.all(color: MBColors.amber.withValues(alpha: .45)),
       ),
       child: Row(
         children: [
@@ -354,7 +354,7 @@ class _ProfilePageState extends State<ProfilePage> {
           const SizedBox(width: 9),
           Expanded(
             child: Text(AppStrings.t('expiring_days', {'days': '$remaining'}),
-                style: TextStyle(fontSize: 12, color: MFColors.txt)),
+                style: TextStyle(fontSize: 12, color: MBColors.txt)),
           ),
           Material(
             color: Colors.transparent,
@@ -365,7 +365,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 7),
                 constraints: const BoxConstraints(minHeight: 40),
                 alignment: Alignment.center,
-                decoration: BoxDecoration(gradient: MFColors.brandGradient, borderRadius: BorderRadius.circular(10)),
+                decoration: BoxDecoration(gradient: MBColors.brandGradient, borderRadius: BorderRadius.circular(10)),
                 child: Text(AppStrings.t('renew'), style: TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.w600)),
               ),
             ),
@@ -392,19 +392,19 @@ class _ProfilePageState extends State<ProfilePage> {
       banners.add(_buildNoticeBanner(
         emoji: '🚫',
         text: AppStrings.t('account_disabled_block'),
-        color: MFColors.red,
+        color: MBColors.red,
       ));
     } else if (status.isNotEmpty && status != 'active') {
       banners.add(_buildNoticeBanner(
         emoji: '🚫',
         text: AppStrings.t('sub_disabled_block'),
-        color: MFColors.red,
+        color: MBColors.red,
       ));
     } else if (isExpired) {
       banners.add(_buildNoticeBanner(
         emoji: '⏰',
         text: AppStrings.t('account_expired_block'),
-        color: MFColors.red,
+        color: MBColors.red,
         buttonLabel: AppStrings.t('go_renew'),
         onTap: () => mainTabIndex.value = 2,
       ));
@@ -412,7 +412,7 @@ class _ProfilePageState extends State<ProfilePage> {
       banners.add(_buildNoticeBanner(
         emoji: '📱',
         text: AppStrings.t('devices_full_hint', {'cur': '$online', 'limit': '$total'}),
-        color: MFColors.amber,
+        color: MBColors.amber,
         buttonLabel: AppStrings.t('manage_devices'),
         onTap: () => Navigator.of(context).push(
             MaterialPageRoute(builder: (_) => const DevicesPage())),
@@ -451,7 +451,7 @@ class _ProfilePageState extends State<ProfilePage> {
           const SizedBox(width: 9),
           Expanded(
             child: Text(text,
-                style: TextStyle(fontSize: 12, color: MFColors.txt, height: 1.5)),
+                style: TextStyle(fontSize: 12, color: MBColors.txt, height: 1.5)),
           ),
           if (buttonLabel != null && onTap != null) ...[
             const SizedBox(width: 6),
@@ -465,7 +465,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 constraints: const BoxConstraints(minHeight: 40),
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                    gradient: MFColors.brandGradient,
+                    gradient: MBColors.brandGradient,
                     borderRadius: BorderRadius.circular(10)),
                 child: Text(buttonLabel,
                     style: const TextStyle(
@@ -491,11 +491,11 @@ class _ProfilePageState extends State<ProfilePage> {
         gradient: LinearGradient(
             begin: Alignment.topLeft, end: Alignment.bottomRight,
             colors: [
-              MFColors.brand.withValues(alpha: .18),
-              MFColors.brand.withValues(alpha: .07),
+              MBColors.brand.withValues(alpha: .18),
+              MBColors.brand.withValues(alpha: .07),
             ]),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: MFColors.brand.withValues(alpha: .38)),
+        border: Border.all(color: MBColors.brand.withValues(alpha: .38)),
       ),
       child: Column(
         children: [
@@ -510,24 +510,24 @@ class _ProfilePageState extends State<ProfilePage> {
                             ? _dashboard!.membership
                             : AppStrings.t('member'))
                         : AppStrings.t('no_plan_yet'),
-                    style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: MFColors.txt)),
+                    style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: MBColors.txt)),
                 const Spacer(),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
                   decoration: BoxDecoration(
                     color: (!hasData
-                            ? MFColors.txt3
+                            ? MBColors.txt3
                             : hasSub
-                                ? MFColors.green
-                                : MFColors.amber)
+                                ? MBColors.green
+                                : MBColors.amber)
                         .withValues(alpha: .15),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
                         color: (!hasData
-                                ? MFColors.txt3
+                                ? MBColors.txt3
                                 : hasSub
-                                    ? MFColors.green
-                                    : MFColors.amber)
+                                    ? MBColors.green
+                                    : MBColors.amber)
                             .withValues(alpha: .35)),
                   ),
                   child: Text(!hasData
@@ -538,10 +538,10 @@ class _ProfilePageState extends State<ProfilePage> {
                       style: TextStyle(
                           fontSize: 10,
                           color: !hasData
-                              ? MFColors.txt3
+                              ? MBColors.txt3
                               : hasSub
-                                  ? MFColors.green
-                                  : MFColors.amber,
+                                  ? MBColors.green
+                                  : MBColors.amber,
                           fontWeight: FontWeight.w600)),
                 ),
               ],
@@ -582,8 +582,8 @@ class _ProfilePageState extends State<ProfilePage> {
             margin: const EdgeInsets.only(bottom: 8),
             padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 13),
             decoration: BoxDecoration(
-                color: MFColors.card, borderRadius: BorderRadius.circular(15),
-                border: Border.all(color: MFColors.line)),
+                color: MBColors.card, borderRadius: BorderRadius.circular(15),
+                border: Border.all(color: MBColors.line)),
             child: InkWell(
               borderRadius: BorderRadius.circular(15),
               onTap: onTap,
@@ -591,12 +591,12 @@ class _ProfilePageState extends State<ProfilePage> {
                 children: [
                   Text(icon, style: const TextStyle(fontSize: 15)),
                   const SizedBox(width: 12),
-                  Expanded(child: Text(title, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: MFColors.txt))),
+                  Expanded(child: Text(title, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: MBColors.txt))),
                   if (badge != null)
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(color: MFColors.card2, borderRadius: BorderRadius.circular(12)),
-                      child: Text(badge, style: TextStyle(fontSize: 10.5, color: MFColors.txt3, fontFamily: kNumFont)),
+                      decoration: BoxDecoration(color: MBColors.card2, borderRadius: BorderRadius.circular(12)),
+                      child: Text(badge, style: TextStyle(fontSize: 10.5, color: MBColors.txt3, fontFamily: kNumFont)),
                     ),
                   if (showDot) ...[
                     const SizedBox(width: 6),
@@ -604,11 +604,11 @@ class _ProfilePageState extends State<ProfilePage> {
                       width: 7,
                       height: 7,
                       decoration: BoxDecoration(
-                          color: MFColors.red, shape: BoxShape.circle),
+                          color: MBColors.red, shape: BoxShape.circle),
                     ),
                   ],
                   const SizedBox(width: 4),
-                  Icon(Icons.chevron_right, size: 18, color: MFColors.txt3),
+                  Icon(Icons.chevron_right, size: 18, color: MBColors.txt3),
                 ],
               ),
             ),
@@ -628,14 +628,14 @@ class _ProfilePageState extends State<ProfilePage> {
         final ok = await showDialog<bool>(
           context: context,
           builder: (_) => AlertDialog(
-            backgroundColor: MFColors.card2,
+            backgroundColor: MBColors.card2,
             title: Text(AppStrings.t('logout'), style: TextStyle(fontSize: 16)),
-            content: Text(AppStrings.t('logout_confirm'), style: TextStyle(fontSize: 13.5, color: MFColors.txt2)),
+            content: Text(AppStrings.t('logout_confirm'), style: TextStyle(fontSize: 13.5, color: MBColors.txt2)),
             actions: [
               TextButton(onPressed: () => Navigator.pop(context, false), child: Text(AppStrings.t('cancel'))),
               TextButton(
                 onPressed: () => Navigator.pop(context, true),
-                child: Text(AppStrings.t('logout_yes'), style: TextStyle(color: MFColors.red)),
+                child: Text(AppStrings.t('logout_yes'), style: TextStyle(color: MBColors.red)),
               ),
             ],
           ),
@@ -653,11 +653,11 @@ class _ProfilePageState extends State<ProfilePage> {
         height: 50,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: MFColors.red.withValues(alpha: .07),
+          color: MBColors.red.withValues(alpha: .07),
           borderRadius: BorderRadius.circular(15),
-          border: Border.all(color: MFColors.red.withValues(alpha: .35)),
+          border: Border.all(color: MBColors.red.withValues(alpha: .35)),
         ),
-        child: Text(AppStrings.t('logout'), style: TextStyle(fontSize: 14.5, color: MFColors.red, fontWeight: FontWeight.w600)),
+        child: Text(AppStrings.t('logout'), style: TextStyle(fontSize: 14.5, color: MBColors.red, fontWeight: FontWeight.w600)),
       ),
       ),
     );
@@ -692,17 +692,17 @@ class _SubItem extends StatelessWidget {
                   style: TextStyle(
                       fontSize: highlight ? 18 : 14.5,
                       fontWeight: FontWeight.w800,
-                      color: highlight ? MFColors.green : MFColors.txt,
+                      color: highlight ? MBColors.green : MBColors.txt,
                       fontFamily: kNumFont)),
               if (unit != null) ...[
                 const SizedBox(width: 2),
-                Text(unit!, style: TextStyle(fontSize: 10, color: MFColors.txt2)),
+                Text(unit!, style: TextStyle(fontSize: 10, color: MBColors.txt2)),
               ],
             ],
           ),
           const SizedBox(height: 3),
           Text(label, maxLines: 1, overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 10, color: MFColors.txt2)),
+              style: TextStyle(fontSize: 10, color: MBColors.txt2)),
         ],
       ),
     );

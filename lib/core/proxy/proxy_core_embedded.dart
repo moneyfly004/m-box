@@ -56,7 +56,7 @@ WatchdogAction decideWatchdog({
 /// 切模式/切节点/测速/流量统计统一走内核的 Clash API(127.0.0.1:9090)，
 /// 与桌面端完全一致。
 class ProxyCoreEmbedded extends ProxyCore {
-  static const _channel = MethodChannel('top.moneyfly/vpn_core');
+  static const _channel = MethodChannel('top.mbox/vpn_core');
 
   final Dio _api = Dio(BaseOptions(
     baseUrl: 'http://127.0.0.1:9090',

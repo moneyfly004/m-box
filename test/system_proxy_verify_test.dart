@@ -19,7 +19,7 @@ library;
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:moneyfly/core/proxy/system_proxy.dart';
+import 'package:mbox/core/proxy/system_proxy.dart';
 
 const _winReg =
     r'HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings';
@@ -45,7 +45,7 @@ Future<bool> _winProxyPointsTo(int port) async {
 // ---- 基线快照：这些 macOS 用例会真改本机系统代理，必须知道「测试前是什么样」----
 //
 // 旧实现假设「测试前系统代理是关闭的」，于是 restore 后断言 `HTTPEnable : 0`。
-// 但开发机/用户机上常常**另有代理程序在跑**（实测：另一份 mihomo 客户端占着
+// 但开发机/用户机上常常**另有代理程序在跑**（实测：另一份代理客户端占着
 // 127.0.0.1:17890 并开着系统代理）—— 此时 restore 会**正确**地恢复到那个开启
 // 状态，断言却要求它是关闭的 → 用例变红，且红得毫无信息量。
 // 现在改为：先快照基线 → 结束时断言「恢复到基线」；若发现别人的代理正占用
@@ -85,7 +85,7 @@ void _expectRestoredToBaseline(String after, String baseline) {
 ///
 /// 两种情况都跳过（本用例会真改系统代理，硬跑只会得到假红）：
 ///   1. 系统代理被**别的程序**接管（端口不是本程序的 2080）；
-///   2. 本机 2080/9090 上已有进程在监听 —— 说明**有 MoneyFly（或其它代理）实例
+///   2. 本机 2080/9090 上已有进程在监听 —— 说明**有 MBox（或其它代理）实例
 ///      正在运行**，它的保活/退出会与我们 apply/restore 互相覆盖。
 ///      实测：开发机开着客户端时该用例必红，而 restore() 的行为其实是对的。
 Future<String?> _skipIfForeignProxy() async {
@@ -97,7 +97,7 @@ Future<String?> _skipIfForeignProxy() async {
         '本用例会真改系统代理，跳过以免与本程序的 apply/restore 互相干扰';
   }
   if (await SystemProxyManager.isLocalPortAlive(_localTestPort)) {
-    return '本机端口 $_localTestPort 上已有进程在监听（有 MoneyFly 或其它代理实例'
+    return '本机端口 $_localTestPort 上已有进程在监听（有 MBox 或其它代理实例'
         '正在运行）—— 它的保活与退出会与本用例的 apply/restore 互相覆盖，'
         '跳过以免产生假红。请先退出正在运行的客户端再执行本文件';
   }

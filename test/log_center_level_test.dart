@@ -7,7 +7,7 @@
 // 日志页的「级别」过滤（debug/info/warning/error）完全失效，
 // 用户切到 error 仍然满屏，切到 debug 也看不到更多（实测反馈「没区别」）。
 import 'package:flutter_test/flutter_test.dart';
-import 'package:moneyfly/pages/settings/log_center_page.dart';
+import 'package:mbox/pages/settings/log_center_page.dart';
 
 void main() {
   group('sing-box 日志行级别解析', () {

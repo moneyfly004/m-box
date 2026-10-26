@@ -1,19 +1,19 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:moneyfly/core/api/user_agent.dart';
+import 'package:mbox/core/api/user_agent.dart';
 
 void main() {
   group('UserAgent.build', () {
-    test('无 OS 信息时退化为裸 MoneyFly/<版本>', () {
-      expect(UserAgent.build(version: '0.0.1'), 'MoneyFly/0.0.1');
+    test('无 OS 信息时退化为裸 MBox/<版本>', () {
+      expect(UserAgent.build(version: '0.0.1'), 'MBox/0.0.1');
       expect(UserAgent.build(version: '1.2.3', osSection: '  '),
-          'MoneyFly/1.2.3');
+          'MBox/1.2.3');
     });
 
-    test('带 OS 特征串时拼成 MoneyFly/<版本> (<OS>)', () {
+    test('带 OS 特征串时拼成 MBox/<版本> (<OS>)', () {
       expect(
         UserAgent.build(
             version: '1.0.0', osSection: 'Windows NT 10.0'),
-        'MoneyFly/1.0.0 (Windows NT 10.0)',
+        'MBox/1.0.0 (Windows NT 10.0)',
       );
     });
   });
@@ -47,10 +47,10 @@ void main() {
   group('完整 UA 与后端正则逐条对齐', () {
     // 与 ~/Downloads/myweb/internal/services/device/device_manager.go 的
     // parseOSInfo / reAndroidVersion / reAndroidBuild / reWindowsNT / reMacOSX 对齐
-    test('Windows UA：版本号取 MoneyFly 段而非 OS 段', () {
+    test('Windows UA：版本号取 MBox 段而非 OS 段', () {
       final ua = UserAgent.build(
           version: '0.1.0', osSection: UserAgent.windowsSection(10, 0));
-      expect(ua, 'MoneyFly/0.1.0 (Windows NT 10.0)');
+      expect(ua, 'MBox/0.1.0 (Windows NT 10.0)');
       // 后端 parseVersion 首个 x.y.z = 0.1.0（左起最先出现）
       expect(RegExp(r'(\d+\.\d+\.\d+)').firstMatch(ua)!.group(1), '0.1.0');
       // 后端 reWindowsNT 捕获 10.0

@@ -74,7 +74,7 @@ ALLOWED_IP_PREFIXES = (
 ALLOWED_DOMAIN_SUFFIXES = (
     'example.com', 'example.org', 'example.net', 'example', 'invalid', 'test',
     'localhost', 'local', 'lan', 'apple.com', 'gstatic.com', 'github.com',
-    'githubusercontent.com', 'moneyfly.top', 'dpdns.org', 'fastora.top',
+    'githubusercontent.com', 'mbox.top', 'dpdns.org', 'fastora.top',
     'ghfast.top', 'gh-proxy.com', 'llkk.cc', 'ddlc.top', 'pub.dev', 'dart.dev',
     'flutter.dev', 'w3.org', 'apache.org', 'opensource.org',
     'creativecommons.org', 'stackoverflow.com', 'cloudflare.com', 'google.com',

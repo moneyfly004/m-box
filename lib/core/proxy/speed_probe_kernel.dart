@@ -34,8 +34,8 @@ class KernelProbeException implements Exception {
 /// 一个**只做延迟探测**的临时实例：测完按空闲超时自动退出。
 ///
 /// ## 与真实连接实例的隔离（每一条都对应一种真实故障）
-/// - **独立工作目录** `${tmp}/moneyfly_probe`：config.yaml / cache.db 不与
-///   连接内核（`moneyfly_core`）争锁。共用目录会出现 `[CacheFile] can't open
+/// - **独立工作目录** `${tmp}/mbox_probe`：config.json / cache.db 不与
+///   连接内核（`mbox_core`）争锁。共用目录会出现 `[CacheFile] can't open
 ///   cache file: timeout` 与「配置文件被另一个实例覆盖」。
 /// - **动态空闲端口**（`bind(0)` 取一个当前空闲的端口）：不碰用户设置的
 ///   `clashApiPort`(9090) / `localPort`(2080)，因此**连接与测速可同时存在**，
@@ -54,7 +54,7 @@ class SpeedProbeKernel {
   static final SpeedProbeKernel instance = SpeedProbeKernel._();
 
   /// 工作目录名（同时是命令行里用于识别/回收的片段）。
-  static const workDirTag = 'moneyfly_probe';
+  static const workDirTag = 'mbox_probe';
 
   /// 启动后无请求的空闲存活时间：之后自动退出，绝不留常驻进程。
   static const idleTimeout = Duration(seconds: 90);

@@ -19,7 +19,7 @@ class WinSingleInstance {
 
   /// 命名互斥量名（不带前缀 = Local 会话命名空间，同桌面重复启动即命中；
   /// 不同 Windows 会话互不影响，符合单用户语义）
-  static const _mutexName = r'Local\MoneyFly_SingleInstance';
+  static const _mutexName = r'Local\MBox_SingleInstance';
   static const _errorAlreadyExists = 183; // ERROR_ALREADY_EXISTS
 
   static bool get _enabled =>
@@ -49,7 +49,7 @@ class WinSingleInstance {
   /// 唤醒已最小化/隐藏到托盘的既有窗口（尽力而为，失败不影响退出）
   static void _activateExistingWindow() {
     try {
-      final title = 'MoneyFly'.toNativeUtf16();
+      final title = 'MBox'.toNativeUtf16();
       final hwnd = _User32.findWindowW(nullptr, title);
       malloc.free(title);
       if (hwnd == nullptr) return;

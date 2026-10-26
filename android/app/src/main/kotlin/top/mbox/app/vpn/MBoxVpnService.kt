@@ -1,4 +1,4 @@
-package top.moneyfly.app.vpn
+package top.mbox.app.vpn
 
 import android.annotation.SuppressLint
 import android.app.Notification
@@ -13,8 +13,8 @@ import android.os.Process
 import android.os.UserManager
 import android.util.Log
 import org.json.JSONObject
-import top.moneyfly.app.MainActivity
-import top.moneyfly.app.R
+import top.mbox.app.MainActivity
+import top.mbox.app.R
 import top.moneyfly.libbox.BridgeOptions
 import top.moneyfly.libbox.BridgeSession
 import top.moneyfly.libbox.CommandClient
@@ -53,7 +53,7 @@ import java.util.ArrayDeque
 import java.util.concurrent.Executors
 
 /**
- * MoneyFly (m-box) 的 Android VPN 服务：VpnService + libbox（**sing-box**
+ * MBox (m-box) 的 Android VPN 服务：VpnService + libbox（**sing-box**
  * v1.14 官方核心经 gomobile bind，Java 包名 top.moneyfly.libbox）。
  *
  * 架构（与 sing-box-for-android / SFA 一致）：
@@ -69,16 +69,16 @@ import java.util.concurrent.Executors
  *    `fetchKernelLogs()` 增量取给「内核日志」页。
  */
 @Suppress("UNUSED_PARAMETER")
-class MoneyFlyVpnService : VpnService(), PlatformInterface, CommandServerHandler {
+class MBoxVpnService : VpnService(), PlatformInterface, CommandServerHandler {
 
     companion object {
-        private const val TAG = "MoneyFlyVpnService"
+        private const val TAG = "MBoxVpnService"
 
-        const val ACTION_START = "top.moneyfly.vpn.START"
-        const val ACTION_STOP = "top.moneyfly.vpn.STOP"
+        const val ACTION_START = "top.mbox.vpn.START"
+        const val ACTION_STOP = "top.mbox.vpn.STOP"
         const val EXTRA_CONFIG = "config_json"
         const val EXTRA_NEED_TUN = "need_tun"
-        const val CHANNEL_ID = "moneyfly_vpn_channel"
+        const val CHANNEL_ID = "mbox_channel"
         private const val NOTIFY_ID = 1001
 
         /** 失败分类常量（与 lib/core/proxy/native_start_failure.dart 对齐） */
@@ -737,11 +737,11 @@ class MoneyFlyVpnService : VpnService(), PlatformInterface, CommandServerHandler
 
     // ================= 设置读取 / 资源 =================
 
-    /** 从 Flutter 设置读取访问控制（SharedPreferences 的 moneyfly_settings_v1 JSON） */
+    /** 从 Flutter 设置读取访问控制（SharedPreferences 的 mbox_settings_v1 JSON） */
     private fun readAccessSettings(): Pair<String, List<String>> {
         return try {
             val prefs = getSharedPreferences("FlutterSharedPreferences", MODE_PRIVATE)
-            val raw = prefs.getString("flutter.moneyfly_settings_v1", null)
+            val raw = prefs.getString("flutter.mbox_settings_v1", null)
             if (raw == null) return "all" to emptyList()
             val json = JSONObject(raw)
             val mode = json.optString("accessControlMode", "all")
@@ -789,7 +789,7 @@ class MoneyFlyVpnService : VpnService(), PlatformInterface, CommandServerHandler
             Notification.Builder(this)
         }
         return builder
-            .setContentTitle("MoneyFly")
+            .setContentTitle("MBox")
             .setContentText("代理运行中")
             .setSmallIcon(R.mipmap.ic_launcher)
             .setContentIntent(pi)

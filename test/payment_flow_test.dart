@@ -1,16 +1,16 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http_mock_adapter/http_mock_adapter.dart';
-import 'package:moneyfly/core/api/api_client.dart';
-import 'package:moneyfly/core/services/order_service.dart';
-import 'package:moneyfly/core/services/payment_service.dart';
+import 'package:mbox/core/api/api_client.dart';
+import 'package:mbox/core/services/order_service.dart';
+import 'package:mbox/core/services/payment_service.dart';
 
 void main() {
   late Dio dio;
   late DioAdapter adapter;
 
   setUp(() {
-    dio = Dio(BaseOptions(baseUrl: 'https://test.moneyfly.top/api/v1'));
+    dio = Dio(BaseOptions(baseUrl: 'https://test.mbox.top/api/v1'));
     adapter = DioAdapter(dio: dio);
     ApiClient.debugDio = dio;
     ApiClient.persistTokens = false;

@@ -23,7 +23,7 @@ class AccessPage extends StatefulWidget {
 }
 
 class _AccessPageState extends State<AccessPage> {
-  static const _channel = MethodChannel('top.moneyfly/vpn_core');
+  static const _channel = MethodChannel('top.mbox/vpn_core');
 
   List<Map<String, String>> _apps = [];
   String _mode = 'all';
@@ -124,11 +124,11 @@ class _AccessPageState extends State<AccessPage> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        backgroundColor: MFColors.card2,
+        backgroundColor: MBColors.card2,
         title: Text(AppStrings.t('access_reconnect_btn'),
             style: const TextStyle(fontSize: 16)),
         content: Text(AppStrings.t('access_saved_tip'),
-            style: TextStyle(fontSize: 13.5, color: MFColors.txt2)),
+            style: TextStyle(fontSize: 13.5, color: MBColors.txt2)),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
@@ -136,7 +136,7 @@ class _AccessPageState extends State<AccessPage> {
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             child: Text(AppStrings.t('access_reconnect_btn'),
-                style: TextStyle(color: MFColors.brand)),
+                style: TextStyle(color: MBColors.brand)),
           ),
         ],
       ),
@@ -182,7 +182,7 @@ class _AccessPageState extends State<AccessPage> {
                       textAlign: TextAlign.end,
                       style: TextStyle(
                           fontSize: 11.5,
-                          color: connected ? MFColors.brand : MFColors.txt3)),
+                          color: connected ? MBColors.brand : MBColors.txt3)),
                 ),
               );
             },
@@ -197,7 +197,7 @@ class _AccessPageState extends State<AccessPage> {
               padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
               child: Text(AppStrings.t('access_desc'),
                   style: TextStyle(
-                      fontSize: 11.5, color: MFColors.txt3, height: 1.6)),
+                      fontSize: 11.5, color: MBColors.txt3, height: 1.6)),
             ),
             const SizedBox(height: 10),
             // 模式选择：外层用 Material（而不是实色 Container）承接 Ink 的
@@ -205,7 +205,7 @@ class _AccessPageState extends State<AccessPage> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Material(
-                color: MFColors.card2,
+                color: MBColors.card2,
                 borderRadius: BorderRadius.circular(11),
                 child: Padding(
                   padding: const EdgeInsets.all(3),
@@ -226,10 +226,10 @@ class _AccessPageState extends State<AccessPage> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
-                  color: MFColors.brand.withValues(alpha: .07),
+                  color: MBColors.brand.withValues(alpha: .07),
                   borderRadius: BorderRadius.circular(10),
                   border:
-                      Border.all(color: MFColors.brand.withValues(alpha: .18)),
+                      Border.all(color: MBColors.brand.withValues(alpha: .18)),
                 ),
                 child: Text(
                   switch (_mode) {
@@ -239,7 +239,7 @@ class _AccessPageState extends State<AccessPage> {
                   },
                   style: TextStyle(
                       fontSize: 11,
-                      color: MFColors.txt2,
+                      color: MBColors.txt2,
                       height: 1.5),
                 ),
               ),
@@ -249,7 +249,7 @@ class _AccessPageState extends State<AccessPage> {
               child: Text(
                 '${AppStrings.t('access_sel_count', {'n': '${_selected.length}'})}'
                 ' · ${AppStrings.t('access_saved_tip')}',
-                style: TextStyle(fontSize: 10.5, color: MFColors.txt3),
+                style: TextStyle(fontSize: 10.5, color: MBColors.txt3),
               ),
             ),
             Padding(
@@ -258,11 +258,11 @@ class _AccessPageState extends State<AccessPage> {
                 height: 44,
                 child: TextField(
                   onChanged: (v) => setState(() => _query = v),
-                  style: TextStyle(fontSize: 13.5, color: MFColors.txt),
+                  style: TextStyle(fontSize: 13.5, color: MBColors.txt),
                   decoration: mfInput(hint: AppStrings.t('access_search_hint'))
                       .copyWith(
                     prefixIcon: Icon(Icons.search,
-                        size: 17, color: MFColors.txt3),
+                        size: 17, color: MBColors.txt3),
                     contentPadding:
                         const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
                   ),
@@ -280,7 +280,7 @@ class _AccessPageState extends State<AccessPage> {
   Widget _listArea() {
     if (_loading) {
       // 骨架屏而不是裸转圈：转圈→内容的跳变比骨架明显得多（与其它列表页统一）
-      return const MFListSkeleton(rows: 4);
+      return const MBListSkeleton(rows: 4);
     }
     final err = _loadError;
     if (err != null) {
@@ -296,7 +296,7 @@ class _AccessPageState extends State<AccessPage> {
               Text(err,
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                      fontSize: 12, color: MFColors.txt2, height: 1.7)),
+                      fontSize: 12, color: MBColors.txt2, height: 1.7)),
               const SizedBox(height: 6),
               TextButton(onPressed: _init, child: Text(AppStrings.t('retry'))),
             ],
@@ -314,7 +314,7 @@ class _AccessPageState extends State<AccessPage> {
                 : AppStrings.t('access_none'),
             textAlign: TextAlign.center,
             style:
-                TextStyle(fontSize: 12, color: MFColors.txt3, height: 1.7),
+                TextStyle(fontSize: 12, color: MBColors.txt3, height: 1.7),
           ),
         ),
       );
@@ -333,19 +333,19 @@ class _AccessPageState extends State<AccessPage> {
           margin: const EdgeInsets.symmetric(vertical: 2),
           decoration: BoxDecoration(
               color: checked
-                  ? MFColors.brand.withValues(alpha: .06)
+                  ? MBColors.brand.withValues(alpha: .06)
                   : Colors.transparent,
               borderRadius: BorderRadius.circular(10)),
           child: CheckboxListTile(
             value: checked,
-            activeColor: MFColors.brand,
+            activeColor: MBColors.brand,
             dense: true,
             controlAffinity: ListTileControlAffinity.trailing,
             onChanged: _mode == 'all' ? null : (_) => _toggle(pkg),
             title: Text(label,
-                style: TextStyle(fontSize: 13.5, color: MFColors.txt)),
+                style: TextStyle(fontSize: 13.5, color: MBColors.txt)),
             subtitle: Text(pkg,
-                style: TextStyle(fontSize: 9.5, color: MFColors.txt3)),
+                style: TextStyle(fontSize: 9.5, color: MBColors.txt3)),
           ),
         );
       },
@@ -363,7 +363,7 @@ class _AccessPageState extends State<AccessPage> {
         constraints: const BoxConstraints(minHeight: 40),
         child: Ink(
           decoration: BoxDecoration(
-            gradient: active ? MFColors.brandGradient : null,
+            gradient: active ? MBColors.brandGradient : null,
             borderRadius: radius,
           ),
           child: InkWell(
@@ -381,7 +381,7 @@ class _AccessPageState extends State<AccessPage> {
                   style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
-                      color: active ? Colors.white : MFColors.txt3),
+                      color: active ? Colors.white : MBColors.txt3),
                 ),
               ),
             ),

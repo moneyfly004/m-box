@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 
-/// MoneyFly 设置类页面统一的「一行」：图标 + 标题 +（可选）值/箭头/开关 +（可选）描述。
+/// MBox 设置类页面统一的「一行」：图标 + 标题 +（可选）值/箭头/开关 +（可选）描述。
 ///
 /// ## 为什么要有这个组件（而不是每页各写一份）
 /// 这个「一行」在 `settings_page.dart` / `kernel_page.dart` / `geo_update_page.dart`
@@ -20,8 +20,8 @@ import '../theme/app_theme.dart';
 ///   · 值最多 [valueMaxWidth]，必要时可被压缩，箭头位置保持稳定。
 ///
 /// 新增设置项请直接用它，不要再复制粘贴一份固定高度的 Row。
-class MFRow extends StatelessWidget {
-  const MFRow({
+class MBRow extends StatelessWidget {
+  const MBRow({
     super.key,
     required this.icon,
     required this.title,
@@ -67,9 +67,9 @@ class MFRow extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
-        color: MFColors.card,
+        color: MBColors.card,
         borderRadius: radius,
-        border: Border.all(color: MFColors.line),
+        border: Border.all(color: MBColors.line),
       ),
       child: InkWell(
         borderRadius: radius,
@@ -96,8 +96,8 @@ class MFRow extends StatelessWidget {
                         height: 28,
                         decoration: BoxDecoration(
                             color: danger
-                                ? MFColors.red.withValues(alpha: .12)
-                                : MFColors.card2,
+                                ? MBColors.red.withValues(alpha: .12)
+                                : MBColors.card2,
                             borderRadius: BorderRadius.circular(9)),
                         alignment: Alignment.center,
                         child: Text(icon, style: const TextStyle(fontSize: 12)),
@@ -111,7 +111,7 @@ class MFRow extends StatelessWidget {
                             style: TextStyle(
                                 fontSize: 13.5,
                                 fontWeight: FontWeight.w500,
-                                color: danger ? MFColors.red : MFColors.txt)),
+                                color: danger ? MBColors.red : MBColors.txt)),
                       ),
                       if (value != null) ...[
                         const SizedBox(width: 8),
@@ -127,7 +127,7 @@ class MFRow extends StatelessWidget {
                                 textAlign: TextAlign.end,
                                 style: TextStyle(
                                     fontSize: 12,
-                                    color: MFColors.txt3,
+                                    color: MBColors.txt3,
                                     fontFamily: kNumFont)),
                           ),
                         ),
@@ -138,7 +138,7 @@ class MFRow extends StatelessWidget {
                       ],
                       if (value != null || onTap != null) ...[
                         const SizedBox(width: 4),
-                        Icon(Icons.chevron_right, size: 17, color: MFColors.txt3),
+                        Icon(Icons.chevron_right, size: 17, color: MBColors.txt3),
                       ],
                       if (trailing != null) ...[
                         const SizedBox(width: 8),
@@ -157,7 +157,7 @@ class MFRow extends StatelessWidget {
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                              fontSize: 10, height: 1.35, color: MFColors.txt3)),
+                              fontSize: 10, height: 1.35, color: MBColors.txt3)),
                     ),
                 ],
               ),

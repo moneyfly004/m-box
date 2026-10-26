@@ -6,8 +6,8 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:moneyfly/core/services/kernel_log.dart';
-import 'package:moneyfly/core/services/local_paths.dart';
+import 'package:mbox/core/services/kernel_log.dart';
+import 'package:mbox/core/services/local_paths.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

@@ -4,7 +4,7 @@
 //  · 全项目 13 处小控件是 `GestureDetector` + 5~9px 内边距的小 Container：
 //    命中区 20~36px（低于 40 的下限）且没有任何按压反馈，其中包含「删除设备」
 //    「取消订单」这类破坏性操作 → 现在统一走 lib/widgets/mf_chip.dart
-//    （MFChip / MFActionButton：命中区 ≥40 + InkWell 反馈 + 明显禁用态）。
+//    （MBChip / MBActionButton：命中区 ≥40 + InkWell 反馈 + 明显禁用态）。
 //  · 设备卡片的元信息是 `Row(mainAxisSize.min)` 里两个不可压缩的 Text：
 //    IPv6 / 冗长的地理位置串在 380 宽最小窗口下无法换行也无法省略 → 溢出条纹。
 //  · SnackBar 有两种写法：主题里已统一（floating + card2 + 圆角 12），但 5 个页面
@@ -19,16 +19,16 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:moneyfly/core/api/api_client.dart';
-import 'package:moneyfly/core/proxy/proxy_core.dart';
-import 'package:moneyfly/core/services/account_service.dart';
-import 'package:moneyfly/l10n/app_strings.dart';
-import 'package:moneyfly/main.dart';
-import 'package:moneyfly/pages/devices/devices_page.dart';
-import 'package:moneyfly/pages/nodes/nodes_page.dart';
-import 'package:moneyfly/pages/orders/orders_page.dart';
-import 'package:moneyfly/theme/app_theme.dart';
-import 'package:moneyfly/widgets/mf_chip.dart';
+import 'package:mbox/core/api/api_client.dart';
+import 'package:mbox/core/proxy/proxy_core.dart';
+import 'package:mbox/core/services/account_service.dart';
+import 'package:mbox/l10n/app_strings.dart';
+import 'package:mbox/main.dart';
+import 'package:mbox/pages/devices/devices_page.dart';
+import 'package:mbox/pages/nodes/nodes_page.dart';
+import 'package:mbox/pages/orders/orders_page.dart';
+import 'package:mbox/theme/app_theme.dart';
+import 'package:mbox/widgets/mf_chip.dart';
 
 // ---------------- 假后端 ----------------
 
@@ -67,7 +67,7 @@ Widget _wrap(Widget page) => MultiProvider(
         ChangeNotifierProvider.value(value: ConnectionController.instance),
         ChangeNotifierProvider.value(value: AccountService.instance),
       ],
-      child: MaterialApp(theme: buildMoneyFlyTheme(), home: page),
+      child: MaterialApp(theme: buildMBoxTheme(), home: page),
     );
 
 Future<void> _pump(WidgetTester tester, Widget page,
@@ -101,19 +101,19 @@ void main() {
   });
 
   group('共享小控件：命中区与按压反馈', () {
-    testWidgets('MFChip：命中区 ≥40，用 InkWell，禁用/选中状态分明', (tester) async {
+    testWidgets('MBChip：命中区 ≥40，用 InkWell，禁用/选中状态分明', (tester) async {
       var taps = 0;
       await tester.pumpWidget(MaterialApp(
-        theme: buildMoneyFlyTheme(),
+        theme: buildMBoxTheme(),
         home: Scaffold(
           body: Column(children: [
-            MFChip(label: '排序', icon: Icons.sort, onTap: () => taps++),
-            MFChip(label: '选中', selected: true, onTap: () {}),
-            MFChip(label: '禁用', enabled: false, onTap: null),
+            MBChip(label: '排序', icon: Icons.sort, onTap: () => taps++),
+            MBChip(label: '选中', selected: true, onTap: () {}),
+            MBChip(label: '禁用', enabled: false, onTap: null),
           ]),
         ),
       ));
-      final chips = find.byType(MFChip);
+      final chips = find.byType(MBChip);
       for (var i = 0; i < 3; i++) {
         expect(_hitHeight(tester, chips.at(i)), greaterThanOrEqualTo(40),
             reason: '第 $i 个 chip 命中区不足 40px（审计：旧实现 20~36px）');
@@ -126,19 +126,19 @@ void main() {
       expect(taps, 1);
     });
 
-    testWidgets('MFActionButton：命中区 ≥40，禁用后不可点', (tester) async {
+    testWidgets('MBActionButton：命中区 ≥40，禁用后不可点', (tester) async {
       var taps = 0;
       await tester.pumpWidget(MaterialApp(
-        theme: buildMoneyFlyTheme(),
+        theme: buildMBoxTheme(),
         home: Scaffold(
           body: Column(children: [
-            MFActionButton(label: '取消订单', onTap: () => taps++, color: MFColors.red),
-            MFActionButton(label: '再次支付', filled: true, onTap: () {}),
-            const MFActionButton(label: '不可点'),
+            MBActionButton(label: '取消订单', onTap: () => taps++, color: MBColors.red),
+            MBActionButton(label: '再次支付', filled: true, onTap: () {}),
+            const MBActionButton(label: '不可点'),
           ]),
         ),
       ));
-      final btns = find.byType(MFActionButton);
+      final btns = find.byType(MBActionButton);
       for (var i = 0; i < 3; i++) {
         expect(_hitHeight(tester, btns.at(i)), greaterThanOrEqualTo(40));
       }
@@ -171,7 +171,7 @@ void main() {
             'size': 20,
           }));
       await _pump(tester, const OrdersPage());
-      final btns = find.byType(MFActionButton);
+      final btns = find.byType(MBActionButton);
       expect(btns, findsWidgets, reason: '订单操作按钮没有迁到共享控件');
       for (var i = 0; i < btns.evaluate().length; i++) {
         expect(_hitHeight(tester, btns.at(i)), greaterThanOrEqualTo(40));
@@ -236,8 +236,8 @@ void main() {
       await _pump(tester, const NodesPage());
       // 排序 chip（文案随排序方式变化，用 label 关键字定位）
       final chip = find.byWidgetPredicate((w) =>
-          w is MFChip && (w.label.contains('排序') || w.label.contains('延迟')));
-      expect(chip, findsWidgets, reason: '排序 chip 没有迁到 MFChip');
+          w is MBChip && (w.label.contains('排序') || w.label.contains('延迟')));
+      expect(chip, findsWidgets, reason: '排序 chip 没有迁到 MBChip');
       final rect = tester.getRect(chip.first);
       expect(rect.height, greaterThanOrEqualTo(40));
       await _unmount(tester);
@@ -255,7 +255,7 @@ void main() {
         if (seg.contains('SnackBarBehavior.floating')) {
           offenders.add('${f.path}: behavior: floating（主题已统一提供）');
         }
-        if (seg.contains('backgroundColor: MFColors.card2')) {
+        if (seg.contains('backgroundColor: MBColors.card2')) {
           offenders.add('${f.path}: SnackBar 里显式 backgroundColor（主题已统一提供）');
         }
         idx = src.indexOf('SnackBar(', idx + 1);

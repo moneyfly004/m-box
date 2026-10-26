@@ -14,7 +14,7 @@ import 'package:flutter/services.dart';
 ///   同一台电脑就换了 install_id → 后端当作新设备再登记一行，
 ///   用户设备列表里凭空多出一台「幽灵设备」，白占一个设备名额。
 ///   生产实证：老站用户 susanzhang1230 只有 iPhone + 一台 Windows，后台显示 3 台
-///   （MoneyFly 2.2.25 与 2.2.28 是同一台 PC）。
+///   （MBox 2.2.25 与 2.2.28 是同一台 PC）。
 /// - 硬件指纹从系统硬件/系统安装标识派生，不随 App 安装实例变化；
 ///   后端在「安装 ID 没命中」时用它把老行认回来（不新增设备、不占额外名额）。
 ///
@@ -32,7 +32,7 @@ class DeviceFingerprint {
   DeviceFingerprint._();
 
   /// 原生通道：仅用于读取 Android 的 ANDROID_ID
-  static const _channel = MethodChannel('top.moneyfly/device_id');
+  static const _channel = MethodChannel('top.mbox/device_id');
 
   static String? _cache;
 
@@ -62,7 +62,7 @@ class DeviceFingerprint {
   static String _digest(String raw) {
     // 加固定前缀避免与其它哈希用途混淆；截断 32 位十六进制足够唯一，
     // 且稳稳落在后端 device_hw_fp varchar(64) 内。
-    final hex = sha256.convert(utf8.encode('moneyfly-hwfp:$raw')).toString();
+    final hex = sha256.convert(utf8.encode('mbox-hwfp:$raw')).toString();
     return hex.substring(0, 32);
   }
 

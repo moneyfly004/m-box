@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""移除包含「动态主题颜色」的 const 关键字（MFColors 由 const 改为动态 getter 后）
-只处理 const 表达式（含括号/方括号平衡匹配）内含 MFColors.bg/bg2/card/card2/line/line2/txt/txt2/txt3 的情况，
+"""移除包含「动态主题颜色」的 const 关键字（MBColors 由 const 改为动态 getter 后）
+只处理 const 表达式（含括号/方括号平衡匹配）内含 MBColors.bg/bg2/card/card2/line/line2/txt/txt2/txt3 的情况，
 不含动态颜色的 const 保持原样（不影响编译期优化）。
 用法: python3 tool/fix_const_theme.py
 """
@@ -8,7 +8,7 @@ import os
 import re
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'lib')
-DYNAMIC = re.compile(r'MFColors\.(?:bg|bg2|card|card2|line|line2|txt|txt2|txt3)\b')
+DYNAMIC = re.compile(r'MBColors\.(?:bg|bg2|card|card2|line|line2|txt|txt2|txt3)\b')
 
 
 def balanced_end(text: str, start: int, open_ch: str, close_ch: str) -> int:

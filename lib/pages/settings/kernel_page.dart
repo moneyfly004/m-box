@@ -111,12 +111,12 @@ class _KernelPageState extends State<KernelPage> {
       final choice = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-          backgroundColor: MFColors.card2,
+          backgroundColor: MBColors.card2,
           title: Text(AppStrings.t('kernel_apply_now_title'),
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
           content: Text(AppStrings.t('kernel_apply_now_text'),
               style:
-                  TextStyle(fontSize: 13.5, color: MFColors.txt2, height: 1.6)),
+                  TextStyle(fontSize: 13.5, color: MBColors.txt2, height: 1.6)),
           actions: [
             TextButton(
                 onPressed: () => Navigator.pop(ctx, false),
@@ -125,7 +125,7 @@ class _KernelPageState extends State<KernelPage> {
               onPressed: () => Navigator.pop(ctx, true),
               child: Text(AppStrings.t('kernel_apply_now'),
                   style: TextStyle(
-                      color: MFColors.brandLight, fontWeight: FontWeight.w600)),
+                      color: MBColors.brandLight, fontWeight: FontWeight.w600)),
             ),
           ],
         ),
@@ -173,19 +173,19 @@ class _KernelPageState extends State<KernelPage> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        backgroundColor: MFColors.card2,
+        backgroundColor: MBColors.card2,
         title: Text(AppStrings.t('kernel_switch_title'),
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
         content: Text(AppStrings.t('kernel_switch_confirm', {
           'label': _variantLabel(v),
-        }), style: TextStyle(fontSize: 13.5, color: MFColors.txt2, height: 1.6)),
+        }), style: TextStyle(fontSize: 13.5, color: MBColors.txt2, height: 1.6)),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false),
               child: Text(AppStrings.t('cancel_text'))),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             child: Text(AppStrings.t('confirm'),
-                style: TextStyle(color: MFColors.brandLight, fontWeight: FontWeight.w600)),
+                style: TextStyle(color: MBColors.brandLight, fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -213,7 +213,7 @@ class _KernelPageState extends State<KernelPage> {
   Future<void> _pickVariant() async {
     final pick = await showModalBottomSheet<String>(
       context: context,
-      backgroundColor: MFColors.card,
+      backgroundColor: MBColors.card,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => SafeArea(
@@ -237,7 +237,7 @@ class _KernelPageState extends State<KernelPage> {
               value: 'standard',
             ),
             if (_hasUserKernel) ...[
-              Divider(height: 1, color: MFColors.line),
+              Divider(height: 1, color: MBColors.line),
               _sheetOption(
                 label: AppStrings.t('kernel_restore_builtin'),
                 desc: AppStrings.t('kernel_restore_builtin_desc'),
@@ -282,16 +282,16 @@ class _KernelPageState extends State<KernelPage> {
                       style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
-                          color: danger ? MFColors.red : MFColors.txt)),
+                          color: danger ? MBColors.red : MBColors.txt)),
                   const SizedBox(height: 2),
                   Text(desc,
                       style: TextStyle(
-                          fontSize: 11, color: MFColors.txt3, height: 1.4)),
+                          fontSize: 11, color: MBColors.txt3, height: 1.4)),
                 ],
               ),
             ),
             if (selected)
-              Icon(Icons.check_circle, size: 18, color: MFColors.brandLight),
+              Icon(Icons.check_circle, size: 18, color: MBColors.brandLight),
           ],
         ),
       ),
@@ -310,18 +310,18 @@ class _KernelPageState extends State<KernelPage> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        backgroundColor: MFColors.card2,
+        backgroundColor: MBColors.card2,
         title: Text(AppStrings.t('kernel_restore_builtin'),
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
         content: Text(AppStrings.t('kernel_restore_confirm'),
-            style: TextStyle(fontSize: 13.5, color: MFColors.txt2, height: 1.6)),
+            style: TextStyle(fontSize: 13.5, color: MBColors.txt2, height: 1.6)),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false),
               child: Text(AppStrings.t('cancel_text'))),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             child: Text(AppStrings.t('confirm'),
-                style: TextStyle(color: MFColors.red, fontWeight: FontWeight.w600)),
+                style: TextStyle(color: MBColors.red, fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -416,7 +416,7 @@ class _KernelPageState extends State<KernelPage> {
                     padding: const EdgeInsets.fromLTRB(2, 0, 2, 8),
                     child: Text(_error!,
                         style: TextStyle(
-                            fontSize: 11, color: MFColors.red)),
+                            fontSize: 11, color: MBColors.red)),
                   ),
                 if (_hasNewer)
                   Container(
@@ -434,7 +434,7 @@ class _KernelPageState extends State<KernelPage> {
                     child: Text(
                         AppStrings.t('kernel_up_to_date', {'ver': '$_current'}),
                         style: TextStyle(
-                            fontSize: 12, color: MFColors.txt2)),
+                            fontSize: 12, color: MBColors.txt2)),
                   ),
                 if (_downloading)
                   Padding(
@@ -446,13 +446,13 @@ class _KernelPageState extends State<KernelPage> {
                             AppStrings.t('kernel_downloading',
                                 {'pct': (_progress * 100).round().toString()}),
                             style: TextStyle(
-                                fontSize: 12, color: MFColors.txt2)),
+                                fontSize: 12, color: MBColors.txt2)),
                         const SizedBox(height: 6),
                         LinearProgressIndicator(
                           value: _progress,
                           minHeight: 4,
                           borderRadius: BorderRadius.circular(2),
-                          backgroundColor: MFColors.card2,
+                          backgroundColor: MBColors.card2,
                         ),
                       ],
                     ),
@@ -469,7 +469,7 @@ class _KernelPageState extends State<KernelPage> {
                           child: CircularProgressIndicator(strokeWidth: 2)),
                       const SizedBox(width: 10),
                       Text(AppStrings.t('kernel_restoring'),
-                          style: TextStyle(fontSize: 12, color: MFColors.txt2)),
+                          style: TextStyle(fontSize: 12, color: MBColors.txt2)),
                     ],
                   ),
                 ),
@@ -478,7 +478,7 @@ class _KernelPageState extends State<KernelPage> {
                   icon: '🔀',
                   title: AppStrings.t('kernel_variant_title'),
                   desc: AppStrings.t('kernel_variant_desc'),
-                  // 行尾本来就由 MFRow 追加 chevron_right 箭头；
+                  // 行尾本来就由 MBRow 追加 chevron_right 箭头；
                   // 以前值里再拼一个 ' ▾'，同一行出现两个互相打架的指示符
                   value: _variantLabel(_variant),
                   onTap: _downloading ? null : _pickVariant,
@@ -490,21 +490,21 @@ class _KernelPageState extends State<KernelPage> {
                 child: Text(
                   AppStrings.t('kernel_android_ver',
                       {'ver': _current == null ? '?' : 'v$_current'}),
-                  style: TextStyle(fontSize: 13, color: MFColors.txt),
+                  style: TextStyle(fontSize: 13, color: MBColors.txt),
                 ),
               ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(4, 4, 4, 4),
                 child: Text(
                   AppStrings.t('kernel_android_update_tip'),
-                  style: TextStyle(fontSize: 11.5, color: MFColors.txt3),
+                  style: TextStyle(fontSize: 11.5, color: MBColors.txt3),
                 ),
               ),
             ],
             const SizedBox(height: 14),
             Text(AppStrings.t('kernel_source'),
                 style: TextStyle(
-                    fontSize: 10.5, color: MFColors.txt3)),
+                    fontSize: 10.5, color: MBColors.txt3)),
           ],
         ),
       ),
@@ -517,7 +517,7 @@ class _KernelPageState extends State<KernelPage> {
       child: Text(title,
           style: TextStyle(
               fontSize: 11,
-              color: MFColors.txt3,
+              color: MBColors.txt3,
               fontWeight: FontWeight.w700,
               letterSpacing: 2)),
     );
@@ -531,6 +531,6 @@ class _KernelPageState extends State<KernelPage> {
     String? value,
     VoidCallback? onTap,
   }) {
-    return MFRow(icon: icon, title: title, desc: desc, value: value, onTap: onTap);
+    return MBRow(icon: icon, title: title, desc: desc, value: value, onTap: onTap);
   }
 }

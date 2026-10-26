@@ -17,8 +17,8 @@
 //   flutter drive --profile -d emulator-5554 --driver=... --target=...
 //
 // Android 前置：
-//   adb shell appops set top.moneyfly.app ACTIVATE_VPN allow
-//   adb shell pm grant top.moneyfly.app android.permission.POST_NOTIFICATIONS
+//   adb shell appops set top.mbox.app ACTIVATE_VPN allow
+//   adb shell pm grant top.mbox.app android.permission.POST_NOTIFICATIONS
 import 'dart:async';
 import 'dart:io';
 
@@ -28,14 +28,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:moneyfly/core/proxy/proxy_core.dart';
-import 'package:moneyfly/core/services/permission_service.dart';
-import 'package:moneyfly/core/services/settings_store.dart';
-import 'package:moneyfly/core/services/speed_test_mode.dart';
-import 'package:moneyfly/l10n/app_strings.dart';
-import 'package:moneyfly/main.dart' as app;
-import 'package:moneyfly/theme/theme_controller.dart';
-import 'package:moneyfly/main.dart' show mainTabIndex;
+import 'package:mbox/core/proxy/proxy_core.dart';
+import 'package:mbox/core/services/permission_service.dart';
+import 'package:mbox/core/services/settings_store.dart';
+import 'package:mbox/core/services/speed_test_mode.dart';
+import 'package:mbox/l10n/app_strings.dart';
+import 'package:mbox/main.dart' as app;
+import 'package:mbox/theme/app_theme.dart';
+import 'package:mbox/theme/theme_controller.dart';
+import 'package:mbox/main.dart' show mainTabIndex;
 
 /// 测试账号（与 integration_test/android_verify_test.dart 同源，仅内网测试用）
 const _account = '454487210@qq.com';
@@ -154,7 +155,7 @@ void main() {
 
     // ============================================================ A 启动/登录
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('moneyfly_lang', 'zh');
+    await prefs.setString('mbox_lang', 'zh');
     await AppStrings.setLang('zh', persist: false);
 
     final perfBoot = Perf()..start('启动');
@@ -170,13 +171,38 @@ void main() {
       await tester.enterText(fields.at(0), _account);
       await tester.enterText(fields.at(1), _password);
       await settle(tester, 300);
-      final btns = find.byType(ElevatedButton);
-      if (btns.evaluate().isNotEmpty) {
-        await tester.tap(btns.first, warnIfMissed: false);
-      } else {
-        await tester.testTextInput.receiveAction(TextInputAction.done);
+      // 登录按钮是 MBPrimaryButton（自定义控件，不是 ElevatedButton）——
+      // 早先按 ElevatedButton 找会点空，导致卡在登录页 90s 超时。
+      Future<bool> tapLogin() async {
+        if (find.byType(MBPrimaryButton).evaluate().isNotEmpty) {
+          await tester.tap(find.byType(MBPrimaryButton).first, warnIfMissed: false);
+          await settle(tester, 600);
+          return true;
+        }
+        final byText = find.text(AppStrings.t('login_button'));
+        if (byText.evaluate().isNotEmpty) {
+          await tester.tap(byText.first, warnIfMissed: false);
+          await settle(tester, 600);
+          return true;
+        }
+        return false;
       }
-      await tester.pump();
+
+      await tapLogin();
+      // 登录接口有冷却（rate limit），失败时按 5s 间隔重试，别一次就判死
+      for (var i = 0; i < 6; i++) {
+        if (find.byType(TextField).evaluate().isEmpty) break; // 已进首页
+        await settle(tester, 5000);
+        await tapLogin();
+      }
+      final texts = tester
+          .widgetList<Text>(find.byType(Text))
+          .map((t) => t.data)
+          .where((t) => t != null && t.isNotEmpty)
+          .take(12)
+          .toList();
+      // ignore: avoid_print
+      print('PROBE 登录后界面文案: $texts');
     }
     final homeOk = await waitFor(
         tester, () => find.text(AppStrings.t('smart_mode')).evaluate().isNotEmpty,
@@ -277,7 +303,7 @@ void main() {
     // ============================================================ F 延迟排序
     final perfSort = Perf()..start('按延迟排序');
     await phase('按延迟排序', () async {
-      // 排序入口是顶部的 MFChip（当前显示「默认排序」）→ 点开选择器选「按延迟」
+      // 排序入口是顶部的 MBChip（当前显示「默认排序」）→ 点开选择器选「按延迟」
       final chip = find.text(AppStrings.t('sort_default'));
       if (chip.evaluate().isNotEmpty) {
         await tester.tap(chip.first, warnIfMissed: false);

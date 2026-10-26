@@ -168,7 +168,7 @@ class _RegisterPageState extends State<RegisterPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text(AppStrings.t('login_title'), style: TextStyle(color: MFColors.brandLight, fontWeight: FontWeight.w600)),
+            child: Text(AppStrings.t('login_title'), style: TextStyle(color: MBColors.brandLight, fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -178,11 +178,11 @@ class _RegisterPageState extends State<RegisterPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-               Text(AppStrings.t('join_moneyfly'),
-                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: MFColors.txt)),
+               Text(AppStrings.t('join_mbox'),
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: MBColors.txt)),
               const SizedBox(height: 4),
                Text(AppStrings.t('join_tip'),
-                  style: TextStyle(fontSize: 11.5, color: MFColors.txt3)),
+                  style: TextStyle(fontSize: 11.5, color: MBColors.txt3)),
               SizedBox(height: compact ? 14 : 24),
               _field(AppStrings.t('email_label'), _email, hint: AppStrings.t('email_hint')),
               const SizedBox(height: 12),
@@ -199,19 +199,19 @@ class _RegisterPageState extends State<RegisterPage> {
                         ? Container(
                             alignment: Alignment.center,
                             decoration: BoxDecoration(
-                              color: MFColors.card,
+                              color: MBColors.card,
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: MFColors.line2),
+                              border: Border.all(color: MBColors.line2),
                             ),
                             child: Text('$_countdown${AppStrings.t('resend_in')}',
-                                style:  TextStyle(fontSize: 12, color: MFColors.txt3, fontFamily: kNumFont)),
+                                style:  TextStyle(fontSize: 12, color: MBColors.txt3, fontFamily: kNumFont)),
                           )
                         : GestureDetector(
                             onTap: _sending ? null : _sendCode,
                             child: Container(
                               alignment: Alignment.center,
                               decoration: BoxDecoration(
-                                gradient: MFColors.brandGradient,
+                                gradient: MBColors.brandGradient,
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(_sending ? AppStrings.t('sending') : AppStrings.t('send_code'),
@@ -222,7 +222,7 @@ class _RegisterPageState extends State<RegisterPage> {
               if (_codeSent) ...[
                 const SizedBox(height: 6),
                 Text(AppStrings.t('code_sent'),
-                    style: TextStyle(fontSize: 10.5, color: MFColors.green, fontWeight: FontWeight.w600)),
+                    style: TextStyle(fontSize: 10.5, color: MBColors.green, fontWeight: FontWeight.w600)),
               ],
               const SizedBox(height: 12),
               _field(AppStrings.t('username_label'), _username, hint: AppStrings.t('username_hint')),
@@ -256,11 +256,11 @@ class _RegisterPageState extends State<RegisterPage> {
                         width: 18,
                         height: 18,
                         decoration: BoxDecoration(
-                          gradient: _agreed ? MFColors.brandGradient : null,
-                          color: _agreed ? null : MFColors.card,
+                          gradient: _agreed ? MBColors.brandGradient : null,
+                          color: _agreed ? null : MBColors.card,
                           borderRadius: BorderRadius.circular(6),
                           border: Border.all(
-                              color: _agreed ? Colors.transparent : MFColors.line2),
+                              color: _agreed ? Colors.transparent : MBColors.line2),
                         ),
                         child: _agreed
                             ? const Icon(Icons.check, size: 12, color: Colors.white)
@@ -271,24 +271,24 @@ class _RegisterPageState extends State<RegisterPage> {
                         child: Text.rich(TextSpan(children: [
                           TextSpan(
                               text: AppStrings.t('agree_prefix'),
-                              style: TextStyle(fontSize: 11.5, color: MFColors.txt2)),
+                              style: TextStyle(fontSize: 11.5, color: MBColors.txt2)),
                           TextSpan(
                               text: AppStrings.t('settings_tos'),
                               recognizer: _tosTap,
                               style: TextStyle(
                                   fontSize: 11.5,
-                                  color: MFColors.brandLight,
+                                  color: MBColors.brandLight,
                                   fontWeight: FontWeight.w600,
                                   decoration: TextDecoration.underline)),
                           TextSpan(
                               text: AppStrings.t('agree_and'),
-                              style: TextStyle(fontSize: 11.5, color: MFColors.txt2)),
+                              style: TextStyle(fontSize: 11.5, color: MBColors.txt2)),
                           TextSpan(
                               text: AppStrings.t('settings_privacy_policy'),
                               recognizer: _privacyTap,
                               style: TextStyle(
                                   fontSize: 11.5,
-                                  color: MFColors.brandLight,
+                                  color: MBColors.brandLight,
                                   fontWeight: FontWeight.w600,
                                   decoration: TextDecoration.underline)),
                         ])),
@@ -301,9 +301,9 @@ class _RegisterPageState extends State<RegisterPage> {
               ),
               const SizedBox(height: 22),
               // 校验/接口失败原因常驻在按钮上方（键盘挡不住、不会一闪而过）
-              if (_formError != null) MFFormError(message: _formError!),
+              if (_formError != null) MBFormError(message: _formError!),
               if (_formError != null) const SizedBox(height: 10),
-              MFPrimaryButton(label: AppStrings.t('register_btn'), loading: _loading, onPressed: _loading ? null : _register),
+              MBPrimaryButton(label: AppStrings.t('register_btn'), loading: _loading, onPressed: _loading ? null : _register),
             ],
           ),
         ),
@@ -313,7 +313,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
   Widget _eyeBtn() => IconButton(
         icon: Icon(_obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-            size: 19, color: MFColors.txt3),
+            size: 19, color: MBColors.txt3),
         onPressed: () => setState(() => _obscure = !_obscure),
       );
 
@@ -325,7 +325,7 @@ class _RegisterPageState extends State<RegisterPage> {
       children: [
         Padding(
           padding: const EdgeInsets.only(left: 2, bottom: 7),
-          child: Text(label, style:  TextStyle(fontSize: 12.5, color: MFColors.txt2, fontWeight: FontWeight.w500)),
+          child: Text(label, style:  TextStyle(fontSize: 12.5, color: MBColors.txt2, fontWeight: FontWeight.w500)),
         ),
         Row(
           children: [
@@ -334,7 +334,7 @@ class _RegisterPageState extends State<RegisterPage> {
                 controller: c,
                 obscureText: obscure,
                 style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 15),
-                cursorColor: MFColors.brand,
+                cursorColor: MBColors.brand,
                 inputFormatters: inputFormatters,
                 decoration: InputDecoration(hintText: hint),
               ),

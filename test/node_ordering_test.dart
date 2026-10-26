@@ -1,7 +1,7 @@
 // 回归：节点列表按「距中国远近 + 热门置顶」排序（三端共用 ProxyNode.compareForList）。
 // 用户要求：香港→日本→新加坡→美国 置顶，其余按距中国远近。
 import 'package:flutter_test/flutter_test.dart';
-import 'package:moneyfly/core/models/models.dart';
+import 'package:mbox/core/models/models.dart';
 
 ProxyNode _n(String code, {int latency = 100, bool online = true, String? tag}) =>
     ProxyNode(

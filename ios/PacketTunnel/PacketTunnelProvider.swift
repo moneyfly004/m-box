@@ -40,7 +40,7 @@ enum RawIO {
 /// 隧道启动诊断轨迹。
 ///
 /// 为什么需要：扩展跑在独立进程里，它的 os_log 用户看不到；而「内核日志」
-/// 只有在 mihomo 成功启动之后才会产出。一旦失败（扩展没起来 / 配置没拿到 /
+/// 只有在内核成功启动之后才会产出。一旦失败（扩展没起来 / 配置没拿到 /
 /// fd 取不到 / 内核启动报错 / 进程被杀），App 侧只能看到一个干巴巴的
 /// 「内核启动超时」，完全无法定位。这里把启动过程的每一步都记下来：
 ///   1) 内存环形缓冲 → App 通过 sendProviderMessage("diag") 实时取（扩展活着时）
@@ -52,7 +52,7 @@ enum TunnelDiag {
     private static let lock = NSLock()
     private static var memory: [String] = []
     private static let maxMemory = 400
-    private static let appGroupId = "group.top.moneyfly.app"
+    private static let appGroupId = "group.top.mbox.app"
     private static let start = Date()
 
     private static let diagFd = openShared("tunnel.log")
@@ -202,7 +202,7 @@ final class PacketBridge {
     private let bridgeFd: Int32
     private var running = true
 
-    private let queue = DispatchQueue(label: "top.moneyfly.tunnel.bridge")
+    private let queue = DispatchQueue(label: "top.mbox.tunnel.bridge")
     private var outPackets = 0   // App → 内核
     private var inPackets = 0    // 内核 → App
     private var dropped = 0
@@ -295,34 +295,34 @@ final class PacketBridge {
     static let headerLength = 4
 }
 
-/// iOS 上的 mihomo 宿主：Packet Tunnel Provider 扩展。
+/// iOS 上的 sing-box 宿主：Packet Tunnel Provider 扩展。
 ///
 /// 为什么必须在这里跑内核：iOS 沙箱禁止 App 建 utun 接口，只有拥有
 /// `packet-tunnel-provider` entitlement 的 NetworkExtension 才能拿到隧道。
 /// 所以内核以 gomobile 静态库（Libbox.xcframework，sing-box 官方核心）跑在本扩展进程内，
-/// TUN fd 由 `packetFlow` 提供 —— mihomo 的 sing-tun 在 `FileDescriptor != 0`
+/// TUN fd 由 `packetFlow` 提供 —— sing-tun（sing-box 的 TUN 层）在 `FileDescriptor != 0`
 /// 时会直接复用该 fd（sing-tun/tun_darwin.go），无需 root、无需自建接口。
 ///
 /// 与 App 的分工：
-/// - App：生成 config.yaml → 写入 App Group 共享目录 → 起隧道；
-/// - 扩展：读 config.yaml → 下发网络参数 → 取 fd → 启动内核 → 抽日志到共享文件；
+/// - App：生成 config.json（sing-box 配置）→ 写入 App Group 共享目录 → 起隧道；
+/// - 扩展：读 config.json → 下发网络参数 → 取 fd → 启动内核 → 抽日志到共享文件；
 /// - 控制面（切节点/测速/流量）：App 直连扩展内内核的 Clash API 127.0.0.1:<apiPort>。
 class PacketTunnelProvider: NEPacketTunnelProvider {
 
-    /// sing-box 内核（libbox）引擎；mihomo 时代的 Mihomelib 已替换
+    /// sing-box 内核（libbox）引擎（旧的进程内库引擎已整体移除）
     private var engine: MBoxLibboxEngine?
     /// 本次启动用到的隧道 fd（openTun 时回给内核）
     private var tunnelFd: Int32 = -1
 
 
-    private let log = OSLog(subsystem: "top.moneyfly.app.tunnel", category: "tunnel")
+    private let log = OSLog(subsystem: "top.mbox.app.tunnel", category: "tunnel")
 
     /// 用户态桥（直连 fd 拿不到时启用；stopTunnel 时要关掉，否则 fd 泄漏）
     private var bridge: PacketBridge?
-    private let appGroupId = "group.top.moneyfly.app"
+    private let appGroupId = "group.top.mbox.app"
 
     private var logPump: DispatchSourceTimer?
-    private let logQueue = DispatchQueue(label: "top.moneyfly.tunnel.logpump")
+    private let logQueue = DispatchQueue(label: "top.mbox.tunnel.logpump")
 
     /// 网络路径监控：换网（WiFi↔蜂窝）时热更新内核的出站绑定接口。
     /// 不做这件事的话，绑定会停留在旧网卡上，换网后内核直接连不出去。
@@ -375,32 +375,32 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             configText = inline
             configSource = "inline"
         }
-        guard let yaml = configText, !yaml.isEmpty else {
+        guard let configJson = configText, !configJson.isEmpty else {
             TunnelDiag.log("✗ 没有可用配置（App Group 与内联都为空）")
-            completionHandler(tunnelError("缺少内核配置（config.yaml 不可读）"))
+            completionHandler(tunnelError("缺少内核配置（config.json 不可读）"))
             return
         }
-        TunnelDiag.log("配置来源=\(configSource) 字节=\(yaml.utf8.count)")
+        TunnelDiag.log("配置来源=\(configSource) 字节=\(configJson.utf8.count)")
 
         // 关键修复：把内核出站流量**钉在物理接口上**。
         //
-        // iOS 上隧道一起来，系统的默认路由就指向我们自己的隧道；mihomo 的
+        // iOS 上隧道一起来，系统的默认路由就指向我们自己的隧道；旧内核的
         // `auto-detect-interface` 会探到「默认接口 = 我们的隧道」，于是把自己
         // 的出站 socket 绑到隧道上 → 出站包被自己的隧道抓回来 → 内核再把它们
         // 转出去 → 无限自环。真机表现：内核刚起就静默死亡（内存/CPU 爆掉被系统
         // 杀掉），没有任何日志。
         //
-        // 而 mihomo 里「同名才拦」的自环守卫（default interface == tun name）
+        // 而旧内核里「同名才拦」的自环守卫（default interface == tun name）
         // 在 fd 注入场景下永远不会命中：socketpair 没有 utun 名字，tunName 只能
         // 是兜底值 "Meta"，和真实的隧道接口名对不上。
         //
         //        `interface-name` 的优先级高于 auto-detect（dialer.go：先看
         // DefaultInterface，为空才问 finder），所以这里显式写入物理接口名即可。
         apiPort = apiPortValue
-        apiSecret = Self.extractSecret(from: yaml)
-        var effectiveYaml = yaml
+        apiSecret = Self.extractSecret(from: configJson)
+        var effectiveConfig = configJson
         if let iface = Self.pickPhysicalInterface() {
-            effectiveYaml = Self.injectingInterfaceName(yaml, iface)
+            effectiveConfig = Self.injectingInterfaceName(configJson, iface)
             boundInterface = iface
             TunnelDiag.log("内核出站绑定 interface-name=\(iface)（防自环）")
         } else {
@@ -457,12 +457,12 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
                     self.bridge = acquired.bridge
                     TunnelDiag.log("取得隧道 fd=\(fd)"
                         + (acquired.bridge == nil ? "（直连）" : "（用户态桥）"))
-                    // 先起日志抽取：mihomo 的 Logs() 用的是独立锁，
+                    // 先起日志抽取：内核的 Logs() 用的是独立锁，
                     // Start 卡住/失败期间也能读到启动日志（含它卡在哪一步）
                     self.startLogPump()
                     TunnelDiag.log("调用内核前 RSS=\(Self.rssText())")
                     let t0 = Date()
-                    try self.startEngine(home: home, yaml: effectiveYaml, fd: fd)
+                    try self.startEngine(home: home, json: effectiveConfig, fd: fd)
                     TunnelDiag.log("✓ 内核启动完成（耗时 "
                         + "\(Int(Date().timeIntervalSince(t0) * 1000))ms）RSS=\(Self.rssText())")
                     // 内核已按配置起好（出站绑定已在解析阶段生效）→ 放行数据包
@@ -531,7 +531,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
                 Thread.sleep(forTimeInterval: 0.5)
             }
         }
-        t.name = "moneyfly-heartbeat"
+        t.name = "mbox-heartbeat"
         t.stackSize = 256 * 1024
         heartbeatThread = t
         t.start()
@@ -655,7 +655,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     }
 
     /// 盯住网络路径：物理出口换了就热更新内核绑定（Clash API PATCH /configs，
-    /// mihomo 侧直接写 dialer.DefaultInterface，不断流、不重启内核）。
+    /// 内核侧直接改默认接口绑定，不断流、不重启内核）。
     private func startPathWatch() {
         guard pathMonitor == nil else { return }
         let monitor = NWPathMonitor()
@@ -671,7 +671,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             self.boundInterface = next
             self.patchInterfaceName(next)
         }
-        monitor.start(queue: DispatchQueue(label: "top.moneyfly.tunnel.pathwatch"))
+        monitor.start(queue: DispatchQueue(label: "top.mbox.tunnel.pathwatch"))
         pathMonitor = monitor
         TunnelDiag.log("网络路径监控已启动（当前绑定 \(boundInterface ?? "-")）")
     }
@@ -772,7 +772,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
 
     // MARK: - 内核
 
-    private func startEngine(home: String, yaml: String, fd: Int32) throws {
+    private func startEngine(home: String, json: String, fd: Int32) throws {
         #if canImport(Libbox)
         let engine = MBoxLibboxEngine()
         engine.setTunnelFd(fd)
@@ -782,7 +782,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         TunnelDiag.log("调用 libbox 启动内核（内核版本 \(MBoxLibboxEngine.version())）…")
         let began = Date()
         do {
-            try engine.start(home: home, configContent: yaml)
+            try engine.start(home: home, configContent: json)
         } catch {
             let cost = Int(Date().timeIntervalSince(began) * 1000)
             TunnelDiag.log("✗ libbox 启动失败（\(cost)ms）: \(error.localizedDescription)")
@@ -1082,12 +1082,12 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
 
     // MARK: - 目录与 geo
 
-    /// 扩展可写工作目录（config.yaml 与 cache.db 落这里）
+    /// 扩展可写工作目录（config.json 与 cache.db 落这里）
     private func ensureHomeDir() -> String {
         let fm = FileManager.default
         let base = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? URL(fileURLWithPath: NSTemporaryDirectory())
-        let dir = base.appendingPathComponent("mihomo", isDirectory: true)
+        let dir = base.appendingPathComponent("singbox", isDirectory: true)
         if !fm.fileExists(atPath: dir.path) {
             try? fm.createDirectory(at: dir, withIntermediateDirectories: true)
         }
@@ -1136,7 +1136,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
 
     // MARK: - 内核日志抽取
 
-    /// mihomo 的日志缓冲在扩展进程内，App 读不到 → 由扩展抽到 App Group 共享
+    /// 内核的日志缓冲在扩展进程内，App 读不到 → 由扩展抽到 App Group 共享
     /// 文件，App 侧「内核日志」页沿用 Android 的同一套读取逻辑。
     private func startLogPump() {
         stopLogPump()
@@ -1162,7 +1162,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     // MARK: - 错误
 
     private func tunnelError(_ message: String) -> NSError {
-        NSError(domain: "top.moneyfly.tunnel", code: 1,
+        NSError(domain: "top.mbox.tunnel", code: 1,
                 userInfo: [NSLocalizedDescriptionKey: message])
     }
 }

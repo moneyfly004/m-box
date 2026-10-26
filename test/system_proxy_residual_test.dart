@@ -6,7 +6,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:moneyfly/core/proxy/system_proxy.dart';
+import 'package:mbox/core/proxy/system_proxy.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

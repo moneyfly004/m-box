@@ -7,14 +7,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:moneyfly/core/api/api_client.dart';
-import 'package:moneyfly/core/models/models.dart';
-import 'package:moneyfly/core/proxy/proxy_core.dart';
-import 'package:moneyfly/core/services/account_service.dart';
-import 'package:moneyfly/core/services/subscription_service.dart';
-import 'package:moneyfly/main.dart';
-import 'package:moneyfly/pages/home/home_page.dart';
-import 'package:moneyfly/theme/app_theme.dart';
+import 'package:mbox/core/api/api_client.dart';
+import 'package:mbox/core/models/models.dart';
+import 'package:mbox/core/proxy/proxy_core.dart';
+import 'package:mbox/core/services/account_service.dart';
+import 'package:mbox/core/services/subscription_service.dart';
+import 'package:mbox/main.dart';
+import 'package:mbox/pages/home/home_page.dart';
+import 'package:mbox/theme/app_theme.dart';
 
 /// 用户反馈：主页每次订阅更新时卡片会移动位置；连接一会儿后国家切换卡片才
 /// 临时出现在下方。要求：位置固定、不临时生成卡片、一屏能看到所有卡片。
@@ -71,7 +71,7 @@ class _FakeBackend implements HttpClientAdapter {
 }
 
 Widget _wrap(Widget child) => MaterialApp(
-      theme: buildMoneyFlyTheme(),
+      theme: buildMBoxTheme(),
       home: MultiProvider(
         providers: [
           ChangeNotifierProvider.value(value: SessionState()..setLoggedIn(true)),

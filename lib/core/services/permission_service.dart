@@ -2,12 +2,12 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 /// 平台权限服务（Android 走原生 MethodChannel；桌面端返回默认可用）
-/// 对应 MainActivity.kt 的 top.moneyfly/vpn_permissions 通道
+/// 对应 MainActivity.kt 的 top.mbox/vpn_permissions 通道
 class PermissionService {
   PermissionService._();
   static final PermissionService instance = PermissionService._();
 
-  static const _channel = MethodChannel('top.moneyfly/vpn_permissions');
+  static const _channel = MethodChannel('top.mbox/vpn_permissions');
 
   static bool get _isAndroid => !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
 

@@ -12,9 +12,9 @@ import 'package:crypto/crypto.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:moneyfly/core/services/settings_store.dart';
-import 'package:moneyfly/core/services/update_service.dart';
-import 'package:moneyfly/widgets/update_prompt.dart';
+import 'package:mbox/core/services/settings_store.dart';
+import 'package:mbox/core/services/update_service.dart';
+import 'package:mbox/widgets/update_prompt.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 UpdateInfo _info(String version,

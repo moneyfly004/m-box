@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:moneyfly/core/services/subscription_service.dart';
+import 'package:mbox/core/services/subscription_service.dart';
 
 /// 真实订阅配置验证（本机运维用）：读取 /tmp/mf_clash.yaml（真实后端拉取），
 /// 用客户端解析器加载节点，验证「核心能加载节点」。

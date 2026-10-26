@@ -14,9 +14,9 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:moneyfly/core/services/update_service.dart';
-import 'package:moneyfly/l10n/app_strings.dart';
-import 'package:moneyfly/widgets/update_prompt.dart';
+import 'package:mbox/core/services/update_service.dart';
+import 'package:mbox/l10n/app_strings.dart';
+import 'package:mbox/widgets/update_prompt.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 UpdateInfo _info(String version) => UpdateInfo(

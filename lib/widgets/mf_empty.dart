@@ -2,24 +2,24 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 
-/// MoneyFly 统一空态组件：图标 + 主文案 +（可选）次要文案 +（可选）操作按钮。
+/// MBox 统一空态组件：图标 + 主文案 +（可选）次要文案 +（可选）操作按钮。
 ///
-/// 深色/浅色主题都适用（颜色取 [MFColors]，随 ThemeController 自动切换）。
+/// 深色/浅色主题都适用（颜色取 [MBColors]，随 ThemeController 自动切换）。
 /// 典型用法（列表页无数据）：
 /// ```dart
-/// MFEmpty(title: AppStrings.t('no_orders'), hint: AppStrings.t('no_orders_hint'))
+/// MBEmpty(title: AppStrings.t('no_orders'), hint: AppStrings.t('no_orders_hint'))
 /// ```
 /// 需要引导操作时（如错误态带「重试」）：
 /// ```dart
-/// MFEmpty(
+/// MBEmpty(
 ///   icon: Icons.cloud_off,
 ///   title: '...',
 ///   actionLabel: AppStrings.t('retry'),
 ///   onAction: _load,
 /// )
 /// ```
-class MFEmpty extends StatelessWidget {
-  const MFEmpty({
+class MBEmpty extends StatelessWidget {
+  const MBEmpty({
     super.key,
     this.icon = Icons.inbox_outlined,
     required this.title,
@@ -52,19 +52,19 @@ class MFEmpty extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 42, color: MFColors.txt3),
+            Icon(icon, size: 42, color: MBColors.txt3),
             const SizedBox(height: 14),
             Text(
               title,
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 14, color: MFColors.txt3),
+              style: TextStyle(fontSize: 14, color: MBColors.txt3),
             ),
             if (hint != null) ...[
               const SizedBox(height: 6),
               Text(
                 hint!,
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 12, color: MFColors.txt3),
+                style: TextStyle(fontSize: 12, color: MBColors.txt3),
               ),
             ],
             if (showAction) ...[
@@ -74,7 +74,7 @@ class MFEmpty extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 11),
                   decoration: BoxDecoration(
-                    gradient: MFColors.brandGradient,
+                    gradient: MBColors.brandGradient,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(

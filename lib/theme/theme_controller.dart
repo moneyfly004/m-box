@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../core/services/settings_store.dart';
 
 /// 主题控制器：全局单例，随设置「外观模式」切换。
-/// 6 套外观模式各自是完整配色（含明暗），MFColors 的颜色取值动态跟随
+/// 6 套外观模式各自是完整配色（含明暗），MBColors 的颜色取值动态跟随
 /// [appearance]，MaterialApp 随 [mode]（由当前外观的明暗推导）重建。
 class ThemeController extends ChangeNotifier {
   ThemeController._();

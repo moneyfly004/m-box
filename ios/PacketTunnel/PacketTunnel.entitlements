@@ -10,11 +10,11 @@
 	<array>
 		<string>packet-tunnel-provider</string>
 	</array>
-	<!-- App 与扩展共享 config.yaml / kernel.log（config 可能很大，
+	<!-- App 与扩展共享 config.json / kernel.log（config 可能很大，
 	     不适合走 providerConfiguration） -->
 	<key>com.apple.security.application-groups</key>
 	<array>
-		<string>group.top.moneyfly.app</string>
+		<string>group.top.mbox.app</string>
 	</array>
 </dict>
 </plist>

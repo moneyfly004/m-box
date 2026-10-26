@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:moneyfly/core/api/server_pool.dart';
-import 'package:moneyfly/core/services/subscribe_url_failover.dart';
+import 'package:mbox/core/api/server_pool.dart';
+import 'package:mbox/core/services/subscribe_url_failover.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// 「软件设置里换了服务器线路 → 重启后必须**以新线路的域名拉订阅**」。

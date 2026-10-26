@@ -275,17 +275,24 @@ class UpdateService {
   Future<UpdateInfo?> _checkViaPanel() async {
     final key = await _panelConfigKey();
     if (key.isEmpty) return null; // 该平台面板没有对应入口（如 iOS 侧载包）
-    Map<String, dynamic>? data;
-    try {
+
+    Future<Map<String, dynamic>?> fetch(String configKey) async {
       final override = debugPanelLatestOverride;
       if (override != null) {
-        final r = await override(key);
-        data = r == null ? null : Map<String, dynamic>.from(r);
-      } else {
-        final r = await ApiClient.instance
-            .get('/software/latest', query: {'key': key});
-        if (r is Map) data = Map<String, dynamic>.from(r);
+        final r = await override(configKey);
+        return r == null ? null : Map<String, dynamic>.from(r);
       }
+      final r = await ApiClient.instance
+          .get('/software/latest', query: {'key': configKey});
+      return r is Map ? Map<String, dynamic>.from(r) : null;
+    }
+
+    Map<String, dynamic>? data;
+    try {
+      data = await fetch(key);
+      // 面板还没改键时回退一次旧字段名（见 [_legacyPanelConfigKey]）。
+      final legacy = _legacyPanelConfigKey(key);
+      if (data == null && legacy != null) data = await fetch(legacy);
     } catch (e) {
       AppLog.net('面板代查最新版本失败: $e');
       return null;
@@ -298,7 +305,7 @@ class UpdateService {
     final size = (data['size_bytes'] as num?)?.toInt() ?? 0;
     final rawUrl = (data['download_url'] ?? '').toString().trim();
     if (rawUrl.isEmpty) return null; // 拿不到下载地址就没法更新，不如如实返回 null
-    // 面板可能还配着**旧仓库/旧产物名**的地址（moneyfly004/moneyfly、MoneyFly-*）。
+    // 面板可能还配着**旧仓库/旧产物名**的地址（moneyfly004/moneyfly、MBox-*）。
     // 这里统一归一化到新仓库，避免把用户带回老 release。
     final url = normalizeReleaseUrl(rawUrl);
     final normalizedAsset = normalizeAssetName(assetName);
@@ -319,7 +326,7 @@ class UpdateService {
   /// 把任意 release 地址归一化到当前仓库与产物命名。
   ///
   /// 为什么需要：面板（后端「软件下载配置」）里可能仍写着旧仓库地址或旧产物名
-  /// （MoneyFly-setup-x.y.z.exe / MoneyFly-macos-arm64-*.dmg）。不归一化的话，
+  /// （MBox-setup-x.y.z.exe / MBox-macos-arm64-*.dmg）。不归一化的话，
   /// 应用内「检查更新 → 下载」会把用户带到**老 release**（甚至 404）。
   /// 只做纯字符串改写，非 GitHub 地址原样返回。
   static String normalizeReleaseUrl(String url) {
@@ -338,11 +345,22 @@ class UpdateService {
     return u;
   }
 
-  /// 旧产物名 → 新产物名（MoneyFly-* → MBox-*）
+  /// 旧产物名 → 新产物名（MBox-* → MBox-*）
   static String normalizeAssetName(String name) {
     final n = name.trim();
-    if (n.startsWith('MoneyFly-')) return 'MBox-${n.substring('MoneyFly-'.length)}';
+    if (n.startsWith('MBox-')) return 'MBox-${n.substring('MBox-'.length)}';
     return n;
+  }
+
+  /// 面板「软件下载配置」的**旧字段名**（历史遗留）。
+  ///
+  /// 后端这套配置键历史上一律叫 `moneyfly_*`。App 更名 MBox 后新键是 `mbox_*`，
+  /// 但面板没同步改键之前，新键查不到数据 → 用户会看到「检查更新失败」。
+  /// 所以新键取不到时再查一次旧键，两者都空才算真的没有更新入口。
+  /// 面板把键改完后，这个方法与它的回退调用都可以删掉。
+  static String? _legacyPanelConfigKey(String key) {
+    if (!key.startsWith('mbox_')) return null;
+    return key.replaceFirst('mbox_', 'moneyfly_');
   }
 
   /// 本平台在面板「软件下载配置」里的键名（与后端同步目录的 ConfigKey 一致）
@@ -350,13 +368,13 @@ class UpdateService {
     if (kIsWeb) return '';
     switch (defaultTargetPlatform) {
       case TargetPlatform.windows:
-        return 'moneyfly_windows_url';
+        return 'mbox_windows_url';
       case TargetPlatform.android:
-        return 'moneyfly_android_url';
+        return 'mbox_android_url';
       case TargetPlatform.macOS:
         return await _isMacIntel()
-            ? 'moneyfly_macos_url'
-            : 'moneyfly_macos_arm_url';
+            ? 'mbox_macos_url'
+            : 'mbox_macos_arm_url';
       default:
         // iOS 走侧载 IPA，面板没有对应入口 → 不兜底（与「检查失败」同表现）
         return '';
@@ -716,7 +734,7 @@ class UpdateService {
   static bool _newerThanCurrent(String v) =>
       _versionKey(v).compareTo(_versionKey(UpdateInfo.currentVersion)) > 0;
 
-  /// 当前是否以「安装版」形态运行（%LOCALAPPDATA%\Programs\MoneyFly）。
+  /// 当前是否以「安装版」形态运行（%LOCALAPPDATA%\Programs\MBox）。
   ///
   /// 便携版（解压 zip 直接跑）不该走静默自动安装：那会装出第二份到
   /// Programs 目录，而用户双击的还是旧的便携 exe，观感更糟。
@@ -728,7 +746,7 @@ class UpdateService {
     if (local.isEmpty) return false;
     final exe =
         Platform.resolvedExecutable.replaceAll('\\', '/').toLowerCase();
-    return exe.startsWith('$local/programs/moneyfly/');
+    return exe.startsWith('$local/programs/mbox/');
   }
 
   /// 测试缝：替换「分离式启动安装器」（返回是否成功启动）
@@ -830,7 +848,7 @@ class UpdateService {
           : MacInstallResult.failed;
     }
 
-    final tmp = await Directory.systemTemp.createTemp('moneyfly_upd_');
+    final tmp = await Directory.systemTemp.createTemp('mbox_upd_');
     final mnt = Directory('${tmp.path}/mnt')..createSync(recursive: true);
     var mounted = false;
     Directory? staging;
@@ -844,7 +862,7 @@ class UpdateService {
       // 不要把这种情况误判成「安装包损坏」（用户会以为自己下载坏了）
       if (attach.exitCode != 0 &&
           (err.contains('忙') || err.contains('busy') || err.contains('already'))) {
-        await run('hdiutil', ['detach', '/Volumes/MoneyFly', '-force']);
+        await run('hdiutil', ['detach', '/Volumes/MBox', '-force']);
         attach = await run(
             'hdiutil', [...attachArgs, '-mountpoint', mnt.path, dmgPath]);
         err = '${attach.stderr}';
@@ -944,7 +962,7 @@ class UpdateService {
     }
   }
 
-  /// 当前正在运行的 App 包路径（`/Applications/MoneyFly.app`）；
+  /// 当前正在运行的 App 包路径（`/Applications/MBox.app`）；
   /// 不是从 .app 里跑（开发模式）则返回 null。
   @visibleForTesting
   static String? currentAppBundlePath() {

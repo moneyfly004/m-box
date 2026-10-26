@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:moneyfly/core/proxy/singbox_config.dart';
-import 'package:moneyfly/core/models/models.dart';
+import 'package:mbox/core/proxy/singbox_config.dart';
+import 'package:mbox/core/models/models.dart';
 
 /// 智能模式路由回归（客户实测 2026-10-18）：
 /// 「linkedin.com / tiktok.com / chatgpt.com / gemini.google.com 这类必须走代理的
@@ -13,8 +13,8 @@ import 'package:moneyfly/core/models/models.dart';
 ///
 /// 修法（内核换成 sing-box 1.14.4 后的等价实现）：
 ///   - 「必须走代理」名单写成 `route.rules` 里一条 domain_suffix → select 规则，
-///     并**排在 geosite-cn / geoip-cn 规则集规则之前**（mihomo 版同样置顶）；
-///   - 打开嗅探：`route.rules` 第一条 `{action: 'sniff'}`（替代 mihomo 的 sniffer 段），
+///     并**排在 geosite-cn / geoip-cn 规则集规则之前**（旧内核版同样置顶）；
+///   - 打开嗅探：`route.rules` 第一条 `{action: 'sniff'}`（替代旧内核的 sniffer 段），
 ///     放在 geoip-cn 规则之前，纯 IP 包嗅出域名后才判路由。
 ProxyNode _node(String tag) => ProxyNode(
       tag: tag,
@@ -28,7 +28,7 @@ ProxyNode _node(String tag) => ProxyNode(
     );
 
 /// 规则集目录（只为断言「规则里引用了 .srs」；本组用例不启动内核，目录不必存在）
-const _ruleSetDir = '/tmp/moneyfly-e2e-rules';
+const _ruleSetDir = '/tmp/mbox-e2e-rules';
 
 Map<String, dynamic> _build({
   List<String> forceProxyDomains = const [],
@@ -142,7 +142,7 @@ void main() {
 
     test('仍然保留兜底：未列出的域名走 select（代理）', () {
       final cfg = _build();
-      // sing-box 没有 mihomo 的 MATCH 兜底规则，兜底是 route.final
+      // sing-box 没有 MATCH 兜底规则，兜底是 route.final
       expect((cfg['route'] as Map)['final'], 'select',
           reason: '兜底必须是代理（select），不能是 direct');
       final rules = _rules(cfg);
@@ -168,7 +168,7 @@ void main() {
       // 内核 DNS 劫持：TUN 里的 53 端口流量交给内置 DNS（fake-ip 才会生效）
       // （contains 对 Map 用 == 判等，这里必须显式用 equals 做深比较）
       expect(rules, contains(equals({'protocol': 'dns', 'action': 'hijack-dns'})));
-      // mihomo 的 sniffer 段已被 route 规则取代，不应再出现在产物里
+      // 旧内核的 sniffer 段已被 route 规则取代，不应再出现在产物里
       expect(cfg.containsKey('sniffer'), isFalse);
     });
   });

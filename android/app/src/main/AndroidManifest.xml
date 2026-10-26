@@ -63,7 +63,7 @@
              connectedDevice 类型在 Android 14+ 会因前置权限不满足抛
              SecurityException(见顶部权限注释) -->
         <service
-            android:name=".vpn.MoneyFlyVpnService"
+            android:name=".vpn.MBoxVpnService"
             android:exported="false"
             android:foregroundServiceType="specialUse"
             android:permission="android.permission.BIND_VPN_SERVICE">

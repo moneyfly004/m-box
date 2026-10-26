@@ -27,16 +27,16 @@ import '../services/local_paths.dart';
 /// 内核二进制位置（CI 打包进安装包；本地开发用 tool/fetch_singbox.sh 获取）：
 ///   macOS    `App.app/Contents/MacOS/sing-box`
 ///   Windows  `exe 同目录/sing-box.exe`
-///   可用环境变量 MONEYFLY_SINGBOX 覆盖（开发调试用）。
+///   可用环境变量 MBOX_SINGBOX 覆盖（开发调试用）。
 class ProxyCoreCli extends ProxyCore {
 
   /// 是否由 app 管理系统代理（连接时设置、断开时恢复）。
   /// 集成测试置 false，避免改动真实系统代理。
   static bool manageSystemProxy = true;
 
-  /// 内核工作目录（config.yaml + 离线 geo 数据 country.mmdb/geosite.dat 落盘处；
+  /// 内核工作目录（config.json + 离线规则集 .srs 落盘处；
   /// sing-box 以 -D 指定工作目录，配置里用绝对路径引用规则集）
-  static final String workDir = '${Directory.systemTemp.path}/moneyfly_core';
+  static final String workDir = '${Directory.systemTemp.path}/mbox_core';
   static const _readyTimeout = Duration(seconds: 10);
 
   /// 内核日志实时流（广播）：_onLog 收到的每行都推送，
@@ -141,10 +141,12 @@ class ProxyCoreCli extends ProxyCore {
   /// 定位逻辑，否则会出现「连接能找到内核、测速找不到」这种只在部分安装方式下
   /// 复现的诡异故障（Program Files 只读、用户内核副本、测试注入三处任一不同）。
   static Future<String> resolveKernelBinary() async {
-    // 环境变量注入（测试/开发）：MONEYFLY_SINGBOX 为主，MONEYFLY_MIHOMO 兼容旧脚本
-    for (final key in const ['MONEYFLY_SINGBOX', 'MONEYFLY_MIHOMO']) {
-      final v = Platform.environment[key];
-      if (v != null && v.isNotEmpty && File(v).existsSync()) return v;
+    // 环境变量注入（测试/开发）：MBOX_SINGBOX 指向内核可执行文件
+    final injected = Platform.environment['MBOX_SINGBOX'];
+    if (injected != null &&
+        injected.isNotEmpty &&
+        File(injected).existsSync()) {
+      return injected;
     }
     // 用户内核副本优先（内核管理页切换/更新写入的位置，与 KernelManager 同名）
     try {
@@ -206,8 +208,8 @@ class ProxyCoreCli extends ProxyCore {
   ///
   /// 判据是**父进程是否还是本 App**：
   /// - 父进程已消失 → 真孤儿（上次 App 被强杀留下的），可收；
-  /// - 父进程是活着的 MoneyFly → 那是**别的实例正在使用的内核**，绝不能杀；
-  /// - 父进程活着但不是 MoneyFly（PID 被复用的极端情况）→ 按残留处理，
+  /// - 父进程是活着的 MBox → 那是**别的实例正在使用的内核**，绝不能杀；
+  /// - 父进程活着但不是 MBox（PID 被复用的极端情况）→ 按残留处理，
   ///   否则端口/cache 锁永远解不开，连接一直 bind 失败。
   @visibleForTesting
   static bool isStaleKernelCandidate({
@@ -225,7 +227,7 @@ class ProxyCoreCli extends ProxyCore {
   }
 
   /// 进程命令行里出现这个片段即认定为「本 App 的内核」（workDir 名）。
-  static const _workDirTag = 'moneyfly_core';
+  static const _workDirTag = 'mbox_core';
 
   /// Windows：用一次 PowerShell 列出候选内核及其父进程信息，再由 Dart 决策，
   /// 只对判定为孤儿的 pid 逐个 `Stop-Process -Force`。
@@ -255,7 +257,7 @@ class ProxyCoreCli extends ProxyCore {
         pid: pid,
         parentPid: ppid,
         parentAlive: parentAlive,
-        parentIsApp: parentName.toLowerCase().contains('moneyfly'),
+        parentIsApp: parentName.toLowerCase().contains('mbox'),
         livePid: livePid,
       )) {
         if (parentAlive) {
@@ -293,9 +295,7 @@ class ProxyCoreCli extends ProxyCore {
       if (pid == null || ppid == null) continue;
       final cmd = m.group(3) ?? '';
       cmdByPid[pid] = cmd;
-      // 同时匹配旧内核进程名，保证从旧版本升级上来的残留内核也能被回收
-      if ((cmd.contains('sing-box') || cmd.contains('mihomo')) &&
-          cmd.contains(tag)) {
+      if (cmd.contains('sing-box') && cmd.contains(tag)) {
         candidates.add((pid: pid, ppid: ppid));
       }
     }
@@ -305,7 +305,7 @@ class ProxyCoreCli extends ProxyCore {
         pid: c.pid,
         parentPid: c.ppid,
         parentAlive: parentCmd != null,
-        parentIsApp: (parentCmd ?? '').toLowerCase().contains('moneyfly'),
+        parentIsApp: (parentCmd ?? '').toLowerCase().contains('mbox'),
         livePid: livePid,
       )) {
         if (parentCmd != null) {

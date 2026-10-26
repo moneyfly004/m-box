@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 
-/// MoneyFly 统一输入框样式（设置/弹窗里的输入统一：填充背景、圆角、边框线、
+/// MBox 统一输入框样式（设置/弹窗里的输入统一：填充背景、圆角、边框线、
 /// 聚焦品牌色、错误态）。
 ///
 /// 用法：`TextField(decoration: mfInput(hint: '...', errorText: '...'))`
@@ -31,17 +31,17 @@ InputDecoration mfInput({
     suffixIcon: suffixIcon,
     prefixIcon: prefixIcon,
     filled: true,
-    fillColor: MFColors.card2,
+    fillColor: MBColors.card2,
     isDense: true,
     contentPadding: kInputPaddingDense,
-    hintStyle: TextStyle(fontSize: kInputHintFontSize, color: MFColors.txt3),
-    helperStyle: TextStyle(fontSize: 10.5, color: MFColors.txt3),
-    errorStyle: TextStyle(fontSize: 11, color: MFColors.red),
+    hintStyle: TextStyle(fontSize: kInputHintFontSize, color: MBColors.txt3),
+    helperStyle: TextStyle(fontSize: 10.5, color: MBColors.txt3),
+    errorStyle: TextStyle(fontSize: 11, color: MBColors.red),
     errorMaxLines: 2,
-    enabledBorder: border(MFColors.line),
-    focusedBorder: border(MFColors.brand, 1.4),
-    disabledBorder: border(MFColors.line),
-    errorBorder: border(MFColors.red, 1.2),
-    focusedErrorBorder: border(MFColors.red, 1.4),
+    enabledBorder: border(MBColors.line),
+    focusedBorder: border(MBColors.brand, 1.4),
+    disabledBorder: border(MBColors.line),
+    errorBorder: border(MBColors.red, 1.2),
+    focusedErrorBorder: border(MBColors.red, 1.4),
   );
 }

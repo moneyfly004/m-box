@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:moneyfly/core/models/models.dart';
+import 'package:mbox/core/models/models.dart';
 
 void main() {
   group('PayMethod 解析（实测后端返回 key 字段）', () {

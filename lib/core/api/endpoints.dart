@@ -1,6 +1,6 @@
 import 'server_pool.dart';
 
-/// MoneyFly 后端接口常量（cboard-go /api/v1，XBoard 兼容）
+/// MBox 后端接口常量（cboard-go /api/v1，XBoard 兼容）
 class Endpoints {
   Endpoints._();
 

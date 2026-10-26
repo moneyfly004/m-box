@@ -120,7 +120,7 @@ class _GeoUpdatePageState extends State<GeoUpdatePage> {
             ),
             const SizedBox(height: 12),
             Text(AppStrings.t('geo_tip'),
-                style: TextStyle(fontSize: 11.5, color: MFColors.txt3, height: 1.6)),
+                style: TextStyle(fontSize: 11.5, color: MBColors.txt3, height: 1.6)),
             const SizedBox(height: 16),
             // 更新按钮
             GestureDetector(
@@ -128,7 +128,7 @@ class _GeoUpdatePageState extends State<GeoUpdatePage> {
               child: Container(
                 height: 46,
                 decoration: BoxDecoration(
-                    gradient: MFColors.brandGradient,
+                    gradient: MBColors.brandGradient,
                     borderRadius: BorderRadius.circular(13)),
                 alignment: Alignment.center,
                 child: _updating
@@ -160,7 +160,7 @@ class _GeoUpdatePageState extends State<GeoUpdatePage> {
             ),
             const SizedBox(height: 12),
             Text(AppStrings.t('geo_source'),
-                style: TextStyle(fontSize: 10.5, color: MFColors.txt3)),
+                style: TextStyle(fontSize: 10.5, color: MBColors.txt3)),
           ],
         ),
       ),
@@ -173,7 +173,7 @@ class _GeoUpdatePageState extends State<GeoUpdatePage> {
       child: Text(title,
           style: TextStyle(
               fontSize: 11,
-              color: MFColors.txt3,
+              color: MBColors.txt3,
               fontWeight: FontWeight.w700,
               letterSpacing: 2)),
     );
@@ -186,6 +186,6 @@ class _GeoUpdatePageState extends State<GeoUpdatePage> {
     String? desc,
     String? value,
   }) {
-    return MFRow(icon: icon, title: title, desc: desc, value: value);
+    return MBRow(icon: icon, title: title, desc: desc, value: value);
   }
 }

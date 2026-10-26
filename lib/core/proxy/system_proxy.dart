@@ -759,7 +759,7 @@ Add-Type -MemberDefinition '[DllImport("user32.dll", SetLastError = true)] publi
 $r = [UIntPtr]::Zero
 [void][W32.P]::SendMessageTimeout([IntPtr]0xffff, 0x001A, [UIntPtr]::Zero, "InternetSettings", 2, 1000, [ref]$r)
 ''';
-      final ps1 = File('${Directory.systemTemp.path}/moneyfly_proxy_notify.ps1');
+      final ps1 = File('${Directory.systemTemp.path}/mbox_proxy_notify.ps1');
       await ps1.writeAsString(script, flush: true);
       await Process.run('powershell', [
         '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',

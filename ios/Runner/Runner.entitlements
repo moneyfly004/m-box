@@ -7,10 +7,10 @@
 	<array>
 		<string>packet-tunnel-provider</string>
 	</array>
-	<!-- 与扩展共享 App Group：App 写 config.yaml，扩展读 -->
+	<!-- 与扩展共享 App Group：App 写 config.json，扩展读 -->
 	<key>com.apple.security.application-groups</key>
 	<array>
-		<string>group.top.moneyfly.app</string>
+		<string>group.top.mbox.app</string>
 	</array>
 </dict>
 </plist>

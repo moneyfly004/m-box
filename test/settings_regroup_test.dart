@@ -16,13 +16,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:moneyfly/core/proxy/proxy_core.dart';
-import 'package:moneyfly/core/services/account_service.dart';
-import 'package:moneyfly/core/services/settings_store.dart';
-import 'package:moneyfly/l10n/app_strings.dart';
-import 'package:moneyfly/pages/settings/settings_page.dart';
-import 'package:moneyfly/theme/app_theme.dart';
-import 'package:moneyfly/widgets/mf_row.dart';
+import 'package:mbox/core/proxy/proxy_core.dart';
+import 'package:mbox/core/services/account_service.dart';
+import 'package:mbox/core/services/settings_store.dart';
+import 'package:mbox/l10n/app_strings.dart';
+import 'package:mbox/pages/settings/settings_page.dart';
+import 'package:mbox/theme/app_theme.dart';
+import 'package:mbox/widgets/mf_row.dart';
 
 /// 新版分组顺序（组标题 key，按页面从上到下）
 const _groupOrder = [
@@ -112,7 +112,7 @@ List<String> _expectedRows() => <String>[
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  setUp(() => SharedPreferences.setMockInitialValues({'moneyfly_lang': 'zh'}));
+  setUp(() => SharedPreferences.setMockInitialValues({'mbox_lang': 'zh'}));
 
   /// 用「一张很高的纸」渲染设置页：所有行一次建出，避免懒加载/单向滚动的坑
   Future<void> pumpTall(WidgetTester tester) async {
@@ -124,7 +124,7 @@ void main() {
         ChangeNotifierProvider.value(value: ConnectionController.instance),
         ChangeNotifierProvider.value(value: AccountService.instance),
       ],
-      child: MaterialApp(theme: buildMoneyFlyTheme(), home: const SettingsPage()),
+      child: MaterialApp(theme: buildMBoxTheme(), home: const SettingsPage()),
     ));
     await tester.pump(const Duration(milliseconds: 300));
   }
@@ -240,7 +240,7 @@ void main() {
 
     final row = find.ancestor(
         of: find.text(AppStrings.t('settings_notify')),
-        matching: find.byType(MFRow));
+        matching: find.byType(MBRow));
     expect(row, findsOneWidget, reason: '「允许通知」行必须存在');
     final sw = find.descendant(of: row, matching: find.byType(Switch));
     expect(sw, findsOneWidget);

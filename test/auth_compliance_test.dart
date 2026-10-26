@@ -14,11 +14,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:moneyfly/core/api/api_client.dart';
-import 'package:moneyfly/l10n/app_strings.dart';
-import 'package:moneyfly/pages/auth/forgot_password_page.dart';
-import 'package:moneyfly/pages/auth/register_page.dart';
-import 'package:moneyfly/theme/app_theme.dart';
+import 'package:mbox/core/api/api_client.dart';
+import 'package:mbox/l10n/app_strings.dart';
+import 'package:mbox/pages/auth/forgot_password_page.dart';
+import 'package:mbox/pages/auth/register_page.dart';
+import 'package:mbox/theme/app_theme.dart';
 
 /// 记录一次请求
 class Call {
@@ -137,7 +137,7 @@ void main() {
     testWidgets('默认状态是未勾选（没有对勾）', (tester) async {
       _bigScreen(tester);
       await tester.pumpWidget(MaterialApp(
-          theme: buildMoneyFlyTheme(), home: const RegisterPage()));
+          theme: buildMBoxTheme(), home: const RegisterPage()));
       await tester.pump();
 
       expect(find.byIcon(Icons.check), findsNothing,
@@ -155,7 +155,7 @@ void main() {
       });
 
       await tester.pumpWidget(MaterialApp(
-          theme: buildMoneyFlyTheme(), home: const RegisterPage()));
+          theme: buildMBoxTheme(), home: const RegisterPage()));
       await tester.pump();
 
       // 所有字段都填对，只差「同意条款」
@@ -189,7 +189,7 @@ void main() {
       });
 
       await tester.pumpWidget(MaterialApp(
-          theme: buildMoneyFlyTheme(), home: const RegisterPage()));
+          theme: buildMBoxTheme(), home: const RegisterPage()));
       await tester.pump();
 
       await tester.enterText(find.byType(TextField).at(0), 'user@test.com');
@@ -221,7 +221,7 @@ void main() {
       });
 
       await tester.pumpWidget(MaterialApp(
-          theme: buildMoneyFlyTheme(), home: const ForgotPasswordPage()));
+          theme: buildMBoxTheme(), home: const ForgotPasswordPage()));
       await tester.pump();
       await tester.pump();
 
@@ -229,8 +229,8 @@ void main() {
           reason: '验证码还没发就打绿勾 = 假进度（旧实现硬编码 done: true）');
       expect(_stepNo(tester, 'fp_step_pwd'), '2');
       // 当前步骤高亮：第 1 步是 brandLight，第 2 步置灰
-      expect(_stepColor(tester, 'fp_step_verify'), MFColors.brandLight);
-      expect(_stepColor(tester, 'fp_step_pwd'), MFColors.txt3);
+      expect(_stepColor(tester, 'fp_step_verify'), MBColors.brandLight);
+      expect(_stepColor(tester, 'fp_step_pwd'), MBColors.txt3);
 
       await tester.pumpWidget(const SizedBox());
     });
@@ -245,7 +245,7 @@ void main() {
       });
 
       await tester.pumpWidget(MaterialApp(
-          theme: buildMoneyFlyTheme(), home: const ForgotPasswordPage()));
+          theme: buildMBoxTheme(), home: const ForgotPasswordPage()));
       await tester.pump();
 
       final before = _stepNo(tester, 'fp_step_verify');
@@ -261,9 +261,9 @@ void main() {
       expect(after, '✓', reason: '验证码已发出后第 1 步才应显示完成');
       expect(after, isNot(before),
           reason: '「验证码已发送前后」步骤条状态必须不同（旧实现两态完全一样）');
-      expect(_stepColor(tester, 'fp_step_verify'), MFColors.green);
+      expect(_stepColor(tester, 'fp_step_verify'), MBColors.green);
       // 第 2 步（设置新密码）成为当前步骤
-      expect(_stepColor(tester, 'fp_step_pwd'), MFColors.brandLight);
+      expect(_stepColor(tester, 'fp_step_pwd'), MBColors.brandLight);
 
       // 卸载页面：倒计时是 60s 周期定时器，必须释放（否则 Pending timers）
       await tester.pumpWidget(const SizedBox());

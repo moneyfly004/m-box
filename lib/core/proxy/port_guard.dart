@@ -12,7 +12,7 @@
 /// 而 `[ProxyCoreCli.killStaleKernels]` 只收「父进程已经消失」的真孤儿；下面两类
 /// 它按设计不会动，于是端口被长期占着、连接一直失败：
 /// 1. 上一版/另一个 App 实例留下的内核（父进程还活着）；
-/// 2. 桌面端的**测速探测内核**（`moneyfly_probe`）。
+/// 2. 桌面端的**测速探测内核**（`mbox_probe`）。
 ///
 /// 本文件把这件事变成确定性的三步：
 /// **探活（bind 探测）→ 占用者是谁（lsof/ps）→ 我方残留就杀掉并等端口释放，
@@ -39,14 +39,14 @@ class PortHolder {
   /// 是不是**本 App 自己的内核**（残留 / 孤儿 / 探测内核 / 另一实例的内核）。
   ///
   /// 判据故意写得很窄 —— **宁可判成「别人的程序」也绝不误杀别的代理软件**：
-  /// - 我们的内核工作目录名会出现在 `-c/-D` 参数里：`moneyfly_core` /
-  ///   `moneyfly_probe`；
+  /// - 我们的内核工作目录名会出现在 `-c/-D` 参数里：`mbox_core` /
+  ///   `mbox_probe`；
   /// - 或者就是 App 包内自带的那个 `sing-box` 二进制。
   bool get isOurKernel {
     final c = command;
     if (c.isEmpty) return false;
-    return c.contains('moneyfly_core') ||
-        c.contains('moneyfly_probe') ||
+    return c.contains('mbox_core') ||
+        c.contains('mbox_probe') ||
         c.contains('/Contents/MacOS/sing-box');
   }
 

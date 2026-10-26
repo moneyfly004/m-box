@@ -11,7 +11,7 @@
 // 且「只有最后那个域名能用」的场景会直接失败。
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:moneyfly/core/api/server_pool.dart';
+import 'package:mbox/core/api/server_pool.dart';
 
 void main() {
   group('域名池必须覆盖线上全部域名', () {

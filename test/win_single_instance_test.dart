@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:moneyfly/core/services/win_single_instance.dart';
+import 'package:mbox/core/services/win_single_instance.dart';
 
 /// Windows 单实例守护的平台安全测试：
 /// - 非 Windows / 测试环境必须静默返回 false（不拦截、不加载 DLL、不退出），

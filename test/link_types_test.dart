@@ -5,16 +5,18 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:moneyfly/core/models/models.dart';
-import 'package:moneyfly/core/proxy/singbox_config.dart';
-import 'package:moneyfly/core/services/subscription_service.dart';
+import 'package:mbox/core/models/models.dart';
+import 'package:mbox/core/proxy/singbox_config.dart';
+import 'package:mbox/core/services/subscription_service.dart';
 
 /// 定位本地 sing-box 内核（真实内核校验用）：
-/// MONEYFLY_SINGBOX / 旧变量 MONEYFLY_MIHOMO → 仓库自带 .core_dl → build/sing-box → PATH。
+/// MBOX_SINGBOX → 仓库自带 .core_dl → build/sing-box → PATH。
 String? _findSingBox() {
-  for (final key in ['MONEYFLY_SINGBOX', 'MONEYFLY_MIHOMO']) {
-    final v = Platform.environment[key];
-    if (v != null && v.isNotEmpty && File(v).existsSync()) return v;
+  final injected = Platform.environment['MBOX_SINGBOX'];
+  if (injected != null &&
+      injected.isNotEmpty &&
+      File(injected).existsSync()) {
+    return injected;
   }
   final exe = Platform.isWindows ? 'sing-box.exe' : 'sing-box';
   // 仓库自带的开发内核（tool/fetch_singbox.sh 落地位置，按当前平台优先）
@@ -246,7 +248,7 @@ void main() {
   // 真实内核校验（有本地 sing-box 时执行）
   final singbox = _findSingBox();
   final skip = singbox == null
-      ? '未提供本地 sing-box 内核（MONEYFLY_SINGBOX / 仓库 .core_dl / PATH）'
+      ? '未提供本地 sing-box 内核（MBOX_SINGBOX / 仓库 .core_dl / PATH）'
       : null;
 
   test('真实 sing-box check 校验多协议配置', skip: skip, () {

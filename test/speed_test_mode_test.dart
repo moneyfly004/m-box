@@ -10,15 +10,15 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:moneyfly/core/models/models.dart';
-import 'package:moneyfly/core/proxy/kernel_delay_api.dart';
-import 'package:moneyfly/core/proxy/singbox_config.dart';
-import 'package:moneyfly/core/proxy/proxy_core.dart';
-import 'package:moneyfly/core/proxy/speed_probe_kernel.dart';
-import 'package:moneyfly/core/services/settings_store.dart';
-import 'package:moneyfly/core/services/subscription_service.dart';
-import 'package:moneyfly/core/services/speed_test_mode.dart';
-import 'package:moneyfly/core/services/speed_tester.dart';
+import 'package:mbox/core/models/models.dart';
+import 'package:mbox/core/proxy/kernel_delay_api.dart';
+import 'package:mbox/core/proxy/singbox_config.dart';
+import 'package:mbox/core/proxy/proxy_core.dart';
+import 'package:mbox/core/proxy/speed_probe_kernel.dart';
+import 'package:mbox/core/services/settings_store.dart';
+import 'package:mbox/core/services/subscription_service.dart';
+import 'package:mbox/core/services/speed_test_mode.dart';
+import 'package:mbox/core/services/speed_tester.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 ProxyNode _node(String tag,
@@ -99,7 +99,7 @@ void main() {
     test('老用户快照缺 key → 读取后是内核测速（不异常）', () async {
       // 模拟 2.2.21 及更早版本写下的设置：整份 JSON 里没有 speedTestMode
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('moneyfly_settings_v1',
+      await prefs.setString('mbox_settings_v1',
           '{"localPort":2080,"autoTest":true,"lastSelectedTag":"香港-01"}');
       final s = await SettingsStore.instance.load();
       expect(s.containsKey('speedTestMode'), isTrue,
@@ -113,7 +113,7 @@ void main() {
       // 旧版本会把默认值 'tcp' 写进快照，那不是用户的选择；只改 _defaults
       // 而不管旧快照，等于「默认改了但老用户感知不到」。
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('moneyfly_settings_v1',
+      await prefs.setString('mbox_settings_v1',
           '{"localPort":2080,"speedTestMode":"tcp"}');
       final s = await SettingsStore.instance.load();
       expect(parseSpeedTestMode(s['speedTestMode']), SpeedTestMode.kernel,
@@ -136,7 +136,7 @@ void main() {
 
     test('迁移只跑一次：升级后用户改选 TCP 不会被再改回内核测速', () async {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('moneyfly_settings_v1', '{"speedTestMode":"tcp"}');
+      await prefs.setString('mbox_settings_v1', '{"speedTestMode":"tcp"}');
       final first = await SettingsStore.instance.load();
       expect(parseSpeedTestMode(first['speedTestMode']), SpeedTestMode.kernel,
           reason: '旧快照首次读取 → 迁移');
@@ -366,13 +366,13 @@ proxies:
         tcpCalls++;
         return 7;
       };
-      SpeedProbeKernel.debugStartFailure = '未找到 mihomo 内核二进制';
+      SpeedProbeKernel.debugStartFailure = '未找到 sing-box 内核二进制';
 
       await conn.loadNodes([_node('香港-01')]);
       final tested = await conn.speedTest(userInitiated: true);
       expect(tested, 0, reason: '一个都没测到就不能谎报完成');
       expect(conn.speedTestError, isNotNull);
-      expect(conn.speedTestError, contains('未找到 mihomo 内核二进制'));
+      expect(conn.speedTestError, contains('未找到 sing-box 内核二进制'));
       expect(tcpCalls, 0, reason: '绝不静默退回 TCP —— 那正是要修的假阳性来源');
     });
 

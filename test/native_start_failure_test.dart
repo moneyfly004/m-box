@@ -11,8 +11,8 @@
 //   2) 必须**不**做自动重连（否则每轮白等 20s，线上连续 3 次）。
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:moneyfly/core/proxy/conn_error.dart';
-import 'package:moneyfly/core/proxy/native_start_failure.dart';
+import 'package:mbox/core/proxy/conn_error.dart';
+import 'package:mbox/core/proxy/native_start_failure.dart';
 
 void main() {
   group('classifyNativeStartFailure：原生分类优先', () {

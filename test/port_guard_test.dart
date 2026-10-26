@@ -9,8 +9,8 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:moneyfly/core/proxy/conn_error.dart';
-import 'package:moneyfly/core/proxy/port_guard.dart';
+import 'package:mbox/core/proxy/conn_error.dart';
+import 'package:mbox/core/proxy/port_guard.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -29,7 +29,7 @@ void main() {
                   pid: 1,
                   command:
                       '/Applications/MBox.app/Contents/MacOS/sing-box run '
-                      '-c /tmp/moneyfly_core/config.json -D /tmp/moneyfly_core')
+                      '-c /tmp/mbox_core/config.json -D /tmp/mbox_core')
               .isOurKernel,
           isTrue);
       expect(
@@ -37,7 +37,7 @@ void main() {
                   pid: 2,
                   command:
                       '/Applications/MBox.app/Contents/MacOS/sing-box run '
-                      '-c /tmp/moneyfly_probe/config.json -D /tmp/moneyfly_probe')
+                      '-c /tmp/mbox_probe/config.json -D /tmp/mbox_probe')
               .isOurKernel,
           isTrue);
       // 只有包内二进制路径、没有工作目录参数（旧版内核）也要认出来
@@ -75,7 +75,7 @@ void main() {
 
   group('日志解析', () {
     test('lsof -F pc 输出 → pid 列表（p<pid> / c<comm> 成对）', () {
-      const out = 'p80160\ncsing-box\np43595\ncMoneyFly\n';
+      const out = 'p80160\ncsing-box\np43595\ncMBox\n';
       expect(PortGuard.parseLsofPids(out), [80160, 43595]);
       // 噪声行 / 非法 pid 不能被当成占用者
       expect(PortGuard.parseLsofPids('p\ncfoo\npx\np0\np1\n'), isEmpty);
@@ -148,7 +148,7 @@ void main() {
     });
 
     test('我方内核 + 父进程已消失/是 launchd → 可回收（真孤儿）', () async {
-      const h = PortHolder(pid: 5, command: 'sing-box run -D /tmp/moneyfly_core');
+      const h = PortHolder(pid: 5, command: 'sing-box run -D /tmp/mbox_core');
       PortGuard.debugParentPid = (_) async => 1;
       expect(await PortGuard.canReclaim(h), isTrue);
       PortGuard.debugParentPid = (_) async => null; // 拿不到 ppid
@@ -156,13 +156,13 @@ void main() {
     });
 
     test('我方内核 + 父进程就是本 App → 可回收（我们弄丢跟踪的那个）', () async {
-      const h = PortHolder(pid: 5, command: 'sing-box run -D /tmp/moneyfly_core');
+      const h = PortHolder(pid: 5, command: 'sing-box run -D /tmp/mbox_core');
       PortGuard.debugParentPid = (_) async => 4242;
       expect(await PortGuard.canReclaim(h, selfPid: 4242), isTrue);
     });
 
     test('我方内核 + 父进程是**另一个活着的 App 实例** → 不可回收', () async {
-      const h = PortHolder(pid: 5, command: 'sing-box run -D /tmp/moneyfly_core');
+      const h = PortHolder(pid: 5, command: 'sing-box run -D /tmp/mbox_core');
       PortGuard.debugParentPid = (_) async => 9999;
       expect(await PortGuard.canReclaim(h, selfPid: 4242), isFalse,
           reason: '杀了另一个实例的内核 = 让它「好好的突然断线」');
@@ -189,7 +189,7 @@ void main() {
       PortGuard.debugWhoListens = (_) async => const PortHolder(
           pid: 80160,
           command:
-              '/Applications/MBox.app/Contents/MacOS/sing-box run -D /tmp/moneyfly_core');
+              '/Applications/MBox.app/Contents/MacOS/sing-box run -D /tmp/mbox_core');
       PortGuard.debugParentPid = (_) async => 1; // 孤儿
       PortGuard.debugKill = (pid) async {
         killedPids.add(pid);
@@ -235,7 +235,7 @@ void main() {
     test('我方残留内核杀不掉 → 如实报错（绝不假装端口已腾出来继续启动）', () async {
       PortGuard.debugIsFree = (_) async => false;
       PortGuard.debugWhoListens = (_) async =>
-          const PortHolder(pid: 99, command: 'sing-box run -D /tmp/moneyfly_core');
+          const PortHolder(pid: 99, command: 'sing-box run -D /tmp/mbox_core');
       PortGuard.debugParentPid = (_) async => 1;
       PortGuard.debugKill = (_) async => false; // 权限不足/进程杀不掉
       await expectLater(
@@ -251,7 +251,7 @@ void main() {
       var killed = 0;
       PortGuard.debugIsFree = (_) async => false;
       PortGuard.debugWhoListens = (_) async =>
-          const PortHolder(pid: 777, command: 'sing-box run -D /tmp/moneyfly_core');
+          const PortHolder(pid: 777, command: 'sing-box run -D /tmp/mbox_core');
       PortGuard.debugParentPid = (_) async => 888; // 另一个活着的 App 实例
       PortGuard.debugKill = (_) async {
         killed++;

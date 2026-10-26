@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:moneyfly/core/proxy/conn_error.dart';
+import 'package:mbox/core/proxy/conn_error.dart';
 
 /// 类型化连接失败：kind → UI 引导映射（纯函数，无 Flutter 依赖）
 void main() {

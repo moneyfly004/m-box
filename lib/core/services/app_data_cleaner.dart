@@ -60,7 +60,7 @@ class AppDataCleaner {
     if (docs != null) {
       await LocalPaths.deleteBestEffort(Directory('${docs.path}/crash_logs'));
     }
-    // 3) 系统缓存目录内容（Android cacheDir = libmoneyfly 临时文件）
+    // 3) 系统缓存目录内容（Android cacheDir = libmbox 临时文件）
     final cache = await LocalPaths.cacheDir();
     if (cache != null) {
       await LocalPaths.clearDirectoryContents(cache);
@@ -69,7 +69,7 @@ class AppDataCleaner {
     //    Android 内核文件位于 filesDir（= 支持目录，第 1 步已清）
     if (!Platform.isAndroid && !Platform.isIOS) {
       await LocalPaths.deleteBestEffort(
-        Directory('${Directory.systemTemp.path}/moneyfly_core'),
+        Directory('${Directory.systemTemp.path}/mbox_core'),
       );
     }
     // 5) 偏好全部清除（连接设置/自动登录/语言/主题…回出厂默认）

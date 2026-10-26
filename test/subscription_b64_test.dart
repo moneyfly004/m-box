@@ -5,8 +5,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:moneyfly/core/proxy/singbox_config.dart';
-import 'package:moneyfly/core/services/subscription_service.dart';
+import 'package:mbox/core/proxy/singbox_config.dart';
+import 'package:mbox/core/services/subscription_service.dart';
 
 /// 订阅解析回归测试。
 ///
@@ -135,7 +135,7 @@ void main() {
             .cast<Map<String, dynamic>>()
             .where((o) => o['type'] == type)
             .toList();
-    // sing-box 把 mihomo 的 skip-cert-verify 映射到 tls.insecure
+    // skip-cert-verify 映射到 sing-box 的 tls.insecure
     bool insecure(Map<String, dynamic> outbound) {
       final tls = outbound['tls'];
       return tls is Map && tls['insecure'] == true;
@@ -159,7 +159,7 @@ void main() {
     final singbox = _findSingBox();
     if (singbox == null) {
       markTestSkipped(
-          '未提供本地 sing-box 内核（MONEYFLY_SINGBOX / 仓库 .core_dl / PATH）');
+          '未提供本地 sing-box 内核（MBOX_SINGBOX / 仓库 .core_dl / PATH）');
       return;
     }
     final nodes = SubscriptionService.parseBase64Nodes('${b64(plain)}\n');
@@ -184,7 +184,7 @@ void main() {
       // sing-box 只认 JSON，且必须用 -c 显式指定（不会「静默用默认配置」）
       final configPath = '${tmp.path}/config.json';
       File(configPath).writeAsStringSync(SingBoxConfigBuilder.encode(cfg));
-      // `check` = 解析 + 校验 + 初始化 router/outbound，等价于 mihomo -t
+      // `check` = 解析 + 校验 + 初始化 router/outbound（内核真正接受这份配置）
       final r = Process.runSync(singbox, ['check', '-c', configPath]);
       expect(r.exitCode, 0,
           reason: '内核必须接受配置: ${r.stdout}\n${r.stderr}');
@@ -194,12 +194,14 @@ void main() {
   });
 }
 
-/// 定位本地 sing-box 内核（MONEYFLY_SINGBOX / 旧变量 MONEYFLY_MIHOMO /
-/// 仓库自带 .core_dl / build/sing-box / PATH）。
+/// 定位本地 sing-box 内核（MBOX_SINGBOX / 仓库自带 .core_dl /
+/// build/sing-box / PATH）。
 String? _findSingBox() {
-  for (final key in ['MONEYFLY_SINGBOX', 'MONEYFLY_MIHOMO']) {
-    final v = Platform.environment[key];
-    if (v != null && v.isNotEmpty && File(v).existsSync()) return v;
+  final injected = Platform.environment['MBOX_SINGBOX'];
+  if (injected != null &&
+      injected.isNotEmpty &&
+      File(injected).existsSync()) {
+    return injected;
   }
   final exe = Platform.isWindows ? 'sing-box.exe' : 'sing-box';
   final candidates = <String>[];

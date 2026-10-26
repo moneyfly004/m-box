@@ -5,17 +5,17 @@ import 'package:http_mock_adapter/http_mock_adapter.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:moneyfly/core/api/api_client.dart';
-import 'package:moneyfly/core/models/models.dart';
-import 'package:moneyfly/core/proxy/proxy_core.dart';
-import 'package:moneyfly/core/services/account_service.dart';
-import 'package:moneyfly/core/services/subscription_service.dart';
-import 'package:moneyfly/main.dart';
-import 'package:moneyfly/pages/devices/devices_page.dart';
-import 'package:moneyfly/pages/home/home_page.dart';
-import 'package:moneyfly/pages/notifications/notifications_page.dart';
-import 'package:moneyfly/pages/orders/orders_page.dart';
-import 'package:moneyfly/theme/app_theme.dart';
+import 'package:mbox/core/api/api_client.dart';
+import 'package:mbox/core/models/models.dart';
+import 'package:mbox/core/proxy/proxy_core.dart';
+import 'package:mbox/core/services/account_service.dart';
+import 'package:mbox/core/services/subscription_service.dart';
+import 'package:mbox/main.dart';
+import 'package:mbox/pages/devices/devices_page.dart';
+import 'package:mbox/pages/home/home_page.dart';
+import 'package:mbox/pages/notifications/notifications_page.dart';
+import 'package:mbox/pages/orders/orders_page.dart';
+import 'package:mbox/theme/app_theme.dart';
 
 /// 信封包装（与后端一致）
 Map<String, dynamic> env(dynamic data) => {
@@ -53,7 +53,7 @@ Future<void> tapSettle(WidgetTester tester, Finder finder) async {
 }
 
 Widget _wrap(Widget child) => MaterialApp(
-      theme: buildMoneyFlyTheme(),
+      theme: buildMBoxTheme(),
       home: MultiProvider(
         providers: [
           ChangeNotifierProvider.value(value: SessionState()..setLoggedIn(true)),
@@ -259,7 +259,7 @@ void main() {
             'ip_address': '1.2.3.4', 'location': '广东', 'is_active': true,
             'access_count': 5, 'remark': '我的手机', 'last_seen': '2026-09-01 12:00:00',
             'device_type': 'phone', 'device_model': '', 'device_brand': 'Apple',
-            'software_name': 'MoneyFly', 'software_version': '1.0.0', 'is_allowed': true,
+            'software_name': 'MBox', 'software_version': '1.0.0', 'is_allowed': true,
             'first_seen': '', 'last_access': '', 'created_at': '', 'subscription_id': 1,
           },
         ], 'allow_delete_device': true})));
@@ -331,7 +331,7 @@ void main() {
       ApiClient.debugDio = mockDio((a) {
         a.onGet('/notifications', (s) => s.reply(200, env([
           {'id': 1, 'title': '套餐即将到期', 'content': '您的套餐还剩 3 天到期，请及时续费。', 'type': 'system', 'is_read': false, 'created_at': '2026-09-01 10:00:00'},
-          {'id': 2, 'title': '新公告', 'content': '欢迎使用 MoneyFly。', 'type': 'announcement', 'is_read': true, 'created_at': '2026-09-01 09:00:00'},
+          {'id': 2, 'title': '新公告', 'content': '欢迎使用 MBox。', 'type': 'announcement', 'is_read': true, 'created_at': '2026-09-01 09:00:00'},
         ])));
         a.onPut('/notifications/read-all', (s) => s.reply(200, env(null)));
       });

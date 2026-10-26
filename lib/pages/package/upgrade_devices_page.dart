@@ -262,19 +262,19 @@ class _UpgradeDevicesPageState extends State<UpgradeDevicesPage> {
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                           colors: [
-                            MFColors.brand.withValues(alpha: .22),
-                            MFColors.brand.withValues(alpha: .06),
+                            MBColors.brand.withValues(alpha: .22),
+                            MBColors.brand.withValues(alpha: .06),
                           ]),
                       borderRadius: BorderRadius.circular(14),
                       border: Border.all(
-                          color: MFColors.brand.withValues(alpha: .3)),
+                          color: MBColors.brand.withValues(alpha: .3)),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(AppStrings.t('upgrade_current'),
                             style: TextStyle(
-                                fontSize: 11, color: MFColors.txt3)),
+                                fontSize: 11, color: MBColors.txt3)),
                         const SizedBox(height: 8),
                         Text(
                           '$used / $limit ${AppStrings.t('devices_unit')}'
@@ -282,7 +282,7 @@ class _UpgradeDevicesPageState extends State<UpgradeDevicesPage> {
                           style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w700,
-                              color: MFColors.txt),
+                              color: MBColors.txt),
                         ),
                       ],
                     ),
@@ -315,7 +315,7 @@ class _UpgradeDevicesPageState extends State<UpgradeDevicesPage> {
                       if (!_expired && _recommendedDays == 0)
                         Text(AppStrings.t('upgrade_no_days_needed'),
                             style: TextStyle(
-                                fontSize: 10, color: MFColors.txt3)),
+                                fontSize: 10, color: MBColors.txt3)),
                     ],
                   ),
                   const SizedBox(height: 8),
@@ -344,14 +344,14 @@ class _UpgradeDevicesPageState extends State<UpgradeDevicesPage> {
                       padding: const EdgeInsets.only(top: 6),
                       child: Text(AppStrings.t('upgrade_expired_hint'),
                           style: TextStyle(
-                              fontSize: 10.5, color: MFColors.amber)),
+                              fontSize: 10.5, color: MBColors.amber)),
                     )
                   else if (_addDays == 0)
                     Padding(
                       padding: const EdgeInsets.only(top: 6),
                       child: Text(AppStrings.t('upgrade_no_days_hint'),
                           style: TextStyle(
-                              fontSize: 10.5, color: MFColors.txt3)),
+                              fontSize: 10.5, color: MBColors.txt3)),
                     ),
                   const SizedBox(height: 16),
                   // 金额
@@ -359,14 +359,14 @@ class _UpgradeDevicesPageState extends State<UpgradeDevicesPage> {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 14, vertical: 12),
                     decoration: BoxDecoration(
-                        color: MFColors.card,
+                        color: MBColors.card,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: MFColors.line)),
+                        border: Border.all(color: MBColors.line)),
                     child: Row(
                       children: [
                         Text(AppStrings.t('upgrade_amount'),
                             style: TextStyle(
-                                fontSize: 13, color: MFColors.txt2)),
+                                fontSize: 13, color: MBColors.txt2)),
                         const Spacer(),
                         if (_previewing)
                           const SizedBox(
@@ -389,7 +389,7 @@ class _UpgradeDevicesPageState extends State<UpgradeDevicesPage> {
                                     '¥${formatPrice(_originalAmount!)}',
                                     style: TextStyle(
                                         fontSize: 11,
-                                        color: MFColors.txt3,
+                                        color: MBColors.txt3,
                                         decoration:
                                             TextDecoration.lineThrough),
                                   ),
@@ -399,7 +399,7 @@ class _UpgradeDevicesPageState extends State<UpgradeDevicesPage> {
                                 style: TextStyle(
                                     fontSize: 20,
                                     fontWeight: FontWeight.w800,
-                                    color: MFColors.brand,
+                                    color: MBColors.brand,
                                     fontFamily: kNumFont),
                               ),
                             ],
@@ -408,7 +408,7 @@ class _UpgradeDevicesPageState extends State<UpgradeDevicesPage> {
                           Text('—',
                               style: TextStyle(
                                   fontSize: 15,
-                                  color: MFColors.txt3,
+                                  color: MBColors.txt3,
                                   fontFamily: kNumFont)),
                       ],
                     ),
@@ -418,7 +418,7 @@ class _UpgradeDevicesPageState extends State<UpgradeDevicesPage> {
                       padding: const EdgeInsets.only(top: 6),
                       child: Text(_previewError!,
                           style: TextStyle(
-                              fontSize: 10.5, color: MFColors.red)),
+                              fontSize: 10.5, color: MBColors.red)),
                     ),
                   const SizedBox(height: 16),
                   Text(AppStrings.t('pay_methods'),
@@ -427,7 +427,7 @@ class _UpgradeDevicesPageState extends State<UpgradeDevicesPage> {
                   if (_methods.isEmpty)
                     Text(AppStrings.t('no_pay_methods'),
                         style:
-                            TextStyle(fontSize: 12, color: MFColors.txt3))
+                            TextStyle(fontSize: 12, color: MBColors.txt3))
                   else
                     Wrap(
                       spacing: 8,
@@ -447,9 +447,9 @@ class _UpgradeDevicesPageState extends State<UpgradeDevicesPage> {
                       decoration: BoxDecoration(
                         gradient: _paying || _finalAmount == null
                             ? null
-                            : MFColors.brandGradient,
+                            : MBColors.brandGradient,
                         color: _paying || _finalAmount == null
-                            ? MFColors.card2
+                            ? MBColors.card2
                             : null,
                         borderRadius: BorderRadius.circular(14),
                       ),
@@ -469,7 +469,7 @@ class _UpgradeDevicesPageState extends State<UpgradeDevicesPage> {
                                   fontWeight: FontWeight.w700,
                                   // 禁用态(未出价/预览失败)用主题文字色,
                                   // 避免 card2 底 + 白字在浅色主题下不可读
-                                  color: _paying ? Colors.white : MFColors.txt3),
+                                  color: _paying ? Colors.white : MBColors.txt3),
                             ),
                     ),
                   ),
@@ -477,7 +477,7 @@ class _UpgradeDevicesPageState extends State<UpgradeDevicesPage> {
                   Text(AppStrings.t('upgrade_tip'),
                       style: TextStyle(
                           fontSize: 10.5,
-                          color: MFColors.txt3,
+                          color: MBColors.txt3,
                           height: 1.6)),
                 ],
               ),
@@ -486,7 +486,7 @@ class _UpgradeDevicesPageState extends State<UpgradeDevicesPage> {
   }
 
   TextStyle _sectionStyle() => TextStyle(
-      fontSize: 13, fontWeight: FontWeight.w700, color: MFColors.txt);
+      fontSize: 13, fontWeight: FontWeight.w700, color: MBColors.txt);
 
   /// 首次加载（拉支付方式）期间的占位骨架：静态灰块镜像真实布局，与套餐页
   /// package_page._buildSkeleton 同一风格（不做 shimmer 动画，低端机不掉帧）。
@@ -495,15 +495,15 @@ class _UpgradeDevicesPageState extends State<UpgradeDevicesPage> {
           width: w,
           height: h,
           decoration: BoxDecoration(
-              color: MFColors.card2, borderRadius: BorderRadius.circular(r)),
+              color: MBColors.card2, borderRadius: BorderRadius.circular(r)),
         );
     Widget chip(double w) => Container(
           margin: const EdgeInsets.only(right: 8, bottom: 8),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
           decoration: BoxDecoration(
-              color: MFColors.card,
+              color: MBColors.card,
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: MFColors.line)),
+              border: Border.all(color: MBColors.line)),
           child: block(w, 14, r: 6),
         );
     return ListView(
@@ -514,9 +514,9 @@ class _UpgradeDevicesPageState extends State<UpgradeDevicesPage> {
         Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-              color: MFColors.card,
+              color: MBColors.card,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: MFColors.line)),
+              border: Border.all(color: MBColors.line)),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -538,9 +538,9 @@ class _UpgradeDevicesPageState extends State<UpgradeDevicesPage> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(
-              color: MFColors.card,
+              color: MBColors.card,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: MFColors.line)),
+              border: Border.all(color: MBColors.line)),
           child: Row(children: [block(64, 13), const Spacer(), block(72, 20)]),
         ),
         const SizedBox(height: 20),
@@ -572,19 +572,19 @@ class _UpgradeDevicesPageState extends State<UpgradeDevicesPage> {
             child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
         decoration: BoxDecoration(
-          gradient: selected && enabled ? MFColors.brandGradient : null,
+          gradient: selected && enabled ? MBColors.brandGradient : null,
           color: selected && enabled
               ? null
-              : (enabled ? MFColors.card : MFColors.card2),
+              : (enabled ? MBColors.card : MBColors.card2),
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
               color: !enabled
-                  ? MFColors.line
+                  ? MBColors.line
                   : (selected
                       ? Colors.transparent
                       : (recommended
-                          ? MFColors.amber.withValues(alpha: .7)
-                          : MFColors.line))),
+                          ? MBColors.amber.withValues(alpha: .7)
+                          : MBColors.line))),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -595,19 +595,19 @@ class _UpgradeDevicesPageState extends State<UpgradeDevicesPage> {
                     fontWeight:
                         selected || recommended ? FontWeight.w700 : FontWeight.w500,
                     color: !enabled
-                        ? MFColors.txt3 // 禁用：置灰，一眼看出不可点
+                        ? MBColors.txt3 // 禁用：置灰，一眼看出不可点
                         : (selected
                             ? Colors.white
                             : (recommended
-                                ? MFColors.amber
-                                : MFColors.txt)))),
+                                ? MBColors.amber
+                                : MBColors.txt)))),
             if (recommended && !selected) ...[
               const SizedBox(width: 4),
               Text(AppStrings.t('upgrade_recommend'),
                   style: TextStyle(
                       fontSize: 9.5,
                       fontWeight: FontWeight.w700,
-                      color: MFColors.amber)),
+                      color: MBColors.amber)),
             ],
           ],
         ),
@@ -625,17 +625,17 @@ class _UpgradeDevicesPageState extends State<UpgradeDevicesPage> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: selected ? MFColors.brand.withValues(alpha: .12) : MFColors.card,
+          color: selected ? MBColors.brand.withValues(alpha: .12) : MBColors.card,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
               color: selected
-                  ? MFColors.brand.withValues(alpha: .7)
-                  : MFColors.line),
+                  ? MBColors.brand.withValues(alpha: .7)
+                  : MBColors.line),
         ),
         child: Text(m.name,
             style: TextStyle(
                 fontSize: 12.5,
-                color: selected ? MFColors.brand : MFColors.txt)),
+                color: selected ? MBColors.brand : MBColors.txt)),
       ),
     );
   }

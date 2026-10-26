@@ -11,7 +11,7 @@ name: Build Release (Android / Windows / macOS)
 #   KEY_PASSWORD       密钥密码
 #
 # 生成 keystore 示例：
-#   keytool -genkey -v -keystore release.keystore -alias moneyfly \
+#   keytool -genkey -v -keystore release.keystore -alias mbox \
 #     -keyalg RSA -keysize 2048 -validity 10000 -storetype JKS
 #   base64 -i release.keystore | pbcopy   # 填入 KEYSTORE_BASE64
 #
@@ -134,7 +134,7 @@ jobs:
           chmod +x build/singbox/sing-box
       - name: 校验
         run: |
-          export MONEYFLY_SINGBOX="$PWD/build/singbox/sing-box"
+          export MBOX_SINGBOX="$PWD/build/singbox/sing-box"
           flutter analyze
           flutter test --concurrency=1
 
@@ -171,7 +171,7 @@ jobs:
       - name: 校验（非 e2e 并行 + 真实内核 e2e 串行）
         shell: bash
         run: |
-          export MONEYFLY_SINGBOX="$PWD/build/singbox/sing-box.exe"
+          export MBOX_SINGBOX="$PWD/build/singbox/sing-box.exe"
           flutter analyze
           flutter test --exclude-tags e2e
           flutter test --tags e2e --concurrency=1
@@ -213,7 +213,7 @@ jobs:
           chmod +x build/singbox/sing-box
       - name: 校验（真实内核 e2e，串行）
         run: |
-          export MONEYFLY_SINGBOX="$PWD/build/singbox/sing-box"
+          export MBOX_SINGBOX="$PWD/build/singbox/sing-box"
           flutter analyze
           flutter test --tags e2e --concurrency=1
 
@@ -244,15 +244,15 @@ jobs:
           bash tool/fetch_ruleset.sh
           ls -lh assets/rules/
 
-      # ---- libmoneyfly.aar：从 sing-box-lib 发布仓库下载（官方源码预编译，无需每次现编）。
+      # ---- 内核 AAR：从 sing-box-lib 发布仓库下载（官方源码预编译，无需每次现编）。落盘名 libmbox.aar。
       #      编译与自动跟随官方新版由 moneyfly004/sing-box-lib 的 workflow 负责。----
-      - name: 下载 libmoneyfly.aar（sing-box-lib 预编译发布 v${{ env.SINGBOX_LIB_VERSION }}）
+      - name: 下载内核 AAR（sing-box-lib 预编译发布 v${{ env.SINGBOX_LIB_VERSION }}）
         run: |
           mkdir -p android/app/libs
           mkdir -p android/app/libs
-          curl -fL --retry 5 --retry-delay 3 --retry-all-errors --max-time 300 -o android/app/libs/libmoneyfly.aar \
+          curl -fL --retry 5 --retry-delay 3 --retry-all-errors --max-time 300 -o android/app/libs/libmbox.aar \
             "https://github.com/moneyfly004/sing-box-lib/releases/download/v$SINGBOX_LIB_VERSION/libmoneyfly-$SINGBOX_LIB_VERSION.aar"
-          ls -lh android/app/libs/libmoneyfly.aar
+          ls -lh android/app/libs/libmbox.aar
 
       - name: 依赖
         run: flutter pub get
@@ -284,7 +284,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: moneyfly-android
+          name: mbox-android
           path: dist/
 
   # AAB 单独一个 job：它和 APK 都要各做一遍 Dart AOT + R8，串在同一个 runner 上
@@ -308,10 +308,10 @@ jobs:
       - name: 下载离线分流数据
         run: |
           bash tool/fetch_ruleset.sh
-      - name: 下载 libmoneyfly.aar（sing-box-lib 预编译发布 v${{ env.SINGBOX_LIB_VERSION }}）
+      - name: 下载内核 AAR（sing-box-lib 预编译发布 v${{ env.SINGBOX_LIB_VERSION }}）
         run: |
           mkdir -p android/app/libs
-          curl -fL --retry 5 --retry-delay 3 --retry-all-errors --max-time 300 -o android/app/libs/libmoneyfly.aar \
+          curl -fL --retry 5 --retry-delay 3 --retry-all-errors --max-time 300 -o android/app/libs/libmbox.aar \
             "https://github.com/moneyfly004/sing-box-lib/releases/download/v$SINGBOX_LIB_VERSION/libmoneyfly-$SINGBOX_LIB_VERSION.aar"
       - name: 依赖
         run: flutter pub get
@@ -331,7 +331,7 @@ jobs:
           cd dist && sha256sum * > SHA256SUMS-android-aab.txt
       - uses: actions/upload-artifact@v4
         with:
-          name: moneyfly-android-aab
+          name: mbox-android-aab
           path: dist/
 
   # ================= Windows：exe 安装包 + zip 便携版 =================
@@ -436,7 +436,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: moneyfly-windows
+          name: mbox-windows
           path: dist/
 
   # ================= macOS：universal + arm64(Apple) + x64(Intel) =================
@@ -505,7 +505,7 @@ jobs:
           INPUT_VERSION: ${{ github.event.inputs.version }}
       - uses: actions/upload-artifact@v4
         with:
-          name: moneyfly-macos-arm64
+          name: mbox-macos-arm64
           path: |
             dist/MBox-macos-arm64-*.dmg
             dist/SHA256SUMS-macos-arm64.txt
@@ -572,7 +572,7 @@ jobs:
           INPUT_VERSION: ${{ github.event.inputs.version }}
       - uses: actions/upload-artifact@v4
         with:
-          name: moneyfly-macos-x64
+          name: mbox-macos-x64
           path: |
             dist/MBox-macos-x64-*.dmg
             dist/SHA256SUMS-macos-x64.txt
@@ -609,7 +609,7 @@ jobs:
       # 只跑 e2e 组：全量测试由 arm64 job 覆盖，这里再跑一遍没有新信号
       - name: 测试（仅真实内核 e2e，串行）
         run: |
-          export MONEYFLY_SINGBOX="$PWD/build/singbox/sing-box"
+          export MBOX_SINGBOX="$PWD/build/singbox/sing-box"
           flutter analyze
           flutter test --tags e2e --concurrency=1
       # Flutter 在 macOS release 直接产出 universal（arm64+x86_64 双架构），
@@ -661,7 +661,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: moneyfly-macos-universal
+          name: mbox-macos-universal
           path: |
             dist/MBox-macos-universal-*.dmg
             dist/SHA256SUMS-macos-universal.txt
@@ -803,7 +803,7 @@ jobs:
           INPUT_VERSION: ${{ github.event.inputs.version }}
       - uses: actions/upload-artifact@v4
         with:
-          name: moneyfly-ios
+          name: mbox-ios
           path: |
             dist/MBox-ios-*.ipa
             dist/SHA256SUMS-ios.txt

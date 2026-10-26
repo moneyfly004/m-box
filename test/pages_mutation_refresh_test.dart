@@ -24,14 +24,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:moneyfly/core/api/api_client.dart';
-import 'package:moneyfly/core/proxy/proxy_core.dart';
-import 'package:moneyfly/core/services/account_service.dart';
-import 'package:moneyfly/l10n/app_strings.dart';
-import 'package:moneyfly/pages/devices/devices_page.dart';
-import 'package:moneyfly/pages/notifications/notifications_page.dart';
-import 'package:moneyfly/pages/orders/orders_page.dart';
-import 'package:moneyfly/theme/app_theme.dart';
+import 'package:mbox/core/api/api_client.dart';
+import 'package:mbox/core/proxy/proxy_core.dart';
+import 'package:mbox/core/services/account_service.dart';
+import 'package:mbox/l10n/app_strings.dart';
+import 'package:mbox/pages/devices/devices_page.dart';
+import 'package:mbox/pages/notifications/notifications_page.dart';
+import 'package:mbox/pages/orders/orders_page.dart';
+import 'package:mbox/theme/app_theme.dart';
 
 // ---------------- 假后端 ----------------
 
@@ -126,7 +126,7 @@ Widget _wrap(Widget child) => MultiProvider(
         ChangeNotifierProvider.value(value: ConnectionController.instance),
         ChangeNotifierProvider.value(value: AccountService.instance),
       ],
-      child: MaterialApp(theme: buildMoneyFlyTheme(), home: child),
+      child: MaterialApp(theme: buildMBoxTheme(), home: child),
     );
 
 /// 建页 + 把已排队的微任务全部跑完（假后端只走微任务，不需要 runAsync）。
@@ -456,7 +456,7 @@ void main() {
             expect(find.text(AppStrings.t('retry')), findsOneWidget);
 
             if (entry.key == '设备页') {
-              // MFEmpty 的 hint 不能限行 → 页面侧截断，保证「重试」按钮留在可视区
+              // MBEmpty 的 hint 不能限行 → 页面侧截断，保证「重试」按钮留在可视区
               final hint = tester
                   .widget<Text>(find.textContaining('服务器开小差了'))
                   .data!;

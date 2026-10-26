@@ -87,7 +87,7 @@ void FlutterWindow::NotifySystemShutdown() noexcept {
   }
   // 只通知、不等待：Dart 侧收到后做有时限的清理（见 _cleanupBeforeSystemExit）。
   flutter::MethodChannel<flutter::EncodableValue> channel(
-      flutter_controller_->engine()->messenger(), "top.moneyfly/lifecycle",
+      flutter_controller_->engine()->messenger(), "top.mbox/lifecycle",
       &flutter::StandardMethodCodec::GetInstance());
   channel.InvokeMethod("systemShutdown", std::make_unique<flutter::EncodableValue>());
 }

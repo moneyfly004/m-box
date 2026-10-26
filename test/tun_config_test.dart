@@ -6,15 +6,15 @@
 // （sing-box 的 `route_exclude_address`）与 bypassLan 语义一致，且不会被移动端
 // （auto_route=false）误加。
 //
-// 与 mihomo 版的结构对照：`cfg['tun']` → `cfg['inbounds']` 里 `type=='tun'` 的项；
-// mihomo 的 `route-exclude-address`/`dns-hijack`/`recvmsgx` 分别变成 sing-box 的
+// 与旧内核版的结构对照：`cfg['tun']` → `cfg['inbounds']` 里 `type=='tun'` 的项；
+// 旧内核的 `route-exclude-address`/`dns-hijack`/`recvmsgx` 分别变成 sing-box 的
 // `route_exclude_address` / 路由层 `{'protocol':'dns','action':'hijack-dns'}` 规则 /
 // 不存在（sing-box 没有该字段）。
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:moneyfly/core/models/models.dart';
-import 'package:moneyfly/core/proxy/singbox_config.dart';
+import 'package:mbox/core/models/models.dart';
+import 'package:mbox/core/proxy/singbox_config.dart';
 
 ProxyNode _node() => ProxyNode(
       tag: '测试节点',
@@ -142,11 +142,11 @@ void main() {
   });
 
   group('fd 注入（iOS socketpair 桥）的 MTU 对齐', () {
-    // 真机根因（mihomo 时代）：iOS 16.4+ 的 NEPacketTunnelFlow 不再暴露 utun fd，
-    // 客户端只能用 socketpair 自己造一个。mihomo 在 Darwin 上默认 recvmsgx=true，
+    // 真机根因（旧内核时代）：iOS 16.4+ 的 NEPacketTunnelFlow 不再暴露 utun fd，
+    // 客户端只能用 socketpair 自己造一个。旧内核在 Darwin 上默认 recvmsgx=true，
     // 建 TUN 时会对 fd 做 utun 专属 setsockopt 直接失败；sing-box 没有 recvmsgx
     // 这个字段，Darwin 专属开关已不存在，这里只保留「MTU 与扩展下发的 1500 对齐」。
-    test('fd 注入时 MTU 与扩展下发的 1500 对齐，且不含 mihomo 遗留的 recvmsgx', () {
+    test('fd 注入时 MTU 与扩展下发的 1500 对齐，且不含旧内核遗留的 recvmsgx', () {
       final cfg = _build(tunMode: 'auto', tunFdInjected: true);
       final tun = _tun(cfg)!;
       expect(tun['mtu'], 1500,
@@ -166,7 +166,7 @@ void main() {
     });
   });
 
-  // iOS 专用内存问题（mihomo 时代）：GEOSITE,cn 会用 succinct 匹配器把 11 万条域名
+  // iOS 专用内存问题（旧内核时代）：GEOSITE,cn 会用 succinct 匹配器把 11 万条域名
   // 建成内存索引，启动期一次申请约 74MB 堆，iOS 扩展内存上限只有几十 MB 会被系统
   // 杀掉。sing-box 1.12 起彻底移除了 legacy GEOSITE/GEOIP，国内分流一律走
   // **binary rule-set(.srs)**（zstd 直查、堆占用小），useMrsRuleSet 开关因此失去

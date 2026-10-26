@@ -395,7 +395,7 @@ class _HomePageState extends State<HomePage>
     final res = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: MFColors.card2,
+        backgroundColor: MBColors.card2,
         shape: const RoundedRectangleBorder(
             borderRadius: BorderRadius.all(Radius.circular(18))),
         title: Text('🔐\n${AppStrings.t('vpn_guide_title')}',
@@ -404,7 +404,7 @@ class _HomePageState extends State<HomePage>
                 fontSize: 17, fontWeight: FontWeight.w700, height: 1.4)),
         content: Text(AppStrings.t('vpn_guide_text'),
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 13.5, color: MFColors.txt, height: 1.7)),
+            style: TextStyle(fontSize: 13.5, color: MBColors.txt, height: 1.7)),
         actionsAlignment: MainAxisAlignment.center,
         actions: [
           TextButton(
@@ -413,7 +413,7 @@ class _HomePageState extends State<HomePage>
           ),
           FilledButton(
             style: FilledButton.styleFrom(
-              backgroundColor: MFColors.brand,
+              backgroundColor: MBColors.brand,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12)),
               padding:
@@ -434,7 +434,7 @@ class _HomePageState extends State<HomePage>
   Future<String?> _showVpnDeniedSheet() {
     return showModalBottomSheet<String>(
       context: context,
-      backgroundColor: MFColors.card,
+      backgroundColor: MBColors.card,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -450,7 +450,7 @@ class _HomePageState extends State<HomePage>
                   width: 36,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: MFColors.line2,
+                    color: MBColors.line2,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -464,16 +464,16 @@ class _HomePageState extends State<HomePage>
               Text(AppStrings.t('vpn_denied_text'),
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                      fontSize: 12.5, color: MFColors.txt, height: 1.6)),
+                      fontSize: 12.5, color: MBColors.txt, height: 1.6)),
               const SizedBox(height: 8),
               Text(AppStrings.t('vpn_denied_hint_always_on'),
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                      fontSize: 11.5, color: MFColors.txt3, height: 1.6)),
+                      fontSize: 11.5, color: MBColors.txt3, height: 1.6)),
               const SizedBox(height: 16),
               FilledButton(
                 style: FilledButton.styleFrom(
-                  backgroundColor: MFColors.brand,
+                  backgroundColor: MBColors.brand,
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12)),
                   padding: const EdgeInsets.symmetric(vertical: 8),
@@ -486,7 +486,7 @@ class _HomePageState extends State<HomePage>
               const SizedBox(height: 8),
               OutlinedButton(
                 style: OutlinedButton.styleFrom(
-                  side: BorderSide(color: MFColors.brand.withValues(alpha: .5)),
+                  side: BorderSide(color: MBColors.brand.withValues(alpha: .5)),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12)),
                   padding: const EdgeInsets.symmetric(vertical: 8),
@@ -498,7 +498,7 @@ class _HomePageState extends State<HomePage>
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
                 child: Text(AppStrings.t('cancel'),
-                    style: TextStyle(color: MFColors.txt3)),
+                    style: TextStyle(color: MBColors.txt3)),
               ),
             ],
           ),
@@ -519,14 +519,14 @@ class _HomePageState extends State<HomePage>
     showDialog<void>(
       context: context,
       builder: (_) => AlertDialog(
-        backgroundColor: MFColors.card2,
+        backgroundColor: MBColors.card2,
         shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(18))),
         title: Text('$emoji\n${acc.blockTitle}',
             textAlign: TextAlign.center,
             style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700, height: 1.4)),
         content: Text(acc.blockText,
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 13.5, color: MFColors.txt, height: 1.7)),
+            style: TextStyle(fontSize: 13.5, color: MBColors.txt, height: 1.7)),
         actionsAlignment: MainAxisAlignment.center,
         actions: [
           if (acc.status == AccountStatus.accountDisabled ||
@@ -555,7 +555,7 @@ class _HomePageState extends State<HomePage>
             ],
             FilledButton(
               style: FilledButton.styleFrom(
-                backgroundColor: MFColors.brand,
+                backgroundColor: MBColors.brand,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               ),
@@ -677,20 +677,20 @@ class _HomePageState extends State<HomePage>
         : '${sub.currentDevices} / ${sub.deviceLimit}';
     final daysText = sub == null ? '—' : '${sub.remainingDays}';
     final color = disabled
-        ? MFColors.red
+        ? MBColors.red
         : expired
-            ? MFColors.red
+            ? MBColors.red
             : deviceFull
-                ? MFColors.amber
-                : MFColors.brand;
+                ? MBColors.amber
+                : MBColors.brand;
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 8),
       decoration: BoxDecoration(
         gradient: warn
             ? LinearGradient(colors: [color.withValues(alpha: .18), color.withValues(alpha: .05)])
             : LinearGradient(colors: [
-                MFColors.brand.withValues(alpha: .18),
-                MFColors.brand.withValues(alpha: .06),
+                MBColors.brand.withValues(alpha: .18),
+                MBColors.brand.withValues(alpha: .06),
               ]),
         borderRadius: BorderRadius.circular(15),
         border: Border.all(color: color.withValues(alpha: warn ? .55 : .4)),
@@ -726,7 +726,7 @@ class _HomePageState extends State<HomePage>
                     _fmtSubTime(),
                     style: TextStyle(
                         fontSize: 10,
-                        color: MFColors.txt3,
+                        color: MBColors.txt3,
                         fontFamily: kNumFont),
                   ),
                 ],
@@ -764,13 +764,13 @@ class _HomePageState extends State<HomePage>
   Widget _buildAccountBanner(AccountService acc) {
     final status = acc.status;
     final (Color color, Color soft) = switch (status) {
-      AccountStatus.expired => (MFColors.red, const Color(0x2EFF5A5F)),
-      AccountStatus.deviceFull => (MFColors.amber, const Color(0x33FFB020)),
+      AccountStatus.expired => (MBColors.red, const Color(0x2EFF5A5F)),
+      AccountStatus.deviceFull => (MBColors.amber, const Color(0x33FFB020)),
       AccountStatus.accountDisabled ||
       AccountStatus.subscriptionDisabled =>
-        (MFColors.red, const Color(0x2EFF5A5F)),
-      AccountStatus.noSubscription => (MFColors.amber, const Color(0x33FFB020)),
-      _ => (MFColors.brand, MFColors.brand.withValues(alpha: .18)),
+        (MBColors.red, const Color(0x2EFF5A5F)),
+      AccountStatus.noSubscription => (MBColors.amber, const Color(0x33FFB020)),
+      _ => (MBColors.brand, MBColors.brand.withValues(alpha: .18)),
     };
     final emoji = switch (status) {
       AccountStatus.expired => '⏰',
@@ -794,7 +794,7 @@ class _HomePageState extends State<HomePage>
           const SizedBox(width: 9),
           Expanded(
             child: Text(acc.blockText,
-                style: TextStyle(fontSize: 12, color: MFColors.txt, height: 1.5)),
+                style: TextStyle(fontSize: 12, color: MBColors.txt, height: 1.5)),
           ),
           if (status != AccountStatus.accountDisabled &&
               status != AccountStatus.subscriptionDisabled)
@@ -811,7 +811,7 @@ class _HomePageState extends State<HomePage>
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 7),
                 decoration: BoxDecoration(
-                    gradient: MFColors.brandGradient,
+                    gradient: MBColors.brandGradient,
                     borderRadius: BorderRadius.circular(10)),
                 child: Text(
                   switch (status) {
@@ -838,7 +838,7 @@ class _HomePageState extends State<HomePage>
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: MFColors.card,
+      backgroundColor: MBColors.card,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -854,10 +854,12 @@ class _HomePageState extends State<HomePage>
           Container(
             width: 36,
             height: 36,
-            decoration: BoxDecoration(color: Colors.black, borderRadius: BorderRadius.circular(11)),
+            // 不垫黑底：新 logo 自身就是「白底圆角 + 品牌色标记」，后面垫黑方块
+            // 只会在四个圆角处露出黑边（旧 logo 是渐变底才需要垫）。
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(11)),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(11),
-              child: Image.asset('assets/moneyfly-logo.png', width: 36, height: 36),
+              child: Image.asset('assets/mbox-logo.png', width: 36, height: 36),
             ),
           ),
           const SizedBox(width: 10),
@@ -865,17 +867,17 @@ class _HomePageState extends State<HomePage>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(AppStrings.t('app_name'), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15.5)),
-              Text(AppStrings.t('home_ready'), style: TextStyle(fontSize: 10.5, color: MFColors.txt3)),
+              Text(AppStrings.t('home_ready'), style: TextStyle(fontSize: 10.5, color: MBColors.txt3)),
             ],
           ),
           const Spacer(),
           IconButton(
-            icon:  Icon(Icons.refresh, size: 20, color: MFColors.txt2),
+            icon:  Icon(Icons.refresh, size: 20, color: MBColors.txt2),
             tooltip: AppStrings.t('refresh_sub'),
             onPressed: _loadingNodes ? null : () => _ensureNodes(force: true),
           ),
           IconButton(
-            icon:  Icon(Icons.settings_outlined, size: 20, color: MFColors.txt2),
+            icon:  Icon(Icons.settings_outlined, size: 20, color: MBColors.txt2),
             onPressed: () => Navigator.of(context).push(
                 MaterialPageRoute(builder: (_) => const SettingsPage())),
           ),
@@ -893,8 +895,8 @@ class _HomePageState extends State<HomePage>
             ? conn.nodes.firstWhere((n) => n.online, orElse: () => conn.nodes.first)
             : null);
     final statusColor = busy
-        ? MFColors.amber
-        : (connected ? MFColors.green : MFColors.txt3);
+        ? MBColors.amber
+        : (connected ? MBColors.green : MBColors.txt3);
     final statusLabel = conn.switchingMode
         ? AppStrings.t('switching_mode')
         : switch (conn.status) {
@@ -917,12 +919,12 @@ class _HomePageState extends State<HomePage>
         gradient: LinearGradient(
             begin: Alignment.topLeft, end: Alignment.bottomRight,
             colors: [
-              MFColors.brand.withValues(alpha: .22),
-              MFColors.brand.withValues(alpha: .06),
+              MBColors.brand.withValues(alpha: .22),
+              MBColors.brand.withValues(alpha: .06),
               Colors.white.withValues(alpha: .04),
             ]),
         border: Border.all(
-            color: connected ? MFColors.green.withValues(alpha: .55) : MFColors.brand.withValues(alpha: .45)),
+            color: connected ? MBColors.green.withValues(alpha: .55) : MBColors.brand.withValues(alpha: .45)),
       ),
       child: Column(
         children: [
@@ -958,8 +960,8 @@ class _HomePageState extends State<HomePage>
                       boxShadow: [
                         BoxShadow(
                           color: connected
-                              ? MFColors.green.withValues(alpha: .45 * glow)
-                              : MFColors.brand.withValues(alpha: .25),
+                              ? MBColors.green.withValues(alpha: .45 * glow)
+                              : MBColors.brand.withValues(alpha: .25),
                           blurRadius: 34,
                         ),
                       ],
@@ -975,7 +977,7 @@ class _HomePageState extends State<HomePage>
                         ? const RadialGradient(colors: [Color(0xFF1E3B3A), Color(0xFF0E1716)], stops: [0, .75])
                         : const RadialGradient(colors: [Color(0xFF1B2233), Color(0xFF0E121B)], stops: [0, .75]),
                     border: Border.all(
-                        color: connected ? MFColors.green.withValues(alpha: .5) : MFColors.line2,
+                        color: connected ? MBColors.green.withValues(alpha: .5) : MBColors.line2,
                         width: 1.2),
                   ),
                   child: Center(
@@ -991,7 +993,7 @@ class _HomePageState extends State<HomePage>
                         : Icon(
                             Icons.power_settings_new_rounded,
                             size: compact ? 26 : 44,
-                            color: connected ? MFColors.green : MFColors.txt2,
+                            color: connected ? MBColors.green : MBColors.txt2,
                           ),
                   ),
                 ),
@@ -1006,9 +1008,9 @@ class _HomePageState extends State<HomePage>
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                 decoration: BoxDecoration(
-                  color: MFColors.card2.withValues(alpha: .55),
+                  color: MBColors.card2.withValues(alpha: .55),
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: MFColors.line),
+                  border: Border.all(color: MBColors.line),
                 ),
                 child: Row(
                   children: [
@@ -1021,7 +1023,7 @@ class _HomePageState extends State<HomePage>
                           Text(conn.current == null
                               ? AppStrings.t('will_connect_node')
                               : AppStrings.t('current_node'),
-                              style: TextStyle(fontSize: 10, color: MFColors.txt3)),
+                              style: TextStyle(fontSize: 10, color: MBColors.txt3)),
                           const SizedBox(height: 2),
                           Text(node.tag,
                               maxLines: 1,
@@ -1036,21 +1038,21 @@ class _HomePageState extends State<HomePage>
                         margin: const EdgeInsets.only(right: 6),
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
-                          color: MFColors.brand.withValues(alpha: .14),
+                          color: MBColors.brand.withValues(alpha: .14),
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                              color: MFColors.brand.withValues(alpha: .38)),
+                              color: MBColors.brand.withValues(alpha: .38)),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(Icons.push_pin,
-                                size: 11, color: MFColors.brandLight),
+                                size: 11, color: MBColors.brandLight),
                             const SizedBox(width: 3),
                             Text(AppStrings.t('node_pinned'),
                                 style: TextStyle(
                                     fontSize: 10.5,
-                                    color: MFColors.brandLight,
+                                    color: MBColors.brandLight,
                                     fontWeight: FontWeight.w700)),
                           ],
                         ),
@@ -1083,17 +1085,17 @@ class _HomePageState extends State<HomePage>
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
-                        color: MFColors.brand.withValues(alpha: .22),
+                        color: MBColors.brand.withValues(alpha: .22),
                         borderRadius: BorderRadius.circular(9),
-                        border: Border.all(color: MFColors.brand.withValues(alpha: .5)),
+                        border: Border.all(color: MBColors.brand.withValues(alpha: .5)),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(AppStrings.t('node_switch'),
-                              style: TextStyle(fontSize: 11.5, color: MFColors.brandLight, fontWeight: FontWeight.w700)),
+                              style: TextStyle(fontSize: 11.5, color: MBColors.brandLight, fontWeight: FontWeight.w700)),
                           const SizedBox(width: 2),
-                          Icon(Icons.chevron_right, size: 15, color: MFColors.brandLight),
+                          Icon(Icons.chevron_right, size: 15, color: MBColors.brandLight),
                         ],
                       ),
                     ),
@@ -1113,7 +1115,7 @@ class _HomePageState extends State<HomePage>
                           ? AppStrings.t('sub_updating_wait')
                           : AppStrings.t('nodes_empty_retry')),
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 13, color: MFColors.txt3, height: 1.5),
+                  style: TextStyle(fontSize: 13, color: MBColors.txt3, height: 1.5),
                 ),
                 if (!acc.isBlocked && !_loadingNodes) ...[
                   const SizedBox(height: 8),
@@ -1122,16 +1124,16 @@ class _HomePageState extends State<HomePage>
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
                       decoration: BoxDecoration(
-                          color: MFColors.brand.withValues(alpha: .12),
+                          color: MBColors.brand.withValues(alpha: .12),
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: MFColors.brand.withValues(alpha: .4))),
+                          border: Border.all(color: MBColors.brand.withValues(alpha: .4))),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.refresh, size: 13, color: MFColors.brandLight),
+                          Icon(Icons.refresh, size: 13, color: MBColors.brandLight),
                           const SizedBox(width: 4),
                           Text(AppStrings.t('retry_btn'),
-                              style: TextStyle(fontSize: 11.5, color: MFColors.brandLight, fontWeight: FontWeight.w700)),
+                              style: TextStyle(fontSize: 11.5, color: MBColors.brandLight, fontWeight: FontWeight.w700)),
                         ],
                       ),
                     ),
@@ -1158,7 +1160,7 @@ class _HomePageState extends State<HomePage>
                             maxLines: 1,
                             softWrap: false,
                             overflow: TextOverflow.ellipsis,
-                            style: TextStyle(fontSize: 11, color: MFColors.green)),
+                            style: TextStyle(fontSize: 11, color: MBColors.green)),
                       ],
                     )
                   : conn.realCountryFailed
@@ -1170,7 +1172,7 @@ class _HomePageState extends State<HomePage>
                                 softWrap: false,
                                 overflow: TextOverflow.ellipsis,
                                 textAlign: TextAlign.center,
-                                style: const TextStyle(fontSize: 11, color: MFColors.amber)),
+                                style: const TextStyle(fontSize: 11, color: MBColors.amber)),
                           ),
                         )
                       : Center(
@@ -1179,7 +1181,7 @@ class _HomePageState extends State<HomePage>
                               softWrap: false,
                               overflow: TextOverflow.ellipsis,
                               textAlign: TextAlign.center,
-                              style: TextStyle(fontSize: 11, color: MFColors.txt3)),
+                              style: TextStyle(fontSize: 11, color: MBColors.txt3)),
                         ),
             ),
           ],
@@ -1202,12 +1204,12 @@ class _HomePageState extends State<HomePage>
                         width: 11,
                         height: 11,
                         child: CircularProgressIndicator(
-                            strokeWidth: 1.5, color: MFColors.brandLight)),
+                            strokeWidth: 1.5, color: MBColors.brandLight)),
                       const SizedBox(width: 6),
                       Text(AppStrings.t('sub_syncing'),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontSize: 11, color: MFColors.txt3)),
+                          style: TextStyle(fontSize: 11, color: MBColors.txt3)),
                     ],
                   )
                 : const SizedBox.shrink(),
@@ -1215,7 +1217,7 @@ class _HomePageState extends State<HomePage>
           if (conn.error != null) ...[
             const SizedBox(height: 8),
             Text(conn.error!, textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 11, color: MFColors.red, height: 1.5)),
+                style: TextStyle(fontSize: 11, color: MBColors.red, height: 1.5)),
             // 类型化失败 → 分场景引导（授权 VPN / 允许通知 / 保持前台重试）；
             // 受限状态（自动连接被账号门禁拦截）不放按钮——
             // 顶部横幅已给续费/升级/管理入口；点电源键也会弹对应说明弹窗
@@ -1240,7 +1242,7 @@ class _HomePageState extends State<HomePage>
           padding: const EdgeInsets.only(bottom: 8),
           child: Text(AppStrings.t('stay_foreground_hint'),
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 10.5, color: MFColors.amber, height: 1.5)),
+              style: const TextStyle(fontSize: 10.5, color: MBColors.amber, height: 1.5)),
         ),
     ];
     if (guide.showGrantVpn) {
@@ -1293,8 +1295,8 @@ class _HomePageState extends State<HomePage>
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-          color: MFColors.card, borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: MFColors.line)),
+          color: MBColors.card, borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: MBColors.line)),
       child: Row(
         children: [
           _ModeOption(
@@ -1388,7 +1390,7 @@ class _HomePageState extends State<HomePage>
           child: Text(AppStrings.t('quick_switch_country'),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 11.5, color: MFColors.txt2)),
+              style: TextStyle(fontSize: 11.5, color: MBColors.txt2)),
         ),
         for (var r = 0; r < rows; r++) ...[
           if (r > 0) SizedBox(height: rowGap),
@@ -1419,16 +1421,16 @@ class _HomePageState extends State<HomePage>
   Widget _placeholderPill() {
     return Container(
       decoration: BoxDecoration(
-        color: MFColors.card2,
+        color: MBColors.card2,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: MFColors.line),
+        border: Border.all(color: MBColors.line),
       ),
       alignment: Alignment.center,
       child: Container(
         width: 26,
         height: 8,
         decoration: BoxDecoration(
-          color: MFColors.txt3.withValues(alpha: .25),
+          color: MBColors.txt3.withValues(alpha: .25),
           borderRadius: BorderRadius.circular(4),
         ),
       ),
@@ -1447,12 +1449,12 @@ class _HomePageState extends State<HomePage>
       },
       child: _pillShell(
         active: active,
-        color: MFColors.green,
+        color: MBColors.green,
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.auto_awesome,
-                size: 13, color: active ? MFColors.green : MFColors.txt2),
+                size: 13, color: active ? MBColors.green : MBColors.txt2),
             const SizedBox(width: 4),
             Flexible(
               child: Text(AppStrings.t('auto_best'),
@@ -1462,7 +1464,7 @@ class _HomePageState extends State<HomePage>
                   style: TextStyle(
                       fontSize: 11.5,
                       fontWeight: FontWeight.w600,
-                      color: active ? MFColors.green : MFColors.txt)),
+                      color: active ? MBColors.green : MBColors.txt)),
             ),
           ],
         ),
@@ -1490,7 +1492,7 @@ class _HomePageState extends State<HomePage>
       },
       child: _pillShell(
         active: active,
-        color: MFColors.brand,
+        color: MBColors.brand,
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -1504,14 +1506,14 @@ class _HomePageState extends State<HomePage>
                   style: TextStyle(
                       fontSize: compact ? 11.5 : 12,
                       fontWeight: FontWeight.w600,
-                      color: active ? MFColors.brandLight : MFColors.txt)),
+                      color: active ? MBColors.brandLight : MBColors.txt)),
             ),
             const SizedBox(width: 4),
             Text('${e.value.latencyMs}ms',
                 maxLines: 1,
                 softWrap: false,
                 style: TextStyle(
-                    fontSize: 9.5, color: MFColors.txt3, fontFamily: kNumFont)),
+                    fontSize: 9.5, color: MBColors.txt3, fontFamily: kNumFont)),
           ],
         ),
       ),
@@ -1524,9 +1526,9 @@ class _HomePageState extends State<HomePage>
       alignment: Alignment.center,
       padding: const EdgeInsets.symmetric(horizontal: 7),
       decoration: BoxDecoration(
-        color: active ? color.withValues(alpha: .18) : MFColors.card,
+        color: active ? color.withValues(alpha: .18) : MBColors.card,
         borderRadius: _pillRadius,
-        border: Border.all(color: active ? color.withValues(alpha: .7) : MFColors.line),
+        border: Border.all(color: active ? color.withValues(alpha: .7) : MBColors.line),
       ),
       child: child,
     );
@@ -1614,7 +1616,7 @@ class _NodePickerSheetState extends State<_NodePickerSheet> {
             width: 36,
             height: 4,
             decoration: BoxDecoration(
-              color: MFColors.line2,
+              color: MBColors.line2,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -1626,7 +1628,7 @@ class _NodePickerSheetState extends State<_NodePickerSheet> {
                     style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
                 const SizedBox(width: 10),
                 Text(AppStrings.t('tap_switch_node'),
-                    style: TextStyle(fontSize: 11, color: MFColors.txt3)),
+                    style: TextStyle(fontSize: 11, color: MBColors.txt3)),
                 const Spacer(),
                 // ⚡实时测速：手动挑节点时不切走（switchToBest:false），
                 // 仅逐个填延迟并重排，最优浮到最上。
@@ -1648,7 +1650,7 @@ class _NodePickerSheetState extends State<_NodePickerSheet> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      gradient: MFColors.brandGradient,
+                      gradient: MBColors.brandGradient,
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: conn.speedTesting
@@ -1686,10 +1688,10 @@ class _NodePickerSheetState extends State<_NodePickerSheet> {
                     margin: const EdgeInsets.only(bottom: 8),
                     padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
                     decoration: BoxDecoration(
-                      color: isCurrent ? MFColors.brand.withValues(alpha: .09) : MFColors.card2,
+                      color: isCurrent ? MBColors.brand.withValues(alpha: .09) : MBColors.card2,
                       borderRadius: BorderRadius.circular(14),
                       border: Border.all(
-                        color: isCurrent ? MFColors.brand.withValues(alpha: .55) : MFColors.line,
+                        color: isCurrent ? MBColors.brand.withValues(alpha: .55) : MBColors.line,
                       ),
                     ),
                     child: Row(
@@ -1713,11 +1715,11 @@ class _NodePickerSheetState extends State<_NodePickerSheet> {
                         ),
                         if (conn.pinnedTag == n.tag) ...[
                           const SizedBox(width: 6),
-                          Icon(Icons.push_pin, size: 14, color: MFColors.brandLight),
+                          Icon(Icons.push_pin, size: 14, color: MBColors.brandLight),
                         ],
                         if (isCurrent) ...[
                           const SizedBox(width: 8),
-                          Icon(Icons.check_circle, size: 16, color: MFColors.brandLight),
+                          Icon(Icons.check_circle, size: 16, color: MBColors.brandLight),
                         ],
                       ],
                     ),
@@ -1744,7 +1746,7 @@ class _ErrorBtn extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
         decoration: BoxDecoration(
-            gradient: MFColors.brandGradient, borderRadius: BorderRadius.circular(10)),
+            gradient: MBColors.brandGradient, borderRadius: BorderRadius.circular(10)),
         child: Text(label,
             style: const TextStyle(
                 fontSize: 11.5, color: Colors.white, fontWeight: FontWeight.w700)),
@@ -1774,12 +1776,12 @@ class _ModeOption extends StatelessWidget {
           duration: const Duration(milliseconds: 200),
           height: 38,
           decoration: BoxDecoration(
-            gradient: selected ? MFColors.brandGradient : null,
+            gradient: selected ? MBColors.brandGradient : null,
             borderRadius: BorderRadius.circular(11),
             boxShadow: selected
                 ? [
                     BoxShadow(
-                        color: MFColors.brand.withValues(alpha: .4),
+                        color: MBColors.brand.withValues(alpha: .4),
                         blurRadius: 16)
                   ]
                 : null,
@@ -1791,7 +1793,7 @@ class _ModeOption extends StatelessWidget {
                   size: 15,
                   color: selected
                       ? Colors.white
-                      : (enabled ? MFColors.txt2 : MFColors.txt3)),
+                      : (enabled ? MBColors.txt2 : MBColors.txt3)),
               const SizedBox(width: 7),
               Text(label,
                   style: TextStyle(
@@ -1799,7 +1801,7 @@ class _ModeOption extends StatelessWidget {
                       fontWeight: FontWeight.w600,
                       color: selected
                           ? Colors.white
-                          : (enabled ? MFColors.txt2 : MFColors.txt3))),
+                          : (enabled ? MBColors.txt2 : MBColors.txt3))),
               if (!enabled) ...[
                 const SizedBox(width: 6),
                 SizedBox(
@@ -1807,7 +1809,7 @@ class _ModeOption extends StatelessWidget {
                   height: 10,
                   child: CircularProgressIndicator(
                       strokeWidth: 1.6,
-                      color: selected ? Colors.white70 : MFColors.txt3),
+                      color: selected ? Colors.white70 : MBColors.txt3),
                 ),
               ],
             ],
@@ -1858,9 +1860,9 @@ class _TrafficCard extends StatelessWidget {
       padding: EdgeInsets.symmetric(
           horizontal: compact ? 12 : 14, vertical: compact ? 7 : 9),
       decoration: BoxDecoration(
-        color: MFColors.card,
+        color: MBColors.card,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: MFColors.line),
+        border: Border.all(color: MBColors.line),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1873,7 +1875,7 @@ class _TrafficCard extends StatelessWidget {
                   label: AppStrings.t('up_speed'),
                   value: upValue,
                   unit: upUnit,
-                  color: MFColors.brandLight,
+                  color: MBColors.brandLight,
                 ),
               ),
               const SizedBox(width: 10),
@@ -1883,7 +1885,7 @@ class _TrafficCard extends StatelessWidget {
                   label: AppStrings.t('down_speed'),
                   value: downValue,
                   unit: downUnit,
-                  color: MFColors.green,
+                  color: MBColors.green,
                 ),
               ),
             ],
@@ -1893,8 +1895,8 @@ class _TrafficCard extends StatelessWidget {
           TrafficChart(
             upSamples: upSamples,
             downSamples: downSamples,
-            upColor: MFColors.brandLight,
-            downColor: MFColors.green,
+            upColor: MBColors.brandLight,
+            downColor: MBColors.green,
             height: compact ? 40 : 52,
           ),
         ],
@@ -1931,7 +1933,7 @@ class _TrafficCard extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
                 fontSize: compact ? 11.5 : 12,
-                color: MFColors.txt2,
+                color: MBColors.txt2,
                 fontWeight: FontWeight.w600)),
         const SizedBox(width: 6),
         // 数值**定宽**右对齐 + 单位定宽：位数/单位变化都不推动旁边内容
@@ -1946,7 +1948,7 @@ class _TrafficCard extends StatelessWidget {
               style: TextStyle(
                   fontSize: compact ? 13.5 : 14.5,
                   fontWeight: FontWeight.w800,
-                  color: MFColors.txt,
+                  color: MBColors.txt,
                   fontFamily: kNumFont)),
         ),
         const SizedBox(width: 3),
@@ -1956,7 +1958,7 @@ class _TrafficCard extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                  fontSize: compact ? 10 : 10.5, color: MFColors.txt3)),
+                  fontSize: compact ? 10 : 10.5, color: MBColors.txt3)),
         ),
       ],
       ),
@@ -1985,14 +1987,14 @@ class _InfoCell extends StatelessWidget {
               style: TextStyle(
                 fontSize: 13.5,
                 fontWeight: FontWeight.w800,
-                color: highlight ? MFColors.green : MFColors.txt,
+                color: highlight ? MBColors.green : MBColors.txt,
                 fontFamily: kNumFont,
               )),
           const SizedBox(height: 3),
           Text(label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 9.5, color: MFColors.txt2)),
+              style: TextStyle(fontSize: 9.5, color: MBColors.txt2)),
         ],
       ),
     );
@@ -2043,7 +2045,7 @@ class _SessionInfoState extends State<_SessionInfo> {
     // 居中的 Text → 宽度每秒变一次、整行重新居中，看起来就是卡片内容左右抖。
     final numStyle = TextStyle(
         fontSize: 10.5,
-        color: MFColors.txt3,
+        color: MBColors.txt3,
         fontFamily: kNumFont,
         fontFeatures: const [FontFeature.tabularFigures()]);
     return SizedBox(

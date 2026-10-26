@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:moneyfly/core/utils/log_rotation.dart';
-import 'package:moneyfly/core/utils/serial_executor.dart';
+import 'package:mbox/core/utils/log_rotation.dart';
+import 'package:mbox/core/utils/serial_executor.dart';
 
 void main() {
   group('keepSecondHalf（日志旋转）', () {

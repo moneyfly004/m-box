@@ -83,7 +83,7 @@ class GeoLookupService {
       dio = Dio(BaseOptions(
         connectTimeout: lookupTimeout,
         receiveTimeout: lookupTimeout,
-        headers: {'Accept': 'application/json', 'User-Agent': 'MoneyFly'},
+        headers: {'Accept': 'application/json', 'User-Agent': 'MBox'},
       ));
       // 显式走本地混合代理（App 自身请求默认不走系统代理）
       dio.httpClientAdapter = IOHttpClientAdapter(

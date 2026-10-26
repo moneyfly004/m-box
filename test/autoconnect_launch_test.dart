@@ -30,20 +30,20 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:moneyfly/core/api/api_client.dart';
-import 'package:moneyfly/core/models/models.dart';
-import 'package:moneyfly/core/proxy/proxy_core.dart';
-import 'package:moneyfly/core/proxy/proxy_core_cli.dart';
-import 'package:moneyfly/core/services/account_service.dart';
-import 'package:moneyfly/core/services/local_paths.dart';
-import 'package:moneyfly/core/services/settings_store.dart';
-import 'package:moneyfly/core/services/subscription_cache.dart';
-import 'package:moneyfly/core/services/subscription_service.dart';
-import 'package:moneyfly/core/services/update_service.dart';
-import 'package:moneyfly/l10n/app_strings.dart';
-import 'package:moneyfly/main.dart';
-import 'package:moneyfly/pages/home/home_page.dart';
-import 'package:moneyfly/theme/app_theme.dart';
+import 'package:mbox/core/api/api_client.dart';
+import 'package:mbox/core/models/models.dart';
+import 'package:mbox/core/proxy/proxy_core.dart';
+import 'package:mbox/core/proxy/proxy_core_cli.dart';
+import 'package:mbox/core/services/account_service.dart';
+import 'package:mbox/core/services/local_paths.dart';
+import 'package:mbox/core/services/settings_store.dart';
+import 'package:mbox/core/services/subscription_cache.dart';
+import 'package:mbox/core/services/subscription_service.dart';
+import 'package:mbox/core/services/update_service.dart';
+import 'package:mbox/l10n/app_strings.dart';
+import 'package:mbox/main.dart';
+import 'package:mbox/pages/home/home_page.dart';
+import 'package:mbox/theme/app_theme.dart';
 
 /// 记录型内核桩：`start()` 被调用 = `connect()` 真的推进到了启动内核。
 ///
@@ -174,7 +174,7 @@ class _FakeBackend implements HttpClientAdapter {
 }
 
 Widget _wrap(Widget child) => MaterialApp(
-      theme: buildMoneyFlyTheme(),
+      theme: buildMBoxTheme(),
       home: MultiProvider(
         providers: [
           ChangeNotifierProvider.value(value: SessionState()..setLoggedIn(true)),
@@ -200,8 +200,8 @@ void main() {
 
   void setSettings(Map<String, dynamic> s) {
     SharedPreferences.setMockInitialValues({
-      'moneyfly_settings_v1': jsonEncode(s),
-      'moneyfly_auto_login': true,
+      'mbox_settings_v1': jsonEncode(s),
+      'mbox_auto_login': true,
     });
     SettingsStore.resetForTest();
   }

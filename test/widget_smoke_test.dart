@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:moneyfly/main.dart';
-import 'package:moneyfly/pages/auth/register_page.dart';
-import 'package:moneyfly/pages/settings/settings_page.dart';
+import 'package:mbox/main.dart';
+import 'package:mbox/pages/auth/register_page.dart';
+import 'package:mbox/pages/settings/settings_page.dart';
 
 void main() {
-  setUp(() => SharedPreferences.setMockInitialValues({'moneyfly_lang': 'zh'}));
+  setUp(() => SharedPreferences.setMockInitialValues({'mbox_lang': 'zh'}));
   testWidgets('启动进入登录页', (tester) async {
-    await tester.pumpWidget(const MoneyFlyApp());
+    await tester.pumpWidget(const MBoxApp());
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('MBox'), findsOneWidget);
     expect(find.text('登 录'), findsOneWidget);
@@ -17,7 +17,7 @@ void main() {
   });
 
   testWidgets('登录按钮空输入提示', (tester) async {
-    await tester.pumpWidget(const MoneyFlyApp());
+    await tester.pumpWidget(const MBoxApp());
     await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(find.text('登 录'));
     await tester.pump();

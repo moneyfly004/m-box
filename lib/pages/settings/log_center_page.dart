@@ -28,10 +28,10 @@ class LogCenterPage extends StatelessWidget {
               onPressed: () => Navigator.pop(context)),
           title: Text(AppStrings.t('log_center_title')),
           bottom: TabBar(
-            indicatorColor: MFColors.brand,
+            indicatorColor: MBColors.brand,
             indicatorSize: TabBarIndicatorSize.label,
-            labelColor: MFColors.brand,
-            unselectedLabelColor: MFColors.txt3,
+            labelColor: MBColors.brand,
+            unselectedLabelColor: MBColors.txt3,
             labelStyle: const TextStyle(
                 fontSize: 13.5, fontWeight: FontWeight.w600),
             unselectedLabelStyle: const TextStyle(fontSize: 13.5),
@@ -61,10 +61,10 @@ Future<bool> _confirmClearLog(BuildContext context, String message) async {
   final ok = await showDialog<bool>(
     context: context,
     builder: (_) => AlertDialog(
-      backgroundColor: MFColors.card2,
+      backgroundColor: MBColors.card2,
       title:
           Text(AppStrings.t('clear_log'), style: const TextStyle(fontSize: 15)),
-      content: Text(message, style: TextStyle(fontSize: 13, color: MFColors.txt2)),
+      content: Text(message, style: TextStyle(fontSize: 13, color: MBColors.txt2)),
       actions: [
         TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -72,7 +72,7 @@ Future<bool> _confirmClearLog(BuildContext context, String message) async {
         TextButton(
           onPressed: () => Navigator.pop(context, true),
           child: Text(AppStrings.t('clear_log'),
-              style: TextStyle(color: MFColors.red)),
+              style: TextStyle(color: MBColors.red)),
         ),
       ],
     ),
@@ -148,7 +148,7 @@ class _KernelLogTabState extends State<_KernelLogTab>
     if (_pollBusy) return;
     _pollBusy = true;
     try {
-      const ch = MethodChannel('top.moneyfly/vpn_core');
+      const ch = MethodChannel('top.mbox/vpn_core');
       final merged = <String>[];
       for (var round = 0; round < 8; round++) {
         final res = await ch.invokeMethod<Map<dynamic, dynamic>>(
@@ -195,7 +195,7 @@ class _KernelLogTabState extends State<_KernelLogTab>
     if (l.contains('level=debug')) {
       return const Color(0xFF8FB4E8);
     }
-    return MFColors.txt2;
+    return MBColors.txt2;
   }
 
   void _append(String line) {
@@ -248,11 +248,11 @@ class _KernelLogTabState extends State<_KernelLogTab>
         color: Colors.transparent,
         child: Ink(
           decoration: BoxDecoration(
-            gradient: active ? MFColors.brandGradient : null,
-            color: active ? null : MFColors.card,
+            gradient: active ? MBColors.brandGradient : null,
+            color: active ? null : MBColors.card,
             borderRadius: radius,
             border: Border.all(
-                color: active ? Colors.transparent : MFColors.line),
+                color: active ? Colors.transparent : MBColors.line),
           ),
           child: InkWell(
             onTap: () => _setLevel(lv),
@@ -268,7 +268,7 @@ class _KernelLogTabState extends State<_KernelLogTab>
                     style: TextStyle(
                       fontSize: 10.5,
                       fontWeight: FontWeight.w700,
-                      color: active ? Colors.white : MFColors.txt2,
+                      color: active ? Colors.white : MBColors.txt2,
                     ),
                   ),
                 ),
@@ -291,7 +291,7 @@ class _KernelLogTabState extends State<_KernelLogTab>
           child: Row(
             children: [
               Text(AppStrings.t('kernel_log_level'),
-                  style: TextStyle(fontSize: 11, color: MFColors.txt3)),
+                  style: TextStyle(fontSize: 11, color: MBColors.txt3)),
               const SizedBox(width: 8),
               Flexible(
                 child: SingleChildScrollView(
@@ -319,14 +319,14 @@ class _KernelLogTabState extends State<_KernelLogTab>
                         height: 7,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: running ? MFColors.green : MFColors.txt3,
+                          color: running ? MBColors.green : MBColors.txt3,
                         ),
                       ),
                       const SizedBox(width: 4),
                       Text(running ? '' : AppStrings.t('kernel_stopped'),
                           style: TextStyle(
                               fontSize: 10,
-                              color: running ? MFColors.green : MFColors.txt3)),
+                              color: running ? MBColors.green : MBColors.txt3)),
                     ],
                   );
                 },
@@ -352,9 +352,9 @@ class _KernelLogTabState extends State<_KernelLogTab>
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
           child: Text(AppStrings.t('kernel_log_level_desc'),
-              style: TextStyle(fontSize: 10, color: MFColors.txt3, height: 1.4)),
+              style: TextStyle(fontSize: 10, color: MBColors.txt3, height: 1.4)),
         ),
-        Divider(height: 1, color: MFColors.line),
+        Divider(height: 1, color: MBColors.line),
         // 日志区：**最新在最上方**（不用 reverse）。
         // 原实现用 reverse:true 让最新贴底，但日志条数少于视口高度时，内容会全部
         // 堆在底部、顶部留出一大片空白（真机反馈「上半截一片空白」）。
@@ -373,7 +373,7 @@ class _KernelLogTabState extends State<_KernelLogTab>
                               {'level': _level.toUpperCase()}),
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                          fontSize: 12, color: MFColors.txt3, height: 1.7)))
+                          fontSize: 12, color: MBColors.txt3, height: 1.7)))
               : SelectionArea(
                   child: ListView.builder(
                     padding: const EdgeInsets.symmetric(
@@ -454,7 +454,7 @@ class _AppLogTabState extends State<_AppLogTab>
       line.contains('[ERROR]') || line.toLowerCase().contains('level=error');
 
   Color _lineColor(String line) =>
-      _isErrorLine(line) ? const Color(0xFFFF6B6B) : MFColors.txt2;
+      _isErrorLine(line) ? const Color(0xFFFF6B6B) : MBColors.txt2;
 
   List<String> get _visible =>
       _filterError ? _lines.where(_isErrorLine).toList() : _lines;
@@ -502,7 +502,7 @@ class _AppLogTabState extends State<_AppLogTab>
             children: [
               Expanded(
                 child: Text(AppStrings.t('app_log_desc'),
-                    style: TextStyle(fontSize: 10.5, color: MFColors.txt3)),
+                    style: TextStyle(fontSize: 10.5, color: MBColors.txt3)),
               ),
               IconButton(
                 icon: const Icon(Icons.refresh, size: 17),
@@ -515,7 +515,7 @@ class _AppLogTabState extends State<_AppLogTab>
                     _filterError ? Icons.filter_alt : Icons.filter_alt_outlined,
                     size: 17),
                 tooltip: AppStrings.t('log_only_errors'),
-                color: _filterError ? MFColors.brandLight : null,
+                color: _filterError ? MBColors.brandLight : null,
                 visualDensity: VisualDensity.compact,
                 onPressed: () => setState(() => _filterError = !_filterError),
               ),
@@ -544,21 +544,21 @@ class _AppLogTabState extends State<_AppLogTab>
             ],
           ),
         ),
-        Divider(height: 1, color: MFColors.line),
+        Divider(height: 1, color: MBColors.line),
         Expanded(
           child: _loading
               ? Center(
-                  child: CircularProgressIndicator(color: MFColors.brand))
+                  child: CircularProgressIndicator(color: MBColors.brand))
               : _lines.isEmpty
                   ? Center(
                       child: Text(AppStrings.t('log_empty'),
                           style: TextStyle(
-                              fontSize: 12, color: MFColors.txt3)))
+                              fontSize: 12, color: MBColors.txt3)))
                   : _visible.isEmpty
                       ? Center(
                           child: Text(AppStrings.t('log_no_errors'),
                               style: TextStyle(
-                                  fontSize: 12, color: MFColors.txt3)))
+                                  fontSize: 12, color: MBColors.txt3)))
                       // 不用 reverse：日志条数少时 reverse 会把内容全堆在底部，
                       // 顶部留一大片空白（真机反馈）；改为最新在最上方。
                       // 行用普通 Text + 外层单个 SelectionArea（理由同内核日志 tab）。

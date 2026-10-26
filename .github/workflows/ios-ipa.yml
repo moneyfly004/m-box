@@ -80,5 +80,5 @@ jobs:
           echo "下载地址：https://github.com/moneyfly004/m-box/releases/download/ios-test/MBox-ios-test.ipa"
       - uses: actions/upload-artifact@v4
         with:
-          name: moneyfly-ios-test
+          name: mbox-ios-test
           path: dist/

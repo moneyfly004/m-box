@@ -16,7 +16,7 @@ import 'speed_test_mode.dart';
 class SettingsStore {
   SettingsStore._();
   static final SettingsStore instance = SettingsStore._();
-  static const _p = 'moneyfly_settings_v1';
+  static const _p = 'mbox_settings_v1';
 
   /// 设置快照版本（「默认值变更」的一次性迁移依据）。
   ///
@@ -103,7 +103,7 @@ class SettingsStore {
         'bypassLan': true,
         // 外观模式：light / warm / gray / darkgray / darkblue / black
         'appearance': 'light',
-        // 订阅自定义 User-Agent（空 = 用默认 MoneyFly/<版本>）
+        // 订阅自定义 User-Agent（空 = 用默认 MBox/<版本>）
         'subscribeUserAgent': '',
         'language': 'zh',
         'notify': true,

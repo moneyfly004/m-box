@@ -1,4 +1,4 @@
-package top.moneyfly.app
+package top.mbox.app
 
 import android.Manifest
 import android.net.Uri
@@ -13,15 +13,15 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import io.flutter.embedding.android.FlutterActivity
 import java.io.File
-import top.moneyfly.app.vpn.MoneyFlyVpnService
+import top.mbox.app.vpn.MBoxVpnService
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
     companion object {
-        private const val CHANNEL = "top.moneyfly/vpn_permissions"
-        private const val DEVICE_CHANNEL = "top.moneyfly/device_id"
-        private const val CORE_CHANNEL = "top.moneyfly/vpn_core"
+        private const val CHANNEL = "top.mbox/vpn_permissions"
+        private const val DEVICE_CHANNEL = "top.mbox/device_id"
+        private const val CORE_CHANNEL = "top.mbox/vpn_core"
         private const val REQ_VPN = 1001
         private const val REQ_NOTIFY = 1002
         private const val REQ_BATTERY = 1003
@@ -86,10 +86,10 @@ class MainActivity : FlutterActivity() {
                             result.error("no_config", "缺少配置", null)
                             return@setMethodCallHandler
                         }
-                        val intent = Intent(this, MoneyFlyVpnService::class.java).apply {
-                            action = MoneyFlyVpnService.ACTION_START
-                            putExtra(MoneyFlyVpnService.EXTRA_CONFIG, configJson)
-                            putExtra(MoneyFlyVpnService.EXTRA_NEED_TUN, needTun)
+                        val intent = Intent(this, MBoxVpnService::class.java).apply {
+                            action = MBoxVpnService.ACTION_START
+                            putExtra(MBoxVpnService.EXTRA_CONFIG, configJson)
+                            putExtra(MBoxVpnService.EXTRA_NEED_TUN, needTun)
                         }
                         try {
                             // Android 12+ 后台启动前台服务受限：若连接瞬间 App 被系统页
@@ -116,7 +116,7 @@ class MainActivity : FlutterActivity() {
                         // stopService 停止「已在运行的服务」不受后台限制，
                         // 会触发 onDestroy → 内核停止 + TUN 释放。
                         try {
-                            stopService(Intent(this, MoneyFlyVpnService::class.java))
+                            stopService(Intent(this, MBoxVpnService::class.java))
                             result.success(true)
                         } catch (e: Exception) {
                             result.error(
@@ -126,8 +126,8 @@ class MainActivity : FlutterActivity() {
                             )
                         }
                     }
-                    "isVpnRunning" -> result.success(MoneyFlyVpnService.isRunning)
-                    "kernelVersion" -> result.success(MoneyFlyVpnService.kernelVersion())
+                    "isVpnRunning" -> result.success(MBoxVpnService.isRunning)
+                    "kernelVersion" -> result.success(MBoxVpnService.kernelVersion())
                     // 内核日志读取（见文件底部 KernelLogCursor）：
                     //  - 实时页带 incremental=true：走增量游标，返回 Map{log, hasMore}；
                     //  - 无参数调用（连接失败诊断等一次性拉全文）保持原 String 语义、不动游标。
@@ -137,15 +137,15 @@ class MainActivity : FlutterActivity() {
                                 KernelLogCursor.fetchDelta(call.argument<Boolean>("reset") == true)
                             )
                         } else {
-                            result.success(MoneyFlyVpnService.fetchKernelLogs())
+                            result.success(MBoxVpnService.fetchKernelLogs())
                         }
                     }
-                    "lastStartError" -> result.success(MoneyFlyVpnService.lastStartError)
+                    "lastStartError" -> result.success(MBoxVpnService.lastStartError)
                     // 失败分类（cross_user / vpn_not_prepared / app_missing / unknown）：
                     // Dart 侧据此给可执行文案、并跳过确定性的自动重连
-                    "lastStartErrorKind" -> result.success(MoneyFlyVpnService.lastStartErrorKind)
+                    "lastStartErrorKind" -> result.success(MBoxVpnService.lastStartErrorKind)
                     // 启动成功但有降级（如按应用分流被系统拒绝）时的说明
-                    "lastStartWarning" -> result.success(MoneyFlyVpnService.lastStartWarning)
+                    "lastStartWarning" -> result.success(MBoxVpnService.lastStartWarning)
                     "getInstalledApps" -> {
                         // PackageManager 查询较重（数百次 IPC），放工作线程避免 UI 卡顿
                         Thread {
@@ -294,7 +294,7 @@ class MainActivity : FlutterActivity() {
 
 // ================= 内核日志增量读取（「内核日志」实时页） =================
 //
-// Mihomelib.logs()（经 MoneyFlyVpnService.fetchKernelLogs()）每次返回的是进程内
+// Mihomelib.logs()（经 MBoxVpnService.fetchKernelLogs()）每次返回的是进程内
 // 累积的「全量」快照字符串，且不支持按读取位置消费 —— 实时页若每次把全量回传 Dart
 // 并逐行 setState，日志越长越卡。这里在 App 侧维护「上次交付终点」游标（单锁保护）：
 //  - 快照为纯追加时，用游标处最后 64 字符做边界连续性校验，只把游标之后新增的
@@ -329,7 +329,7 @@ private object KernelLogCursor {
      * @return Map(log=增量文本, hasMore=本批是否截断、后面还有更多完整行)
      */
     fun fetchDelta(reset: Boolean): Map<String, Any> {
-        val full = MoneyFlyVpnService.fetchKernelLogs()
+        val full = MBoxVpnService.fetchKernelLogs()
         synchronized(lock) {
             if (reset) {
                 consumedEnd = 0

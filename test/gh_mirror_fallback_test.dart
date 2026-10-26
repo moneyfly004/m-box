@@ -10,8 +10,8 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:moneyfly/core/api/gh_mirror.dart';
-import 'package:moneyfly/core/services/update_service.dart';
+import 'package:mbox/core/api/gh_mirror.dart';
+import 'package:mbox/core/services/update_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// 假 GitHub：直连域名一律连接层失败，镜像域名按 sha 返回正常响应（可配置）。
@@ -271,7 +271,7 @@ void main() {
       expect(info.sizeText, '26 MB');
       expect(info.isNewer, isTrue);
       expect(UpdateService.hasUpdate.value, isTrue);
-      expect(panelKey, ['moneyfly_windows_url'], reason: 'Windows 应问 Windows 入口');
+      expect(panelKey, ['mbox_windows_url'], reason: 'Windows 应问 Windows 入口');
     });
 
     test('面板兜底拿到的包也能下载并按 sha256 校验', () async {
@@ -349,7 +349,8 @@ void main() {
       debugDefaultTargetPlatformOverride = TargetPlatform.android;
       armStub();
       await UpdateService.instance.check();
-      expect(keys, ['moneyfly_android_url']);
+      // 新键查不到 → 回退查一次面板旧字段名（后端还没改键时也能拿到更新）
+      expect(keys, ['mbox_android_url', 'moneyfly_android_url']);
 
       // iOS 只做 IPA 侧载提示，面板没有对应入口 → 不应发出兜底请求
       keys.clear();

@@ -2,7 +2,7 @@ import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:moneyfly/core/api/server_pool.dart';
+import 'package:mbox/core/api/server_pool.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {

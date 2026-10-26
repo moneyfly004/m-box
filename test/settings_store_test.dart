@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:moneyfly/core/services/settings_store.dart';
+import 'package:mbox/core/services/settings_store.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {

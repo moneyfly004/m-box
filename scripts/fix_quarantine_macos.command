@@ -1,5 +1,5 @@
 #!/bin/bash
-# MoneyFly macOS：修复「“MoneyFly”已损坏，无法打开。您应该将它移到废纸篓。」
+# MBox macOS：修复「“MBox”已损坏，无法打开。您应该将它移到废纸篓。」
 #
 # 为什么会「已损坏」：本 App 用的是 **ad-hoc 签名**（没有付费 Apple 开发者证书，
 # TeamIdentifier 为空）。macOS 的 Gatekeeper 对这类 App 只有两种情况：
@@ -13,16 +13,16 @@
 # 用法：双击运行；或终端执行：bash fix_quarantine_macos.command [App路径]
 set -u
 
-APP="${1:-/Applications/MoneyFly.app}"
+APP="${1:-/Applications/MBox.app}"
 
 echo "=============================================="
-echo "  MoneyFly 修复「已损坏，无法打开」"
+echo "  MBox 修复「已损坏，无法打开」"
 echo "=============================================="
 
 if [ ! -d "$APP" ]; then
   echo "找不到 $APP"
   echo "如果装在其它的地方，请把 App 拖到本脚本上，或用："
-  echo "  bash \"$0\" /你的路径/MoneyFly.app"
+  echo "  bash \"$0\" /你的路径/MBox.app"
   exit 1
 fi
 
@@ -46,7 +46,7 @@ for f in "$HOME/Downloads"/MBox-*.dmg; do
 done
 
 echo "=============================================="
-echo "  完成：现在可以正常打开 MoneyFly 了。"
+echo "  完成：现在可以正常打开 MBox 了。"
 echo "  （下次在 App 内点「立即更新」会由 App 自己完成安装，"
 echo "   不会再要求你手动拖拽，也不会再出现「已损坏」）"
 echo "=============================================="

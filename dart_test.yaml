@@ -1,6 +1,6 @@
 # 测试标签声明（package:test / flutter test 通用）。
 #
-# e2e：会启动**真实 mihomo 内核**、或占用固定本地端口（mixed 2080 / controller 9090）、
+# e2e：会启动**真实 sing-box 内核**、或占用固定本地端口（mixed 2080 / controller 9090）、
 #      或读写真实系统代理设置的端到端测试。这些用例并行跑会互相抢端口与临时工作目录
 #      （历史上因此让 CI 变成 `flutter test --concurrency=1` 全量串行，一次要 2 分钟）。
 #      现在只把它们单独串行跑，其余几百个纯单元/widget 测试用默认并发（runner 核数）

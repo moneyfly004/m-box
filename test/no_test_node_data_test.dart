@@ -91,7 +91,7 @@ final _allowedIpPrefixes = <String>[
 final _allowedDomainSuffixes = <String>[
   'example.com', 'example.org', 'example.net', 'example', 'invalid', 'test',
   'localhost', 'local', 'lan', 'apple.com', 'gstatic.com', 'github.com',
-  'githubusercontent.com', 'moneyfly.top', 'dpdns.org', 'fastora.top',
+  'githubusercontent.com', 'mbox.top', 'dpdns.org', 'fastora.top',
   'ghfast.top', 'gh-proxy.com', 'llkk.cc', 'ddlc.top', 'pub.dev', 'dart.dev',
   'flutter.dev', 'w3.org', 'apache.org', 'opensource.org', 'creativecommons.org',
   'stackoverflow.com', 'cloudflare.com', 'google.com', 'microsoft.com',
@@ -100,14 +100,14 @@ final _allowedDomainSuffixes = <String>[
 /// 目录/后缀：逐字节扫这些位置（会进包 + 会进公开仓库的源码）
 const _scanRoots = <String>[
   'lib', 'test', 'tool', 'scripts', '.github', 'assets',
-  'android/mihomo-core', 'ios/PacketTunnel',
+  'ios/PacketTunnel',
 ];
 const _scanFiles = <String>[
   'pubspec.yaml', 'README.md', 'analysis_options.yaml', 'dart_test.yaml',
 ];
 const _skipDirs = <String>{
   '.git', '.dart_tool', 'build', 'dist', 'Pods', 'ephemeral', 'node_modules',
-  'mihomo-bin', '.idea', 'Runner.xcodeproj', 'xcuserdata', '.symlinks',
+  '.idea', 'Runner.xcodeproj', 'xcuserdata', '.symlinks',
   'Mihomelib.xcframework', '__pycache__',
 };
 const _skipExts = <String>[
@@ -248,7 +248,7 @@ void main() {
     expect(_guardFiles.contains(_posix(r'test\no_test_node_data_test.dart')),
         isTrue);
     expect(_posix(r'lib\core\services\x.dart').startsWith('lib/'), isTrue);
-    expect(_posix(r'D:\a\moneyfly\moneyfly\build\app\x.dll')
+    expect(_posix(r'D:\a\mbox\mbox\build\app\x.dll')
         .contains('/build/'), isTrue);
   });
 }

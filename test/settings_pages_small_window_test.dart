@@ -11,21 +11,21 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:moneyfly/core/proxy/proxy_core_cli.dart';
-import 'package:moneyfly/l10n/app_strings.dart';
-import 'package:moneyfly/pages/settings/access_page.dart';
-import 'package:moneyfly/pages/settings/bypass_page.dart';
-import 'package:moneyfly/pages/settings/log_center_page.dart';
-import 'package:moneyfly/theme/app_theme.dart';
+import 'package:mbox/core/proxy/proxy_core_cli.dart';
+import 'package:mbox/l10n/app_strings.dart';
+import 'package:mbox/pages/settings/access_page.dart';
+import 'package:mbox/pages/settings/bypass_page.dart';
+import 'package:mbox/pages/settings/log_center_page.dart';
+import 'package:mbox/theme/app_theme.dart';
 
 const Size _kMinWindow = Size(380, 620);
-const MethodChannel _channel = MethodChannel('top.moneyfly/vpn_core');
+const MethodChannel _channel = MethodChannel('top.mbox/vpn_core');
 
 Future<void> _pump(WidgetTester tester, Widget page) async {
   tester.view.physicalSize = _kMinWindow;
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
-  await tester.pumpWidget(MaterialApp(theme: buildMoneyFlyTheme(), home: page));
+  await tester.pumpWidget(MaterialApp(theme: buildMBoxTheme(), home: page));
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 50));
 }
@@ -35,7 +35,7 @@ void main() {
 
   setUp(() {
     SharedPreferences.setMockInitialValues({
-      'moneyfly_settings_v1': jsonEncode({
+      'mbox_settings_v1': jsonEncode({
         'kernelLogLevel': 'debug',
         'accessControlMode': 'selected',
         'bypassDomains': <String>[

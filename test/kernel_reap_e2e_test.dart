@@ -8,13 +8,13 @@ library;
 // 后者被前者误伤（新实例把 17:09 实例正在跑的内核杀了，退出码 -1）。
 //
 // 造两个假进程：
-//   moneyfly_fake_app      —— 命令行含 moneyfly 的「活着的 App」
-//   mihomo_moneyfly_core   —— 命令行含 mihomo + moneyfly_core 的「内核」
+//   mbox_fake_app      —— 命令行含 mbox 的「活着的 App」
+//   sing-box_mbox_core —— 命令行含 sing-box + mbox_core 的「内核」
 // 前者是后者的父进程，复刻真实父子关系。
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:moneyfly/core/proxy/proxy_core_cli.dart';
+import 'package:mbox/core/proxy/proxy_core_cli.dart';
 
 /// 进程是否存活
 Future<bool> _alive(int pid) async {
@@ -34,8 +34,8 @@ Future<void> _waitGone(int pid, {int ms = 2000}) async {
 Future<({int appPid, int kernelPid})> _spawnFakePair(Directory tmp) async {
   final script = File('${tmp.path}/fake_pair.sh');
   await script.writeAsString('''
-exec -a moneyfly_fake_app bash -c '
-  exec -a mihomo_moneyfly_core sleep 300 &
+exec -a mbox_fake_app bash -c '
+  exec -a sing-box_mbox_core sleep 300 &
   echo "\$!"
   wait
 '

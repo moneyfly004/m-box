@@ -10,8 +10,8 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:moneyfly/core/api/user_agent.dart';
-import 'package:moneyfly/core/services/local_paths.dart';
+import 'package:mbox/core/api/user_agent.dart';
+import 'package:mbox/core/services/local_paths.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

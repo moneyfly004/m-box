@@ -26,7 +26,7 @@ class TrayService with TrayListener {
     onQuit = quit;
     trayManager.addListener(this);
     await trayManager.setIcon(_iconPath());
-    await trayManager.setToolTip('MoneyFly');
+    await trayManager.setToolTip('MBox');
     await _updateMenu();
     _initialized = true;
     ConnectionController.instance.addListener(_onStateChanged);
@@ -37,7 +37,7 @@ class TrayService with TrayListener {
   ///   .ico —— PNG 会加载失败返回 NULL，托盘图标表现为「一片空白」；
   /// - macOS：插件把图标字节转 base64 交给 NSImage，PNG 可用。
   String _iconPath() =>
-      Platform.isWindows ? 'assets/tray_icon.ico' : 'assets/moneyfly-logo.png';
+      Platform.isWindows ? 'assets/tray_icon.ico' : 'assets/tray_icon.png';
 
   void _onStateChanged() => _updateMenu();
 

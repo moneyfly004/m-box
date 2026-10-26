@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:moneyfly/core/proxy/proxy_core_embedded.dart';
+import 'package:mbox/core/proxy/proxy_core_embedded.dart';
 
 /// iOS 稳定性回归（客户实测 2026-10-18：「经常自动断开连接」「热切换失败」）。
 ///

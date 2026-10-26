@@ -10,8 +10,8 @@
 
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:moneyfly/core/api/endpoints.dart';
-import 'package:moneyfly/core/services/login_lock.dart';
+import 'package:mbox/core/api/endpoints.dart';
+import 'package:mbox/core/services/login_lock.dart';
 
 /// 构造一个与真实响应等价的 DioException
 DioException _dio(int status, Object body, {Map<String, String>? headers}) {

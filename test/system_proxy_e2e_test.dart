@@ -3,21 +3,23 @@ library;
 
 // 端到端：真实内核 + 系统代理管理（macOS 上验证「连接改变系统代理、断开恢复」）
 //
-// 内核位置：MONEYFLY_SINGBOX（旧名 MONEYFLY_MIHOMO 兼容）/ 仓库 .core_dl /
+// 内核位置：MBOX_SINGBOX / 仓库 .core_dl /
 // build/sing-box / PATH；找不到时跳过（CI 桌面端不装内核二进制）。
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:moneyfly/core/models/models.dart';
-import 'package:moneyfly/core/proxy/singbox_config.dart';
-import 'package:moneyfly/core/proxy/proxy_core_cli.dart';
-import 'package:moneyfly/core/services/local_paths.dart';
+import 'package:mbox/core/models/models.dart';
+import 'package:mbox/core/proxy/singbox_config.dart';
+import 'package:mbox/core/proxy/proxy_core_cli.dart';
+import 'package:mbox/core/services/local_paths.dart';
 
 /// 定位本地 sing-box 内核（与 proxy_core_integration_test 同一套查找顺序）
 String? _findBinary() {
-  for (final key in ['MONEYFLY_SINGBOX', 'MONEYFLY_MIHOMO']) {
-    final v = Platform.environment[key];
-    if (v != null && v.isNotEmpty && File(v).existsSync()) return v;
+  final injected = Platform.environment['MBOX_SINGBOX'];
+  if (injected != null &&
+      injected.isNotEmpty &&
+      File(injected).existsSync()) {
+    return injected;
   }
   final exe = Platform.isWindows ? 'sing-box.exe' : 'sing-box';
   final candidates = <String>[];
@@ -51,12 +53,12 @@ String? _findBinary() {
 }
 
 /// 把内核挂到 [ProxyCoreCli.resolveKernelBinary] 查找的位置
-/// （`<support>/kernel/mihomo`；flutter test 无 path_provider → 用官方注入点）。
+/// （`<support>/kernel/sing-box`；flutter test 无 path_provider → 用官方注入点）。
 void _installKernel(String bin) {
   final support = Directory.systemTemp.createTempSync('mf_kernel_');
   Directory('${support.path}/kernel').createSync(recursive: true);
   final target =
-      '${support.path}/kernel/${Platform.isWindows ? 'mihomo.exe' : 'mihomo'}';
+      '${support.path}/kernel/${Platform.isWindows ? 'sing-box.exe' : 'sing-box'}';
   try {
     Link(target).createSync(bin);
   } catch (_) {
@@ -69,7 +71,7 @@ void _installKernel(String bin) {
 /// `flutter test` 默认按文件并发，两个 e2e 文件同时起内核会互相覆盖
 /// `ProxyCoreCli.workDir/config.json` 并抢 2080/9090。用跨进程文件锁排队。
 Future<T> _withKernelLock<T>(Future<T> Function() body) async {
-  final raf = await File('${Directory.systemTemp.path}/moneyfly_core.e2e.lock')
+  final raf = await File('${Directory.systemTemp.path}/mbox_core.e2e.lock')
       .open(mode: FileMode.write);
   try {
     await raf.lock(FileLock.blockingExclusive);
@@ -88,7 +90,7 @@ void main() {
 
   final binary = _findBinary();
   final skip = binary == null
-      ? '未找到 sing-box 内核（MONEYFLY_SINGBOX / 仓库 .core_dl / PATH）'
+      ? '未找到 sing-box 内核（MBOX_SINGBOX / 仓库 .core_dl / PATH）'
       : null;
 
   test('端到端：连接设置系统代理 → 断开恢复', skip: skip, () async {

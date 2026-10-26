@@ -26,7 +26,7 @@ extension KernelVariantX on KernelVariant {
 /// 桌面端下载官方预编译二进制并热替换。
 ///
 /// 内核来源：SagerNet/sing-box 官方 GitHub Release（与 CI 构建下载同源）。
-/// Android/iOS 内核以 gomobile 静态库编译进 App（libmoneyfly.aar /
+/// Android/iOS 内核以 gomobile 静态库编译进 App（libmbox.aar /
 /// Libbox.xcframework），无法运行期替换 —— 页面提示随 App 更新。
 class KernelManager {
   KernelManager._();
@@ -65,10 +65,9 @@ class KernelManager {
   static Future<bool> hasUserKernel() async =>
       (await userActivePath()) != null;
 
-  /// 生效内核查找优先级：测试注入(MONEYFLY_SINGBOX) → 用户副本 → 安装内置
+  /// 生效内核查找优先级：测试注入(MBOX_SINGBOX) → 用户副本 → 安装内置
   static Future<String?> resolveKernelPath() async {
-    final override = Platform.environment['MONEYFLY_SINGBOX'] ??
-        Platform.environment['MONEYFLY_MIHOMO']; // 旧变量名兼容
+    final override = Platform.environment['MBOX_SINGBOX'];
     if (override != null && override.isNotEmpty && File(override).existsSync()) {
       return override;
     }
@@ -175,7 +174,7 @@ class KernelManager {
   Future<String?> detectCurrent() async {
     try {
       if (Platform.isAndroid) {
-        const ch = MethodChannel('top.moneyfly/vpn_core');
+        const ch = MethodChannel('top.mbox/vpn_core');
         final v = await ch.invokeMethod<String>('kernelVersion');
         return norm(v);
       }

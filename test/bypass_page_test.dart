@@ -10,9 +10,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:moneyfly/l10n/app_strings.dart';
-import 'package:moneyfly/pages/settings/bypass_page.dart';
-import 'package:moneyfly/theme/app_theme.dart';
+import 'package:mbox/l10n/app_strings.dart';
+import 'package:mbox/pages/settings/bypass_page.dart';
+import 'package:mbox/theme/app_theme.dart';
 
 /// 小窗口（应用允许的最小窗口），Ahem 测试字体下依然不能溢出/不可点
 const Size _kMinWindow = Size(380, 620);
@@ -22,13 +22,13 @@ Future<void> _pump(WidgetTester tester, {bool pushed = false}) async {
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
 
-  final page = MaterialApp(theme: buildMoneyFlyTheme(), home: const BypassPage());
+  final page = MaterialApp(theme: buildMBoxTheme(), home: const BypassPage());
   if (!pushed) {
     await tester.pumpWidget(page);
   } else {
     // 从上一页 push 进来，才能验证 AppBar 的返回按钮真的能返回
     await tester.pumpWidget(MaterialApp(
-      theme: buildMoneyFlyTheme(),
+      theme: buildMBoxTheme(),
       home: Scaffold(
         body: Builder(
           builder: (context) => TextButton(

@@ -3,7 +3,7 @@
 // 真实订阅节点上的**双方式对照**（只读、脱敏输出）。
 //
 // 运行:
-//   MONEYFLY_MIHOMO=$PWD/mihomo-bin/mihomo-darwin-arm64 \
+//   MBOX_SINGBOX=$PWD/.core_dl/sing-box-1.14.4-darwin-arm64/sing-box \
 //     flutter test test/kernel_speed_test_real_nodes_test.dart --tags e2e --concurrency=1
 //
 // 目的：在**真实远端节点**（真实机场订阅，含 vless/hysteria2/tuic 等真实协议、
@@ -22,14 +22,14 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:moneyfly/core/models/models.dart';
-import 'package:moneyfly/core/proxy/speed_probe_kernel.dart';
-import 'package:moneyfly/core/services/settings_store.dart';
-import 'package:moneyfly/core/services/speed_tester.dart';
-import 'package:moneyfly/core/services/subscription_service.dart';
+import 'package:mbox/core/models/models.dart';
+import 'package:mbox/core/proxy/speed_probe_kernel.dart';
+import 'package:mbox/core/services/settings_store.dart';
+import 'package:mbox/core/services/speed_tester.dart';
+import 'package:mbox/core/services/subscription_service.dart';
 
 final _cache = File('${Platform.environment['HOME']}/Library/Application Support/'
-    'top.moneyfly.app/subscription_cache.json');
+    'top.mbox.app/subscription_cache.json');
 
 /// 每类协议最多取几个（控制对远端节点的压力：默认总量 ≤ 12）
 const _perType = 4;

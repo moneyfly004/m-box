@@ -1,5 +1,5 @@
-name: moneyfly
-description: "MoneyFly 全平台加速客户端"
+name: mbox
+description: "MBox 全平台加速客户端"
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -84,7 +84,8 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/moneyfly-logo.png
+    - assets/mbox-logo.png
+    - assets/tray_icon.png
     # 托盘图标（Windows：tray_manager 底层 LoadImage(IMAGE_ICON) 只认 .ico，
     # PNG 会加载失败导致托盘图标空白；macOS 走 base64 仍用 PNG）
     - assets/tray_icon.ico

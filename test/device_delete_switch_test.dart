@@ -5,13 +5,13 @@ import 'package:http_mock_adapter/http_mock_adapter.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:moneyfly/core/api/api_client.dart';
-import 'package:moneyfly/core/proxy/proxy_core.dart';
-import 'package:moneyfly/core/services/account_service.dart';
-import 'package:moneyfly/core/services/subscription_service.dart';
-import 'package:moneyfly/main.dart';
-import 'package:moneyfly/pages/devices/devices_page.dart';
-import 'package:moneyfly/theme/app_theme.dart';
+import 'package:mbox/core/api/api_client.dart';
+import 'package:mbox/core/proxy/proxy_core.dart';
+import 'package:mbox/core/services/account_service.dart';
+import 'package:mbox/core/services/subscription_service.dart';
+import 'package:mbox/main.dart';
+import 'package:mbox/pages/devices/devices_page.dart';
+import 'package:mbox/theme/app_theme.dart';
 
 /// 设备管理页的删除入口必须**只由后台开关决定**（用户明确要求）：
 ///   开关关闭（allow_delete_device=false）→ 页面上只有「升级设备数量」，没有任何删除入口；
@@ -37,7 +37,7 @@ Dio _mockDio({required bool allowDelete}) {
   final adapter = DioAdapter(dio: dio);
   dio.httpClientAdapter = adapter;
   adapter.onGet('/subscriptions/devices', (s) => s.reply(200, _env({
-        'devices': [_device(1, 'MoneyFly - Windows 11'), _device(2, 'Clash Verge - Windows')],
+        'devices': [_device(1, 'MBox - Windows 11'), _device(2, 'Clash Verge - Windows')],
         'total': 2,
         'page': 1,
         'size': 20,
@@ -70,7 +70,7 @@ Future<void> _pump(WidgetTester tester, Widget page) async {
 }
 
 Widget _wrap(Widget child) => MaterialApp(
-      theme: buildMoneyFlyTheme(),
+      theme: buildMBoxTheme(),
       home: MultiProvider(
         providers: [
           ChangeNotifierProvider.value(value: SessionState()..setLoggedIn(true)),
@@ -95,7 +95,7 @@ void main() {
     await _pump(tester, _wrap(const DevicesPage()));
 
     // 两台设备都渲染出来了（确认不是"没加载出来"造成的假阴性）
-    expect(find.textContaining('MoneyFly'), findsWidgets);
+    expect(find.textContaining('MBox'), findsWidgets);
 
     // 关键：**操作入口**只能有「升级设备数量」，不能有任何删除按钮
     // （说明性文案里出现"不支持删除设备"是允许的：那是在解释原因）
@@ -111,7 +111,7 @@ void main() {
     ApiClient.debugDio = _mockDio(allowDelete: true);
     await _pump(tester, _wrap(const DevicesPage()));
 
-    expect(find.textContaining('MoneyFly'), findsWidgets);
+    expect(find.textContaining('MBox'), findsWidgets);
     expect(find.byIcon(Icons.delete_outline), findsWidgets,
         reason: '后台允许删除时，每台设备都要有删除按钮');
     expect(find.byIcon(Icons.add_circle_outline), findsNothing,

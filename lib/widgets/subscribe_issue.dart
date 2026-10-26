@@ -72,11 +72,11 @@ class SubscribeIssuePrompt {
     final action = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: MFColors.card,
+        backgroundColor: MBColors.card,
         title: Text(title, style: const TextStyle(fontSize: 15.5)),
         content: Text(body,
             style: TextStyle(
-                fontSize: 13, color: MFColors.txt2, height: 1.55)),
+                fontSize: 13, color: MBColors.txt2, height: 1.55)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, 'cancel'),

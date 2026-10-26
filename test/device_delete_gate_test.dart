@@ -23,17 +23,17 @@ import 'package:http_mock_adapter/http_mock_adapter.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:moneyfly/core/api/api_client.dart';
-import 'package:moneyfly/core/models/models.dart';
-import 'package:moneyfly/core/proxy/proxy_core.dart';
-import 'package:moneyfly/core/services/account_service.dart';
-import 'package:moneyfly/core/services/device_service.dart';
-import 'package:moneyfly/core/services/subscription_service.dart';
-import 'package:moneyfly/l10n/app_strings.dart';
-import 'package:moneyfly/main.dart';
-import 'package:moneyfly/pages/devices/devices_page.dart';
-import 'package:moneyfly/pages/package/upgrade_devices_page.dart';
-import 'package:moneyfly/theme/app_theme.dart';
+import 'package:mbox/core/api/api_client.dart';
+import 'package:mbox/core/models/models.dart';
+import 'package:mbox/core/proxy/proxy_core.dart';
+import 'package:mbox/core/services/account_service.dart';
+import 'package:mbox/core/services/device_service.dart';
+import 'package:mbox/core/services/subscription_service.dart';
+import 'package:mbox/l10n/app_strings.dart';
+import 'package:mbox/main.dart';
+import 'package:mbox/pages/devices/devices_page.dart';
+import 'package:mbox/pages/package/upgrade_devices_page.dart';
+import 'package:mbox/theme/app_theme.dart';
 
 /// 后端信封（与 ApiClient._unwrap 的契约一致）
 Map<String, dynamic> _env(dynamic data) => {
@@ -93,7 +93,7 @@ Map<String, dynamic> _deviceJson({int id = 11, String name = '我的手机'}) =>
       'device_type': 'phone',
       'device_model': '',
       'device_brand': 'Apple',
-      'software_name': 'MoneyFly',
+      'software_name': 'MBox',
       'software_version': '1.0.0',
       'is_allowed': true,
       'first_seen': '',
@@ -117,7 +117,7 @@ Map<String, dynamic> _listBody(List<Map<String, dynamic>> devices,
 Future<void> _pumpDevices(WidgetTester tester) async {
   await tester.runAsync(() async {
     await tester.pumpWidget(MaterialApp(
-      theme: buildMoneyFlyTheme(),
+      theme: buildMBoxTheme(),
       home: MultiProvider(
         providers: [
           ChangeNotifierProvider.value(value: SessionState()..setLoggedIn(true)),

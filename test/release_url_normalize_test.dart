@@ -1,7 +1,7 @@
 // 更新地址归一化：确保应用内更新永远指向**新仓库**（moneyfly004/m-box）
 // 与**新产物名**（MBox-*），不会被面板里残留的旧配置带回老 release。
 import 'package:flutter_test/flutter_test.dart';
-import 'package:moneyfly/core/services/update_service.dart';
+import 'package:mbox/core/services/update_service.dart';
 
 void main() {
   group('normalizeReleaseUrl', () {
@@ -16,7 +16,7 @@ void main() {
     test('旧仓库 + 旧产物名 → 新仓库 + 新产物名', () {
       expect(
         UpdateService.normalizeReleaseUrl(
-            'https://github.com/moneyfly004/moneyfly/releases/download/v2.2.33/MoneyFly-setup-2.2.33.exe'),
+            'https://github.com/moneyfly004/moneyfly/releases/download/v2.2.33/MBox-setup-2.2.33.exe'),
         'https://github.com/moneyfly004/m-box/releases/download/v2.2.33/MBox-setup-2.2.33.exe',
       );
     });
@@ -29,7 +29,7 @@ void main() {
 
     test('非 GitHub 地址（面板自建 CDN）只归一化产物名', () {
       expect(
-        UpdateService.normalizeReleaseUrl('https://dl.example.com/pkgs/MoneyFly-android-arm64-v8a-1.0.0.apk'),
+        UpdateService.normalizeReleaseUrl('https://dl.example.com/pkgs/MBox-android-arm64-v8a-1.0.0.apk'),
         'https://dl.example.com/pkgs/MBox-android-arm64-v8a-1.0.0.apk',
       );
       expect(UpdateService.normalizeReleaseUrl('https://dl.example.com/pkgs/app.apk'),
@@ -43,8 +43,8 @@ void main() {
   });
 
   group('normalizeAssetName', () {
-    test('MoneyFly-* → MBox-*，其余不动', () {
-      expect(UpdateService.normalizeAssetName('MoneyFly-ios-0.0.1.ipa'),
+    test('MBox-* → MBox-*，其余不动', () {
+      expect(UpdateService.normalizeAssetName('MBox-ios-0.0.1.ipa'),
           'MBox-ios-0.0.1.ipa');
       expect(UpdateService.normalizeAssetName('MBox-ios-0.0.1.ipa'),
           'MBox-ios-0.0.1.ipa');

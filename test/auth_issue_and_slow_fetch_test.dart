@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:moneyfly/core/services/subscribe_url_failover.dart';
-import 'package:moneyfly/core/services/subscription_service.dart';
+import 'package:mbox/core/services/subscribe_url_failover.dart';
+import 'package:mbox/core/services/subscription_service.dart';
 
 /// 客户实测（2026-10-18）：「登录后提示 网络服务端异常 拉不到新订阅」。
 ///

@@ -84,7 +84,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
                Text('🔒 ${AppStrings.t('pwd_change_tip')}',
-                  style: TextStyle(fontSize: 11.5, color: MFColors.txt3, height: 1.7)),
+                  style: TextStyle(fontSize: 11.5, color: MBColors.txt3, height: 1.7)),
               const SizedBox(height: 22),
               _field(AppStrings.t('cur_pwd'), _old, hint: AppStrings.t('cur_pwd_hint'), obscure: _obscure, suffix: _eyeBtn()),
               const SizedBox(height: 12),
@@ -94,10 +94,10 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
               _field(AppStrings.t('confirm_pwd'), _confirm, hint: AppStrings.t('confirm_pwd_hint'), obscure: _obscure, suffix: _eyeBtn()),
               if (_formError != null) ...[
                 const SizedBox(height: 4),
-                MFFormError(message: _formError!),
+                MBFormError(message: _formError!),
               ],
               const SizedBox(height: 26),
-              MFPrimaryButton(label: AppStrings.t('save_pwd'), loading: _loading, onPressed: _loading ? null : _submit),
+              MBPrimaryButton(label: AppStrings.t('save_pwd'), loading: _loading, onPressed: _loading ? null : _submit),
             ],
           ),
         ),
@@ -107,7 +107,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
 
   Widget _eyeBtn() => IconButton(
         icon: Icon(_obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-            size: 19, color: MFColors.txt3),
+            size: 19, color: MBColors.txt3),
         onPressed: () => setState(() => _obscure = !_obscure),
       );
 
@@ -118,7 +118,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
       children: [
         Padding(
           padding: const EdgeInsets.only(left: 2, bottom: 7),
-          child: Text(label, style:  TextStyle(fontSize: 12.5, color: MFColors.txt2, fontWeight: FontWeight.w500)),
+          child: Text(label, style:  TextStyle(fontSize: 12.5, color: MBColors.txt2, fontWeight: FontWeight.w500)),
         ),
         Row(
           children: [
@@ -130,7 +130,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                 },
                 obscureText: obscure,
                 style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 15),
-                cursorColor: MFColors.brand,
+                cursorColor: MBColors.brand,
                 decoration: InputDecoration(hintText: hint),
               ),
             ),

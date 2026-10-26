@@ -12,13 +12,13 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:moneyfly/core/proxy/proxy_core.dart';
-import 'package:moneyfly/l10n/app_strings.dart';
-import 'package:moneyfly/pages/settings/access_page.dart';
-import 'package:moneyfly/theme/app_theme.dart';
+import 'package:mbox/core/proxy/proxy_core.dart';
+import 'package:mbox/l10n/app_strings.dart';
+import 'package:mbox/pages/settings/access_page.dart';
+import 'package:mbox/theme/app_theme.dart';
 
 const Size _kMinWindow = Size(380, 620);
-const MethodChannel _channel = MethodChannel('top.moneyfly/vpn_core');
+const MethodChannel _channel = MethodChannel('top.mbox/vpn_core');
 
 List<Map<String, String>> _apps = const [
   {'package': 'com.demo.one', 'label': 'Demo One'},
@@ -40,7 +40,7 @@ Future<void> _pump(WidgetTester tester) async {
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
   await tester.pumpWidget(
-      MaterialApp(theme: buildMoneyFlyTheme(), home: const AccessPage()));
+      MaterialApp(theme: buildMBoxTheme(), home: const AccessPage()));
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 50));
 }
@@ -50,7 +50,7 @@ void main() {
 
   setUp(() async {
     SharedPreferences.setMockInitialValues({
-      'moneyfly_settings_v1': jsonEncode({'accessControlMode': 'all'}),
+      'mbox_settings_v1': jsonEncode({'accessControlMode': 'all'}),
     });
     await AppStrings.setLang('zh', persist: false);
     ConnectionController.instance.status = ConnStatus.disconnected;

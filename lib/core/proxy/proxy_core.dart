@@ -632,8 +632,8 @@ class ConnectionController extends ChangeNotifier {
       CrashRecoveryAction.recover;
 
   /// 各平台内核工作目录（规则集与 config 同目录，配置里以绝对路径引用）：
-  /// - 桌面：CLI workDir（系统临时目录 moneyfly_core）
-  /// - Android/iOS：filesDir/work（MoneyFlyVpnService 同一内核目录）
+  /// - 桌面：CLI workDir（系统临时目录 mbox_core）
+  /// - Android/iOS：filesDir/work（MBoxVpnService 同一内核目录）
   Future<String?> _geoWorkDir() async {
     if (Platform.isAndroid || Platform.isIOS) {
       final support = await LocalPaths.supportDir(); // Android = filesDir

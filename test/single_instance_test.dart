@@ -6,7 +6,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:moneyfly/core/services/single_instance.dart';
+import 'package:mbox/core/services/single_instance.dart';
 
 /// 找到随 Flutter 一起安装的 dart 可执行文件（跨进程验证需要它）
 String? _dartExe() {
@@ -52,7 +52,7 @@ void main() {
 
   test('取锁成功 → 释放后可再次取锁（不留假锁把用户挡在门外）', () async {
     expect(await SingleInstance.acquire(), isTrue);
-    expect(File('${tmp.path}/moneyfly.lock').existsSync(), isTrue);
+    expect(File('${tmp.path}/mbox.lock').existsSync(), isTrue);
     await SingleInstance.releaseForTest();
     expect(await SingleInstance.acquire(), isTrue);
   });
@@ -68,7 +68,7 @@ void main() {
     await script.writeAsString(_childScript);
 
     expect(await SingleInstance.acquire(), isTrue);
-    final lockPath = '${tmp.path}/moneyfly.lock';
+    final lockPath = '${tmp.path}/mbox.lock';
 
     if (dart != null) {
       final blocked =

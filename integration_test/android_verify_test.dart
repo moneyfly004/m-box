@@ -5,19 +5,19 @@
 //   能通 = 全局模式可用；不通 = 复现故障（GLOBAL 组没指向真实节点等）。
 //
 // 运行：flutter test integration_test/android_verify_test.dart -d emulator-5554
-// 前置：adb shell appops set top.moneyfly.app ACTIVATE_VPN allow
+// 前置：adb shell appops set top.mbox.app ACTIVATE_VPN allow
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:moneyfly/core/proxy/proxy_core.dart';
-import 'package:moneyfly/core/services/permission_service.dart';
-import 'package:moneyfly/core/services/settings_store.dart';
-import 'package:moneyfly/l10n/app_strings.dart';
-import 'package:moneyfly/theme/app_theme.dart';
-import 'package:moneyfly/main.dart' as app;
+import 'package:mbox/core/proxy/proxy_core.dart';
+import 'package:mbox/core/services/permission_service.dart';
+import 'package:mbox/core/services/settings_store.dart';
+import 'package:mbox/l10n/app_strings.dart';
+import 'package:mbox/theme/app_theme.dart';
+import 'package:mbox/main.dart' as app;
 
 const _account = '454487210@qq.com';
 const _password = 'Sikeming001@';
@@ -65,7 +65,7 @@ void main() {
     // 否则会在收尾处报 "_pendingExceptionDetails != null"（上一版就栽在这）。
     // 语言固定为中文：CI/新装设备默认英文，而断言用的是 AppStrings（跟随语言）
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('moneyfly_lang', 'zh');
+    await prefs.setString('mbox_lang', 'zh');
 
     final prevOnError = FlutterError.onError;
     app.main();
@@ -81,7 +81,7 @@ void main() {
       await tester.enterText(fields.at(1), _password);
       await tester.pump();
       // 按按钮类型找，不依赖界面语言（新装设备默认英文）
-      await tester.tap(find.byType(MFPrimaryButton).first);
+      await tester.tap(find.byType(MBPrimaryButton).first);
       await tester.pump();
     }
     await _waitFor(tester, () =>

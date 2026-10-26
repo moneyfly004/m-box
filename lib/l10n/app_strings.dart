@@ -531,7 +531,7 @@ class AppStrings {
     'pwd_changed': '密码修改成功',
     'pwd_change_tip': '修改密码后，其他已登录设备将保持登录状态，下次登录请使用新密码。',
     // 注册/找回
-    'join_moneyfly': '加入 MBox',
+    'join_mbox': '加入 MBox',
     'join_tip': '注册后即可购买套餐开始加速',
     'code_sent': '验证码已发送至邮箱，5 分钟内有效',
     'register_btn': '注 册',
@@ -1297,7 +1297,7 @@ class AppStrings {
     'pwd_changed': 'Password changed',
     'pwd_change_tip': 'Other signed-in devices stay signed in. Use the new password next time.',
     // 注册/找回
-    'join_moneyfly': 'Join MBox',
+    'join_mbox': 'Join MBox',
     'join_tip': 'Subscribe a plan to start accelerating',
     'code_sent': 'Code sent to your email, valid for 5 minutes',
     'register_btn': 'Sign Up',
@@ -1551,7 +1551,7 @@ class AppStrings {
     _lang = (l == 'en') ? 'en' : 'zh';
     if (persist) {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('moneyfly_lang', _lang);
+      await prefs.setString('mbox_lang', _lang);
     }
   }
 
@@ -1559,7 +1559,7 @@ class AppStrings {
   static Future<void> restore() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final saved = prefs.getString('moneyfly_lang');
+      final saved = prefs.getString('mbox_lang');
       if (saved == 'en' || saved == 'zh') {
         _lang = saved!;
         return;

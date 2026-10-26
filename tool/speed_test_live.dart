@@ -4,8 +4,8 @@
 /// 用法: dart run tool/speed_test_live.dart <clash.yaml> [--manual 节点名子串]
 import 'dart:io';
 
-import 'package:moneyfly/core/models/models.dart';
-import 'package:moneyfly/core/services/speed_tester.dart';
+import 'package:mbox/core/models/models.dart';
+import 'package:mbox/core/services/speed_tester.dart';
 import 'package:yaml/yaml.dart';
 
 /// 与客户端一致的伪节点过滤

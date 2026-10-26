@@ -45,7 +45,7 @@ class SessionState extends ChangeNotifier {
   Future<void> restore() async {
     // 「自动登录」开关关闭时，不恢复登录态（见 login_page.setAutoLogin）
     final prefs = await SharedPreferences.getInstance();
-    if (prefs.getBool('moneyfly_auto_login') == false) {
+    if (prefs.getBool('mbox_auto_login') == false) {
       loggedIn = false;
       notifyListeners();
       return;
@@ -119,7 +119,7 @@ void main() async {
   }
 
   // 先把 UI 起起来 —— 第一帧只依赖上面的最小初始化，不依赖任何网络/文件任务
-  runApp(const MoneyFlyApp());
+  runApp(const MBoxApp());
   unawaited(_postLaunchInit(isDesktopRuntime));
 }
 
@@ -191,14 +191,14 @@ Future<void> _postLaunchInit(bool isDesktopRuntime) async {
   }
 }
 
-class MoneyFlyApp extends StatefulWidget {
-  const MoneyFlyApp({super.key});
+class MBoxApp extends StatefulWidget {
+  const MBoxApp({super.key});
 
   @override
-  State<MoneyFlyApp> createState() => _MoneyFlyAppState();
+  State<MBoxApp> createState() => _MBoxAppState();
 }
 
-class _MoneyFlyAppState extends State<MoneyFlyApp> with WidgetsBindingObserver, WindowListener {
+class _MBoxAppState extends State<MBoxApp> with WidgetsBindingObserver, WindowListener {
   final _session = SessionState();
   bool _wasLoggedIn = false;
 
@@ -209,7 +209,7 @@ class _MoneyFlyAppState extends State<MoneyFlyApp> with WidgetsBindingObserver, 
   /// 桌面：系统注销/关机的生命周期通道。
   /// Windows runner 在 WM_QUERYENDSESSION/WM_ENDSESSION、macOS runner 在
   /// applicationShouldTerminate 时通过它通知，给最后一次清理机会。
-  static const _lifecycleChannel = MethodChannel('top.moneyfly/lifecycle');
+  static const _lifecycleChannel = MethodChannel('top.mbox/lifecycle');
 
   /// 注销/关机前的最后清理：只做最必要的两件事，且带短超时 —— 系统不会等太久。
   /// 用 `restore()`（本进程内 `_applied` 为 true，能精确还原用户原代理），
@@ -428,7 +428,7 @@ class _MoneyFlyAppState extends State<MoneyFlyApp> with WidgetsBindingObserver, 
         barrierDismissible: true,
         builder: (ctx) => StatefulBuilder(
           builder: (ctx, setState) => AlertDialog(
-            backgroundColor: MFColors.card2,
+            backgroundColor: MBColors.card2,
             title: Text(AppStrings.t('close_ask_title'),
                 style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
             content: Column(
@@ -437,12 +437,12 @@ class _MoneyFlyAppState extends State<MoneyFlyApp> with WidgetsBindingObserver, 
               children: [
                 Text(AppStrings.t('close_ask_body'),
                     style: TextStyle(
-                        fontSize: 13.5, color: MFColors.txt2, height: 1.6)),
+                        fontSize: 13.5, color: MBColors.txt2, height: 1.6)),
                 CheckboxListTile(
                   value: remember,
                   onChanged: (v) => setState(() => remember = v ?? false),
                   title: Text(AppStrings.t('remember_choice'),
-                      style: TextStyle(fontSize: 12.5, color: MFColors.txt2)),
+                      style: TextStyle(fontSize: 12.5, color: MBColors.txt2)),
                   controlAffinity: ListTileControlAffinity.leading,
                   contentPadding: EdgeInsets.zero,
                   dense: true,
@@ -462,7 +462,7 @@ class _MoneyFlyAppState extends State<MoneyFlyApp> with WidgetsBindingObserver, 
                   Navigator.pop(ctx, 'hide');
                 },
                 child: Text(AppStrings.t('minimize_tray_btn'),
-                    style: TextStyle(color: MFColors.txt)),
+                    style: TextStyle(color: MBColors.txt)),
               ),
               TextButton(
                 onPressed: () {
@@ -473,7 +473,7 @@ class _MoneyFlyAppState extends State<MoneyFlyApp> with WidgetsBindingObserver, 
                   Navigator.pop(ctx, 'quit');
                 },
                 child: Text(AppStrings.t('quit_app_btn'),
-                    style: TextStyle(color: MFColors.red)),
+                    style: TextStyle(color: MBColors.red)),
               ),
             ],
           ),
@@ -546,8 +546,8 @@ class _MoneyFlyAppState extends State<MoneyFlyApp> with WidgetsBindingObserver, 
             title: AppStrings.t('app_name'),
             debugShowCheckedModeBanner: false,
             navigatorKey: rootNavigatorKey,
-            theme: buildMoneyFlyTheme(brightness: Brightness.light),
-            darkTheme: buildMoneyFlyTheme(brightness: Brightness.dark),
+            theme: buildMBoxTheme(brightness: Brightness.light),
+            darkTheme: buildMBoxTheme(brightness: Brightness.dark),
             themeMode: themeCtrl.mode,
             locale: locale.lang == 'en' ? const Locale('en') : const Locale('zh'),
             localizationsDelegates: const [
@@ -701,8 +701,8 @@ class _MainShellState extends State<MainShell> {
       valueListenable: UpdateService.hasUpdate,
       builder: (context, hasUpdate, _) => Container(
         decoration: BoxDecoration(
-          color: MFColors.bg,
-          border: Border(top: BorderSide(color: MFColors.line)),
+          color: MBColors.bg,
+          border: Border(top: BorderSide(color: MBColors.line)),
         ),
         child: SafeArea(
           top: false,
@@ -732,21 +732,21 @@ class _MainShellState extends State<MainShell> {
       valueListenable: UpdateService.hasUpdate,
       builder: (context, hasUpdate, _) => Container(
         decoration: BoxDecoration(
-          color: MFColors.bg,
-          border: Border(right: BorderSide(color: MFColors.line)),
+          color: MBColors.bg,
+          border: Border(right: BorderSide(color: MBColors.line)),
         ),
         child: NavigationRail(
           backgroundColor: Colors.transparent,
           selectedIndex: _index,
           onDestinationSelected: _onTap,
           labelType: NavigationRailLabelType.all,
-          indicatorColor: MFColors.brand.withValues(alpha: .12),
-          selectedIconTheme: IconThemeData(color: MFColors.brandLight),
-          unselectedIconTheme: IconThemeData(color: MFColors.txt3),
+          indicatorColor: MBColors.brand.withValues(alpha: .12),
+          selectedIconTheme: IconThemeData(color: MBColors.brandLight),
+          unselectedIconTheme: IconThemeData(color: MBColors.txt3),
           selectedLabelTextStyle: TextStyle(
-              color: MFColors.brandLight, fontSize: 12, fontWeight: FontWeight.w500),
+              color: MBColors.brandLight, fontSize: 12, fontWeight: FontWeight.w500),
           unselectedLabelTextStyle:
-              TextStyle(color: MFColors.txt3, fontSize: 12),
+              TextStyle(color: MBColors.txt3, fontSize: 12),
           destinations: [
             for (var i = 0; i < _mainNavEntries.length; i++)
               NavigationRailDestination(

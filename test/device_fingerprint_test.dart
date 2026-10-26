@@ -1,11 +1,11 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:moneyfly/core/api/user_agent.dart';
-import 'package:moneyfly/core/models/models.dart';
-import 'package:moneyfly/core/services/device_fingerprint.dart';
-import 'package:moneyfly/core/services/local_paths.dart';
-import 'package:moneyfly/pages/devices/devices_page.dart';
+import 'package:mbox/core/api/user_agent.dart';
+import 'package:mbox/core/models/models.dart';
+import 'package:mbox/core/services/device_fingerprint.dart';
+import 'package:mbox/core/services/local_paths.dart';
+import 'package:mbox/pages/devices/devices_page.dart';
 
 /// 硬件指纹（X-MF-Device-Fp）——「同一台机器重装/升级后不再多占设备名额」的客户端半边。
 ///
@@ -111,7 +111,7 @@ void main() {
           location: '',
           osName: 'Windows',
           osVersion: '10',
-          softwareName: 'MoneyFly',
+          softwareName: 'MBox',
           softwareVersion: '2.2.29',
           isActive: true,
           isAllowed: true,

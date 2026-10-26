@@ -4,7 +4,7 @@ library;
 // 集成测试：真实启动 sing-box 内核，验证「点连接就能用」的核心链路。
 //
 // 运行条件（任一生效即可）：
-//   1) 环境变量 MONEYFLY_SINGBOX（旧名 MONEYFLY_MIHOMO 兼容）指向 sing-box 可执行文件
+//   1) 环境变量 MBOX_SINGBOX 指向 sing-box 可执行文件
 //   2) 仓库自带开发内核 .core_dl/sing-box-<ver>-<os>-<arch>/sing-box（tool/fetch_singbox.sh 落地）
 //   3) 仓库 build/sing-box/sing-box，或 PATH 里有 sing-box
 // 不满足条件时自动跳过（CI 上桌面端不装内核二进制，避免误报失败）。
@@ -15,17 +15,19 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:moneyfly/core/models/models.dart';
-import 'package:moneyfly/core/proxy/singbox_config.dart';
-import 'package:moneyfly/core/proxy/proxy_core_cli.dart';
-import 'package:moneyfly/core/services/local_paths.dart';
+import 'package:mbox/core/models/models.dart';
+import 'package:mbox/core/proxy/singbox_config.dart';
+import 'package:mbox/core/proxy/proxy_core_cli.dart';
+import 'package:mbox/core/services/local_paths.dart';
 
-/// 定位本地 sing-box 内核（MONEYFLY_SINGBOX / 旧变量 MONEYFLY_MIHOMO /
-/// 仓库自带 .core_dl / build/sing-box / PATH）。
+/// 定位本地 sing-box 内核（MBOX_SINGBOX / 仓库自带 .core_dl /
+/// build/sing-box / PATH）。
 String? _findBinary() {
-  for (final key in ['MONEYFLY_SINGBOX', 'MONEYFLY_MIHOMO']) {
-    final v = Platform.environment[key];
-    if (v != null && v.isNotEmpty && File(v).existsSync()) return v;
+  final injected = Platform.environment['MBOX_SINGBOX'];
+  if (injected != null &&
+      injected.isNotEmpty &&
+      File(injected).existsSync()) {
+    return injected;
   }
   final exe = Platform.isWindows ? 'sing-box.exe' : 'sing-box';
   final candidates = <String>[];
@@ -62,14 +64,15 @@ final binary = _findBinary();
 
 /// 把内核挂到 [ProxyCoreCli.resolveKernelBinary] 会去找的位置。
 ///
-/// 该函数按「测试注入 → supportDir/kernel/mihomo（桌面端内置内核文件名）→
+/// 该函数按「测试注入 → supportDir/kernel/sing-box（桌面端内置内核文件名）→
 /// 可执行文件同目录」查找；flutter test 里没有 path_provider 平台实现，
 /// 所以用 [LocalPaths.debugSupportDir]（官方测试注入点）把 support 目录指向
-/// 临时目录，再在 `<support>/kernel/mihomo` 放内核（符号链接，失败则复制）。
+/// 临时目录，再在 `<support>/kernel/sing-box` 放内核（符号链接，失败则复制）。
 void _installKernel(String bin) {
   final support = Directory.systemTemp.createTempSync('mf_kernel_');
   Directory('${support.path}/kernel').createSync(recursive: true);
-  final target = '${support.path}/kernel/${Platform.isWindows ? 'mihomo.exe' : 'mihomo'}';
+  final target =
+      '${support.path}/kernel/${Platform.isWindows ? 'sing-box.exe' : 'sing-box'}';
   try {
     Link(target).createSync(bin);
   } catch (_) {
@@ -82,12 +85,12 @@ void _installKernel(String bin) {
 /// 串行化「独占内核工作目录 + 固定端口」的端到端用例。
 ///
 /// `flutter test` 默认按文件并发跑，而内核工作目录是进程内静态的
-/// `${tmp}/moneyfly_core`（[ProxyCoreCli.workDir]）——两个 e2e 文件同时起内核
+/// `${tmp}/mbox_core`（[ProxyCoreCli.workDir]）——两个 e2e 文件同时起内核
 /// 会互相覆盖 config.json、抢 2080/9090（dart_test.yaml 要求 e2e 串行，
 /// 但验收命令不带 --concurrency=1）。用跨进程文件锁把「起内核 → 停内核」
 /// 这一段串起来，谁先拿到锁谁先跑完整轮。
 Future<T> _withKernelLock<T>(Future<T> Function() body) async {
-  final raf = await File('${Directory.systemTemp.path}/moneyfly_core.e2e.lock')
+  final raf = await File('${Directory.systemTemp.path}/mbox_core.e2e.lock')
       .open(mode: FileMode.write);
   try {
     await raf.lock(FileLock.blockingExclusive);
@@ -175,7 +178,7 @@ void main() {
     // 缓存不落盘（移动端容器空间有限）
     expect((cfg['experimental'] as Map)['cache_file'], {'enabled': false});
 
-    // 智能分流：离线 .srs 规则集（替代 mihomo 的 GEOSITE/GEOIP 字段）
+    // 智能分流：离线 .srs 规则集（替代旧内核的 GEOSITE/GEOIP 字段）
     final route = cfg['route'] as Map;
     final ruleSets = (route['rule_set'] as List).cast<Map>();
     expect(ruleSets.map((r) => r['tag']), containsAll(['geosite-cn', 'geoip-cn']));

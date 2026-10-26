@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:moneyfly/core/services/subscribe_url_failover.dart';
+import 'package:mbox/core/services/subscribe_url_failover.dart';
 
 void main() {
   group('SubscribeUrlFailover', () {

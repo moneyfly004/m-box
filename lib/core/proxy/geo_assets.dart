@@ -21,7 +21,7 @@ import '../services/update_service.dart';
 /// 否则内核启动即报 "parse rule-set: open ...: no such file or directory"。
 ///
 /// - 桌面端(CLI)：落到 ProxyCoreCli.workDir（内核 -d 指向同一目录）
-/// - Android：落到 filesDir/work（MoneyFlyVpnService 同一内核目录；
+/// - Android：落到 filesDir/work（MBoxVpnService 同一内核目录；
 ///   原生层 assets 复制保留为启动兜底，幂等）
 ///
 /// 重要：本类只做本地复制/读取，**绝不联网**。内置/副本缺失属打包异常 →

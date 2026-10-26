@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:moneyfly/core/models/models.dart';
-import 'package:moneyfly/core/services/country_slots.dart';
+import 'package:mbox/core/models/models.dart';
+import 'package:mbox/core/services/country_slots.dart';
 
 ProxyNode _n(String tag, int ms) => ProxyNode(
       tag: tag,

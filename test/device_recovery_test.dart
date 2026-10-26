@@ -5,10 +5,10 @@ import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:moneyfly/core/api/api_client.dart';
-import 'package:moneyfly/core/services/account_service.dart';
-import 'package:moneyfly/core/services/subscription_cache.dart';
-import 'package:moneyfly/core/services/subscription_service.dart';
+import 'package:mbox/core/api/api_client.dart';
+import 'package:mbox/core/services/account_service.dart';
+import 'package:mbox/core/services/subscription_cache.dart';
+import 'package:mbox/core/services/subscription_service.dart';
 
 /// 用户实测（账号 454487210 / henry11）暴露的两类"永久卡住"问题：
 ///

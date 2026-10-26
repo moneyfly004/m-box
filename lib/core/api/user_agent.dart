@@ -4,9 +4,9 @@ import 'package:flutter/foundation.dart';
 import '../services/device_fingerprint.dart';
 import '../services/local_paths.dart';
 
-/// MoneyFly User-Agent + 设备信息头
+/// MBox User-Agent + 设备信息头
 ///
-/// UA 规范：`MoneyFly/<应用版本> (<操作系统特征串>)`
+/// UA 规范：`MBox/<应用版本> (<操作系统特征串>)`
 ///
 /// 额外通过 X-MF-* 自定义头向后端传递设备详情（型号/品牌/OS/类型），
 /// 即使 UA 被截断或解析不全，后端也能准确识别设备。
@@ -19,8 +19,8 @@ class UserAgent {
   static String build({required String version, String? osSection}) {
     final v = version.trim();
     final os = osSection?.trim() ?? '';
-    if (os.isEmpty) return 'MoneyFly/$v';
-    return 'MoneyFly/$v ($os)';
+    if (os.isEmpty) return 'MBox/$v';
+    return 'MBox/$v ($os)';
   }
 
   // ---------- 各平台特征串 ----------
@@ -135,7 +135,7 @@ class UserAgent {
     // 硬件指纹：跨「重装/清数据/安装包升级删了应用数据」不变的机器标识。
     //
     // install_id 会随安装实例变化（Windows 安装包升级时旧卸载程序若删了
-    // %APPDATA%\top.moneyfly\MoneyFly，install_id 就丢了），后端会因此把同一台
+    // %APPDATA%\top.mbox\MBox，install_id 就丢了），后端会因此把同一台
     // 电脑登记成新设备（幽灵设备、白占设备名额）。后端在「安装 ID 没命中」时会用
     // 这个指纹把同一订阅下的老行认回来，所以同一台机器重装后仍只占一个名额。
     //

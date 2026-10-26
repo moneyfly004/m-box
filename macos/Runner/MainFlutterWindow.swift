@@ -47,7 +47,7 @@ class MainFlutterWindow: NSWindow {
     RegisterGeneratedPlugins(registry: flutterViewController)
 
     MainFlutterWindow.lifecycleChannel = FlutterMethodChannel(
-      name: "top.moneyfly/lifecycle",
+      name: "top.mbox/lifecycle",
       binaryMessenger: flutterViewController.engine.binaryMessenger)
 
     MainFlutterWindow.setupLaunchAtStartupChannel(

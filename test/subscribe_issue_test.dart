@@ -10,9 +10,9 @@
 //   2) 「不是订阅内容」的正文不会清空用户已有线路（后端故障页不该毁掉节点）；
 //   3) 设备列表能认出「本机」（删本机 = 把自己踢下线，必须能提示）。
 import 'package:flutter_test/flutter_test.dart';
-import 'package:moneyfly/core/models/models.dart';
-import 'package:moneyfly/core/services/subscription_service.dart';
-import 'package:moneyfly/pages/devices/devices_page.dart';
+import 'package:mbox/core/models/models.dart';
+import 'package:mbox/core/services/subscription_service.dart';
+import 'package:mbox/pages/devices/devices_page.dart';
 
 SubscriptionInfo _info({
   String url = 'https://sub.example.com/link?token=abc',
@@ -208,7 +208,7 @@ void main() {
           location: '',
           osName: 'iOS',
           osVersion: '16.6.1',
-          softwareName: 'MoneyFly',
+          softwareName: 'MBox',
           softwareVersion: '2.2.15',
           isActive: true,
           isAllowed: true,

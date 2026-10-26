@@ -109,14 +109,14 @@ class _OrdersPageState extends State<OrdersPage> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        backgroundColor: MFColors.card2,
+        backgroundColor: MBColors.card2,
         title: Text(AppStrings.t('cancel_order'), style: TextStyle(fontSize: 16)),
-        content: Text(AppStrings.t('order_cancel_confirm'), style: TextStyle(fontSize: 13.5, color: MFColors.txt2)),
+        content: Text(AppStrings.t('order_cancel_confirm'), style: TextStyle(fontSize: 13.5, color: MBColors.txt2)),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: Text(AppStrings.t('rethink'))),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text(AppStrings.t('cancel_order'), style: TextStyle(color: MFColors.red)),
+            child: Text(AppStrings.t('cancel_order'), style: TextStyle(color: MBColors.red)),
           ),
         ],
       ),
@@ -149,25 +149,25 @@ class _OrdersPageState extends State<OrdersPage> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.cloud_off, size: 40, color: MFColors.txt3),
+                    Icon(Icons.cloud_off, size: 40, color: MBColors.txt3),
                     const SizedBox(height: 10),
                     Text(AppStrings.t('load_failed'),
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                            fontSize: 13.5, color: MFColors.txt2, fontWeight: FontWeight.w600)),
+                            fontSize: 13.5, color: MBColors.txt2, fontWeight: FontWeight.w600)),
                     const SizedBox(height: 6),
                     Text(_error!,
                         textAlign: TextAlign.center,
                         maxLines: 4,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 12.5, color: MFColors.txt3, height: 1.5)),
+                        style: TextStyle(fontSize: 12.5, color: MBColors.txt3, height: 1.5)),
                     const SizedBox(height: 14),
                     GestureDetector(
                       onTap: () => _load(),
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
                         decoration: BoxDecoration(
-                            gradient: MFColors.brandGradient,
+                            gradient: MBColors.brandGradient,
                             borderRadius: BorderRadius.circular(12)),
                         child: Text(AppStrings.t('retry'),
                             style: const TextStyle(fontSize: 13, color: Colors.white, fontWeight: FontWeight.w600)),
@@ -187,16 +187,16 @@ class _OrdersPageState extends State<OrdersPage> {
       appBar: AppBar(
         leading: IconButton(icon: const Icon(Icons.arrow_back_ios_new, size: 18), onPressed: () => Navigator.pop(context)),
         title: Text(AppStrings.t('my_orders')),
-        actions: [TextButton(onPressed: _load, child: Text(AppStrings.t('refresh'), style: TextStyle(color: MFColors.brandLight)))],
+        actions: [TextButton(onPressed: _load, child: Text(AppStrings.t('refresh'), style: TextStyle(color: MBColors.brandLight)))],
       ),
       body: SafeArea(
         child: _loading
             // 首屏用骨架屏而不是裸转圈：转圈→内容的跳变比骨架明显得多
-            ? const MFListSkeleton()
+            ? const MBListSkeleton()
             : _error != null
                 ? _buildError()
                 : _orders.isEmpty
-                ? MFEmpty(
+                ? MBEmpty(
                     title: AppStrings.t('no_orders'),
                     hint: AppStrings.t('no_orders_hint'),
                   )
@@ -211,17 +211,17 @@ class _OrdersPageState extends State<OrdersPage> {
   }
 
   Color _statusColor(String status) => switch (status) {
-        'paid' => MFColors.green,
-        'pending' => MFColors.amber,
-        _ => MFColors.txt3,
+        'paid' => MBColors.green,
+        'pending' => MBColors.amber,
+        _ => MBColors.txt3,
       };
 
   Widget _buildOrderCard(OrderItem o) {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-          color: MFColors.card, borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: MFColors.line)),
+          color: MBColors.card, borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: MBColors.line)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -250,12 +250,12 @@ class _OrdersPageState extends State<OrdersPage> {
                   style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700, fontFamily: kNumFont)),
               const Spacer(),
               Text(o.orderNo,
-                  style:  TextStyle(fontSize: 10.5, color: MFColors.txt3, fontFamily: kNumFont)),
+                  style:  TextStyle(fontSize: 10.5, color: MBColors.txt3, fontFamily: kNumFont)),
             ],
           ),
           if (o.createdAt.isNotEmpty) ...[
             const SizedBox(height: 4),
-            Text('${AppStrings.t('order_time', {'time': ''})}${o.createdAt}', style: TextStyle(fontSize: 10.5, color: MFColors.txt3)),
+            Text('${AppStrings.t('order_time', {'time': ''})}${o.createdAt}', style: TextStyle(fontSize: 10.5, color: MBColors.txt3)),
           ],
           if (o.status == 'pending') ...[
             const SizedBox(height: 12),
@@ -264,13 +264,13 @@ class _OrdersPageState extends State<OrdersPage> {
                 const Spacer(),
                 // 命中区 ≥40（旧实现是 height: 32 的裸 GestureDetector：触屏上
                 // 「取消订单」这种动作很难点准，而且没有按压反馈）
-                MFActionButton(
+                MBActionButton(
                   label: AppStrings.t('cancel_order'),
-                  color: MFColors.red,
+                  color: MBColors.red,
                   onTap: () => _cancelOrder(o),
                 ),
                 const SizedBox(width: 10),
-                MFActionButton(
+                MBActionButton(
                   label: AppStrings.t('pay_again'),
                   filled: true,
                   onTap: () => _payOrder(o),

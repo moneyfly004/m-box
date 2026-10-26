@@ -157,11 +157,11 @@ class ApiClient {
     mOptions: MacOsOptions(useDataProtectionKeyChain: false),
   );
 
-  /// 客户端 User-Agent（后端据此识别 moneyfly 客户端与操作系统/设备类型）。
-  /// 规范：`MoneyFly/<版本> (<操作系统特征串>)`，见 user_agent.dart。
+  /// 客户端 User-Agent（后端据此识别 mbox 客户端与操作系统/设备类型）。
+  /// 规范：`MBox/<版本> (<操作系统特征串>)`，见 user_agent.dart。
   /// 默认值仅兜底；启动时由 UpdateService.init 用真实包版本 + OS 信息刷新
-  /// （设备列表/登录历史会显示 MoneyFly + Windows/macOS/Android + 版本号）。
-  static String userAgent = 'MoneyFly/0.0.1';
+  /// （设备列表/登录历史会显示 MBox + Windows/macOS/Android + 版本号）。
+  static String userAgent = 'MBox/0.0.1';
 
   /// 测试开关：false 时 token 存内存（避免 flutter test 无插件实现）
   static bool persistTokens = true;
@@ -448,7 +448,7 @@ class ApiClient {
 
   /// 拉取订阅原文（非 JSON）
   /// 订阅 URL 已带 type=clash 参数 → 后端按参数返回 Clash YAML；
-  /// UA 默认用 MoneyFly/<版本>（后端原生识别 moneyfly 客户端），可用 [ua] 覆盖。
+  /// UA 默认用 MBox/<版本>（后端原生识别 mbox 客户端），可用 [ua] 覆盖。
   ///
   /// 三个健壮性要点：
   /// 1. **显式覆盖 `Accept: */*`**：全局默认 `application/json` 会诱导网关/后端

@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:moneyfly/core/models/models.dart';
-import 'package:moneyfly/core/services/speed_tester.dart';
+import 'package:mbox/core/models/models.dart';
+import 'package:mbox/core/services/speed_tester.dart';
 
 ProxyNode _node(String type) =>
     ProxyNode(tag: 't', type: type, server: '127.0.0.1', port: 1);

@@ -39,7 +39,7 @@ class _PluginBackend implements AutostartBackend {
 ///    用户完全看不出来（这是实测确认的 bug）。
 /// 2. **失败必须让上层知道**：调用方要能决定「设置项到底落不落盘」，所以这里
 ///    统一返回 bool、绝不抛，异常写进日志中心。
-/// 3. **路径会变**：Windows 写的是 `HKCU\...\CurrentVersion\Run\MoneyFly = <exe
+/// 3. **路径会变**：Windows 写的是 `HKCU\...\CurrentVersion\Run\MBox = <exe
 ///    绝对路径>`，应用被换目录安装/手动移动后这条就失效了 —— 启动时用
 ///    [syncOnStartup] 自愈。
 class AutostartService {
@@ -47,9 +47,10 @@ class AutostartService {
 
   /// 注册名（Windows 是注册表值名，Linux 是 .desktop 文件名的一部分）
   ///
-  /// 注意：品牌改为 MBox 后这里是新注册名。老版本（MoneyFly）留下的自启动项
-  /// 不会自动清理 —— 升级用户若之前开着自启动，需要在系统里手动删掉旧项
-  /// （Windows：任务管理器→启动；macOS：系统设置→通用→登录项）。
+  /// 注意：品牌为 MBox，这里是唯一注册名。旧品牌版本（不同注册名 / 不同
+  /// bundle id）留下的自启动项不会自动清理 —— 老用户如果之前开着自启动，
+  /// 需要在系统里手动删掉旧项（Windows：任务管理器→启动；macOS：系统设置→
+  /// 通用→登录项）。
   static const appName = 'MBox';
 
   @visibleForTesting
@@ -67,14 +68,14 @@ class AutostartService {
   /// 要注册的可执行文件路径。
   ///
   /// - Windows / Linux：exe 本体（Windows 注册表值就是它）
-  /// - macOS：**App bundle**（`/Applications/MoneyFly.app`）—— 启动项要拉起的是
+  /// - macOS：**App bundle**（`/Applications/MBox.app`）—— 启动项要拉起的是
   ///   整个 app，而不是 bundle 内的二进制。
   @visibleForTesting
   static String resolveLaunchPath({String? resolvedExecutable, bool? isMacOS}) {
     final exe = resolvedExecutable ?? Platform.resolvedExecutable;
     final mac = isMacOS ?? (!kIsWeb && Platform.isMacOS);
     if (!mac) return exe;
-    // …/MoneyFly.app/Contents/MacOS/MoneyFly → …/MoneyFly.app
+    // …/MBox.app/Contents/MacOS/MBox → …/MBox.app
     //
     // 两种分隔符都认：喂进来的既然是 macOS 路径（语义上恒为 POSIX '/'），
     // 就不该取决于**宿主平台** —— 否则同一段逻辑在 Windows 上跑单测会失败

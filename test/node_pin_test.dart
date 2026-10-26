@@ -9,9 +9,9 @@
 // 这里覆盖纯状态语义（不启内核：status=disconnected 时切换只改内存态），
 // 以及持久化（重启后固定节点/锁定国家要恢复）。
 import 'package:flutter_test/flutter_test.dart';
-import 'package:moneyfly/core/models/models.dart';
-import 'package:moneyfly/core/proxy/proxy_core.dart';
-import 'package:moneyfly/core/services/settings_store.dart';
+import 'package:mbox/core/models/models.dart';
+import 'package:mbox/core/proxy/proxy_core.dart';
+import 'package:mbox/core/services/settings_store.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 ProxyNode _node(String tag, String cc, int ms) => ProxyNode(

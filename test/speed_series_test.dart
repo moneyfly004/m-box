@@ -2,7 +2,7 @@ import 'dart:ui';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:moneyfly/core/services/speed_series.dart';
+import 'package:mbox/core/services/speed_series.dart';
 
 /// 首页速率图的要求（用户提出）：要像 FlClash 那样是**一条连续的整体曲线**，
 /// 连着的时候一直在走；不能是每秒跳动的尖刺 —— 尖刺会让客户误以为

@@ -51,7 +51,7 @@ class LocalPaths {
     }
   }
 
-  /// 缓存目录（Android：cacheDir，libmoneyfly 临时文件；桌面端可空）
+  /// 缓存目录（Android：cacheDir，libmbox 临时文件；桌面端可空）
   static Future<Directory?> cacheDir() async {
     try {
       return await getApplicationCacheDirectory();

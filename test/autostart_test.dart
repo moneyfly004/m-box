@@ -9,10 +9,10 @@
 // 调用方据此决定设置项是否落盘。
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:moneyfly/core/services/autostart.dart';
-import 'package:moneyfly/core/services/settings_store.dart';
-import 'package:moneyfly/l10n/app_strings.dart';
-import 'package:moneyfly/pages/settings/settings_page.dart';
+import 'package:mbox/core/services/autostart.dart';
+import 'package:mbox/core/services/settings_store.dart';
+import 'package:mbox/l10n/app_strings.dart';
+import 'package:mbox/pages/settings/settings_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// 假后端：记录调用、可配置返回值与抛错（复刻 Noop 的 UnsupportedError）
@@ -169,8 +169,8 @@ void main() {
     test('Windows 路径原样使用（注册表值就是 exe 绝对路径）', () {
       expect(
         AutostartService.resolveLaunchPath(
-            resolvedExecutable: r'D:\MoneyFly\moneyfly.exe', isMacOS: false),
-        r'D:\MoneyFly\moneyfly.exe',
+            resolvedExecutable: r'D:\MBox\mbox.exe', isMacOS: false),
+        r'D:\MBox\mbox.exe',
       );
     });
 
@@ -178,9 +178,9 @@ void main() {
       expect(
         AutostartService.resolveLaunchPath(
             resolvedExecutable:
-                '/Applications/MoneyFly.app/Contents/MacOS/MoneyFly',
+                '/Applications/MBox.app/Contents/MacOS/MBox',
             isMacOS: true),
-        '/Applications/MoneyFly.app',
+        '/Applications/MBox.app',
       );
     });
 
@@ -188,12 +188,12 @@ void main() {
       // 这条在 Windows 上跑时曾失败：旧实现用 Platform.pathSeparator 拼 '\\Contents\\'，
       // 而输入是 macOS 路径（/Contents/）→ 匹配不上就原样返回。
       for (final p in [
-        '/Applications/MoneyFly.app/Contents/MacOS/MoneyFly',
-        r'C:\Applications\MoneyFly.app\Contents\MacOS\MoneyFly',
+        '/Applications/MBox.app/Contents/MacOS/MBox',
+        r'C:\Applications\MBox.app\Contents\MacOS\MBox',
       ]) {
         final out = AutostartService.resolveLaunchPath(
             resolvedExecutable: p, isMacOS: true);
-        expect(out.endsWith('MoneyFly.app'), isTrue, reason: '未回溯到 bundle：$out');
+        expect(out.endsWith('MBox.app'), isTrue, reason: '未回溯到 bundle：$out');
         expect(out.contains('Contents'), isFalse, reason: '仍带着 bundle 内部路径：$out');
       }
     });
@@ -201,8 +201,8 @@ void main() {
     test('macOS 上取不到 bundle 结构时退化为原路径（不猜、不乱改）', () {
       expect(
         AutostartService.resolveLaunchPath(
-            resolvedExecutable: '/tmp/moneyfly', isMacOS: true),
-        '/tmp/moneyfly',
+            resolvedExecutable: '/tmp/mbox', isMacOS: true),
+        '/tmp/mbox',
       );
     });
   });

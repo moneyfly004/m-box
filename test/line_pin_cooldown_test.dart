@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:moneyfly/core/api/server_pool.dart';
-import 'package:moneyfly/core/services/subscribe_url_failover.dart';
+import 'package:mbox/core/api/server_pool.dart';
+import 'package:mbox/core/services/subscribe_url_failover.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// 线路优化的回归测试（①用户选择 vs 实际生效 ②兜底提示 ③失败冷却 ④并行竞速 ⑦诊断）。

@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:moneyfly/core/services/subscribe_url_failover.dart';
+import 'package:mbox/core/services/subscribe_url_failover.dart';
 
 /// 客户 henry11 真实情形：面板下发的 5~6 个订阅域名里，只有**最后一个**
 /// （Cloudflare 前置的那个）在其网络可达。此前候选按实测测速重排 + 上限 6 个，

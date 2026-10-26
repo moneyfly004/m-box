@@ -10,10 +10,10 @@ import '../theme/app_theme.dart';
 ///
 /// 用法（列表页）：
 /// ```dart
-/// if (_loading) return const MFListSkeleton(rows: 4);
+/// if (_loading) return const MBListSkeleton(rows: 4);
 /// ```
-class MFSkeletonBlock extends StatelessWidget {
-  const MFSkeletonBlock({super.key, this.width, this.height = 12, this.radius = 8});
+class MBSkeletonBlock extends StatelessWidget {
+  const MBSkeletonBlock({super.key, this.width, this.height = 12, this.radius = 8});
 
   final double? width;
   final double height;
@@ -25,7 +25,7 @@ class MFSkeletonBlock extends StatelessWidget {
       width: width,
       height: height,
       decoration: BoxDecoration(
-        color: MFColors.card2,
+        color: MBColors.card2,
         borderRadius: BorderRadius.circular(radius),
       ),
     );
@@ -33,8 +33,8 @@ class MFSkeletonBlock extends StatelessWidget {
 }
 
 /// 通用「一行卡片」骨架：左侧两行文字 + 右侧一个小方块（与真实列表行同高同圆角）
-class MFSkeletonRow extends StatelessWidget {
-  const MFSkeletonRow({super.key, this.trailingWidth = 54});
+class MBSkeletonRow extends StatelessWidget {
+  const MBSkeletonRow({super.key, this.trailingWidth = 54});
 
   final double trailingWidth;
 
@@ -44,9 +44,9 @@ class MFSkeletonRow extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.fromLTRB(15, 13, 15, 13),
       decoration: BoxDecoration(
-        color: MFColors.card,
+        color: MBColors.card,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: MFColors.line),
+        border: Border.all(color: MBColors.line),
       ),
       child: Row(
         children: [
@@ -54,14 +54,14 @@ class MFSkeletonRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: const [
-                MFSkeletonBlock(width: 120, height: 15),
+                MBSkeletonBlock(width: 120, height: 15),
                 SizedBox(height: 8),
-                MFSkeletonBlock(width: 180, height: 11),
+                MBSkeletonBlock(width: 180, height: 11),
               ],
             ),
           ),
           const SizedBox(width: 12),
-          MFSkeletonBlock(width: 54, height: 22),
+          MBSkeletonBlock(width: 54, height: 22),
         ],
       ),
     );
@@ -69,8 +69,8 @@ class MFSkeletonRow extends StatelessWidget {
 }
 
 /// 列表页骨架（[rows] 行卡片 + 可选顶部标题占位），不可滚动（加载中不需要滚动）
-class MFListSkeleton extends StatelessWidget {
-  const MFListSkeleton({super.key, this.rows = 4, this.padding = const EdgeInsets.fromLTRB(18, 12, 18, 24)});
+class MBListSkeleton extends StatelessWidget {
+  const MBListSkeleton({super.key, this.rows = 4, this.padding = const EdgeInsets.fromLTRB(18, 12, 18, 24)});
 
   final int rows;
   final EdgeInsets padding;
@@ -81,7 +81,7 @@ class MFListSkeleton extends StatelessWidget {
       physics: const NeverScrollableScrollPhysics(),
       padding: padding,
       children: [
-        for (var i = 0; i < rows; i++) const MFSkeletonRow(),
+        for (var i = 0; i < rows; i++) const MBSkeletonRow(),
       ],
     );
   }

@@ -2,8 +2,8 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:moneyfly/core/models/models.dart';
-import 'package:moneyfly/core/services/speed_tester.dart';
+import 'package:mbox/core/models/models.dart';
+import 'package:mbox/core/services/speed_tester.dart';
 
 int _fdCount() {
   // macOS 无 /dev/fd 挂载：用 lsof 统计自身进程的 FD 数

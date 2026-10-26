@@ -1,7 +1,7 @@
 // 内核管理页（KernelPage）UI 审计回归：
 //
 // 1) P2：「内核变体」行的值以前是 `'${_variantLabel(_variant)} ▾'`，而行本身
-//    由 MFRow 追加了一个 chevron_right 箭头 —— 同一行两个互相打架的指示符。
+//    由 MBRow 追加了一个 chevron_right 箭头 —— 同一行两个互相打架的指示符。
 //    （本机是 macOS arm64，`KernelManager.supportsVariant` 为 false，
 //     这一行在 widget 测试里渲染不出来，所以用源码级守卫 + 行组件约定断言。）
 // 2) P2：「连接状态」行以前在 build 里直接读 `ConnectionController.instance.status`
@@ -12,11 +12,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:moneyfly/core/proxy/proxy_core.dart';
-import 'package:moneyfly/l10n/app_strings.dart';
-import 'package:moneyfly/pages/settings/kernel_page.dart';
-import 'package:moneyfly/theme/app_theme.dart';
-import 'package:moneyfly/widgets/mf_row.dart';
+import 'package:mbox/core/proxy/proxy_core.dart';
+import 'package:mbox/l10n/app_strings.dart';
+import 'package:mbox/pages/settings/kernel_page.dart';
+import 'package:mbox/theme/app_theme.dart';
+import 'package:mbox/widgets/mf_row.dart';
 
 const Size _kMinWindow = Size(380, 620);
 
@@ -25,7 +25,7 @@ Future<void> _pump(WidgetTester tester) async {
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
   await tester.pumpWidget(MaterialApp(
-      theme: buildMoneyFlyTheme(), home: const KernelPage()));
+      theme: buildMBoxTheme(), home: const KernelPage()));
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 50));
 }
@@ -44,7 +44,7 @@ void main() {
     await AppStrings.setLang('zh', persist: false);
   });
 
-  test('「内核变体」的值不再自带 ▾（行尾箭头由 MFRow 统一提供）', () {
+  test('「内核变体」的值不再自带 ▾（行尾箭头由 MBRow 统一提供）', () {
     final src = File('lib/pages/settings/kernel_page.dart').readAsStringSync();
     // 只看代码，不看注释（注释里会引用这个被去掉的字符）
     final code = src
@@ -52,10 +52,10 @@ void main() {
         .where((l) => !l.trimLeft().startsWith('//'))
         .join('\n');
     expect(code.contains('▾'), isFalse,
-        reason: '值里再拼一个 ▾ 会和 MFRow 行尾的 chevron_right 打架');
+        reason: '值里再拼一个 ▾ 会和 MBRow 行尾的 chevron_right 打架');
     expect(code.contains('value: _variantLabel(_variant),'), isTrue,
         reason: '变体行的值应就是变体名本身');
-    // 行尾箭头的唯一来源：MFRow（value != null 时自动追加）
+    // 行尾箭头的唯一来源：MBRow（value != null 时自动追加）
     expect(code.contains('Icon(Icons.chevron_right'), isFalse,
         reason: '页面自己再加一个箭头 = 又回到两个指示符');
   });
@@ -74,9 +74,9 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('行仍是 MFRow（最小高度 + 描述独占一行），最小窗口零渲染异常', (tester) async {
+  testWidgets('行仍是 MBRow（最小高度 + 描述独占一行），最小窗口零渲染异常', (tester) async {
     await _pump(tester);
-    expect(find.byType(MFRow), findsWidgets);
+    expect(find.byType(MBRow), findsWidgets);
     expect(tester.takeException(), isNull);
   });
 }

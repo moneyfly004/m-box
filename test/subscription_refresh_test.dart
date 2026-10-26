@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:moneyfly/core/models/models.dart';
-import 'package:moneyfly/core/proxy/proxy_core.dart';
+import 'package:mbox/core/models/models.dart';
+import 'package:mbox/core/proxy/proxy_core.dart';
 
 /// 订阅定时/启动刷新结果接入（applySubscriptionNodes）行为测试：
 /// 保证「覆盖旧节点配置」不会误伤正在使用的连接/正在建立的连接。

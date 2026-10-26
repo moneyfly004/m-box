@@ -6,12 +6,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:moneyfly/core/api/api_client.dart';
-import 'package:moneyfly/core/services/password_policy.dart';
-import 'package:moneyfly/pages/auth/change_password_page.dart';
-import 'package:moneyfly/pages/auth/forgot_password_page.dart';
-import 'package:moneyfly/pages/auth/register_page.dart';
-import 'package:moneyfly/theme/app_theme.dart';
+import 'package:mbox/core/api/api_client.dart';
+import 'package:mbox/core/services/password_policy.dart';
+import 'package:mbox/pages/auth/change_password_page.dart';
+import 'package:mbox/pages/auth/forgot_password_page.dart';
+import 'package:mbox/pages/auth/register_page.dart';
+import 'package:mbox/theme/app_theme.dart';
 
 /// 注册 / 找回密码 / 接收验证码 / 填写验证码 / 修改密码 全链路测试。
 /// 使用自建 stub HttpClientAdapter：捕获每个请求的 method/path/JSON body，
@@ -63,7 +63,7 @@ class StubAdapter implements HttpClientAdapter {
 /// 可 push 目标页的宿主（便于断言「成功后返回」）
 Widget _host(Widget page) {
   return MaterialApp(
-    theme: buildMoneyFlyTheme(),
+    theme: buildMBoxTheme(),
     home: Builder(
       builder: (ctx) => Scaffold(
         body: Center(

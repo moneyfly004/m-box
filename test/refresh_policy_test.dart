@@ -11,7 +11,7 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:moneyfly/core/api/refresh_policy.dart';
+import 'package:mbox/core/api/refresh_policy.dart';
 
 /// 造一个 JWT（只有 payload 有内容，签名随便）——只用于解析 exp
 String _jwt({required Duration validFor, DateTime? from}) {

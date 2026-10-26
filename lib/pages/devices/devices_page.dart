@@ -119,7 +119,7 @@ class _DevicesPageState extends State<DevicesPage> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        backgroundColor: MFColors.card2,
+        backgroundColor: MBColors.card2,
         title: Text(AppStrings.t('delete_device'), style: const TextStyle(fontSize: 16)),
         content: Text(
             isCurrentDeviceEntry(device, UserAgent.deviceHeaders)
@@ -128,12 +128,12 @@ class _DevicesPageState extends State<DevicesPage> {
                 : AppStrings.t('delete_device_body',
                     {'name': device.displayName}),
             style: TextStyle(
-                fontSize: 13.5, color: MFColors.txt2, height: 1.6)),
+                fontSize: 13.5, color: MBColors.txt2, height: 1.6)),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: Text(AppStrings.t('cancel_text'))),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text(AppStrings.t('delete'), style: TextStyle(color: MFColors.red, fontWeight: FontWeight.w600)),
+            child: Text(AppStrings.t('delete'), style: TextStyle(color: MBColors.red, fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -153,12 +153,12 @@ class _DevicesPageState extends State<DevicesPage> {
         await showDialog<void>(
           context: context,
           builder: (ctx) => AlertDialog(
-            backgroundColor: MFColors.card2,
+            backgroundColor: MBColors.card2,
             title: Text(AppStrings.t('self_deleted_title'),
                 style: const TextStyle(fontSize: 16)),
             content: Text(AppStrings.t('self_deleted_body'),
                 style: TextStyle(
-                    fontSize: 13.5, color: MFColors.txt2, height: 1.6)),
+                    fontSize: 13.5, color: MBColors.txt2, height: 1.6)),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
@@ -203,7 +203,7 @@ class _DevicesPageState extends State<DevicesPage> {
     final saved = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: MFColors.card2,
+        backgroundColor: MBColors.card2,
         title: Text(AppStrings.t('edit_remark'), style: const TextStyle(fontSize: 16)),
         content: TextField(
           controller: controller,
@@ -212,7 +212,7 @@ class _DevicesPageState extends State<DevicesPage> {
           style: const TextStyle(fontSize: 14),
           decoration: InputDecoration(
             hintText: AppStrings.t('remark_hint'),
-            hintStyle: TextStyle(fontSize: 13, color: MFColors.txt3),
+            hintStyle: TextStyle(fontSize: 13, color: MBColors.txt3),
           ),
         ),
         actions: [
@@ -222,7 +222,7 @@ class _DevicesPageState extends State<DevicesPage> {
           TextButton(
             onPressed: () => Navigator.pop(ctx, controller.text.trim()),
             child: Text(AppStrings.t('save'),
-                style: TextStyle(color: MFColors.brandLight, fontWeight: FontWeight.w600)),
+                style: TextStyle(color: MBColors.brandLight, fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -247,14 +247,14 @@ class _DevicesPageState extends State<DevicesPage> {
 
   /// 加载失败态（失败 ≠ 没设备）：带「重试」的空态。
   /// 外层可滚动，后端原始错误再长也不会在 380×620 的最小窗口里顶破布局；
-  /// MFEmpty 的 hint 无法限行，所以这里把原文截断（不截断的话几十行错误会把
+  /// MBEmpty 的 hint 无法限行，所以这里把原文截断（不截断的话几十行错误会把
   /// 「重试」按钮顶到屏幕外，用户连重试都点不到）。
   Widget _buildError() => LayoutBuilder(
         builder: (_, box) => SingleChildScrollView(
           child: ConstrainedBox(
             constraints: BoxConstraints(
                 minHeight: box.maxHeight.isFinite ? box.maxHeight : 0),
-            child: MFEmpty(
+            child: MBEmpty(
               icon: Icons.cloud_off,
               title: AppStrings.t('load_failed'),
               hint: _briefError,
@@ -278,13 +278,13 @@ class _DevicesPageState extends State<DevicesPage> {
         leading: IconButton(icon: const Icon(Icons.arrow_back_ios_new, size: 18), onPressed: () => Navigator.pop(context)),
         title: Text(AppStrings.t('device_manage')),
         actions: [
-          TextButton(onPressed: _load, child: Text(AppStrings.t('refresh'), style: TextStyle(color: MFColors.brandLight))),
+          TextButton(onPressed: _load, child: Text(AppStrings.t('refresh'), style: TextStyle(color: MBColors.brandLight))),
         ],
       ),
       body: SafeArea(
         child: _loading
             // 首屏用骨架屏而不是裸转圈：转圈→内容的跳变比骨架明显得多
-            ? const MFListSkeleton()
+            ? const MBListSkeleton()
             : _error != null
                 ? _buildError()
                 : ListView(
@@ -301,7 +301,7 @@ class _DevicesPageState extends State<DevicesPage> {
                   if (_devices.isEmpty)
                     Padding(
                       padding: const EdgeInsets.only(top: 90),
-                      child: MFEmpty(
+                      child: MBEmpty(
                         title: AppStrings.t('no_devices'),
                         hint: AppStrings.t('no_devices_hint'),
                       ),
@@ -328,20 +328,20 @@ class _DevicesPageState extends State<DevicesPage> {
   Widget _buildDeleteDisabledNotice() => Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: MFColors.amber.withValues(alpha: .10),
+          color: MBColors.amber.withValues(alpha: .10),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: MFColors.amber.withValues(alpha: .38)),
+          border: Border.all(color: MBColors.amber.withValues(alpha: .38)),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(Icons.info_outline, size: 15, color: MFColors.amber),
+            const Icon(Icons.info_outline, size: 15, color: MBColors.amber),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
                 AppStrings.t('device_delete_disabled_notice'),
                 style:
-                    TextStyle(fontSize: 11.5, color: MFColors.txt2, height: 1.5),
+                    TextStyle(fontSize: 11.5, color: MBColors.txt2, height: 1.5),
               ),
             ),
           ],
@@ -363,7 +363,7 @@ class _DevicesPageState extends State<DevicesPage> {
     // 不再因「名额已满」切成琥珀色（否则页面里最强的视觉信号变成了告警色，
     // 而真正要引导用户点的地方反而被弱化）。
     final emphasize = !_allowDelete;
-    final accent = (full && !emphasize) ? MFColors.amber : MFColors.brand;
+    final accent = (full && !emphasize) ? MBColors.amber : MBColors.brand;
     return GestureDetector(
       onTap: _openUpgradeDevices,
       child: Container(
@@ -372,7 +372,7 @@ class _DevicesPageState extends State<DevicesPage> {
           gradient: LinearGradient(
               colors: [
                 accent,
-                MFColors.brand.withValues(alpha: .06),
+                MBColors.brand.withValues(alpha: .06),
               ].map((c) => c.withValues(alpha: emphasize ? .20 : (full ? .18 : .12))).toList()),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
@@ -391,7 +391,7 @@ class _DevicesPageState extends State<DevicesPage> {
                     style: TextStyle(
                         fontSize: 13.5,
                         fontWeight: FontWeight.w700,
-                        color: MFColors.txt),
+                        color: MBColors.txt),
                   ),
                   const SizedBox(height: 3),
                   Text(
@@ -401,12 +401,12 @@ class _DevicesPageState extends State<DevicesPage> {
                         : AppStrings.t('upgrade_devices_card_sub',
                             {'used': '$used', 'limit': '$limit', 'expire': expireText}),
                     style: TextStyle(
-                        fontSize: 11.5, color: MFColors.txt2, height: 1.4),
+                        fontSize: 11.5, color: MBColors.txt2, height: 1.4),
                   ),
                 ],
               ),
             ),
-            Icon(Icons.chevron_right, size: 18, color: MFColors.txt3),
+            Icon(Icons.chevron_right, size: 18, color: MBColors.txt3),
           ],
         ),
       ),
@@ -417,8 +417,8 @@ class _DevicesPageState extends State<DevicesPage> {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-          color: MFColors.card, borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: MFColors.line)),
+          color: MBColors.card, borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: MBColors.line)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -427,7 +427,7 @@ class _DevicesPageState extends State<DevicesPage> {
               Container(
                 width: 38, height: 38,
                 decoration: BoxDecoration(
-                    color: MFColors.card2, borderRadius: BorderRadius.circular(11)),
+                    color: MBColors.card2, borderRadius: BorderRadius.circular(11)),
                 alignment: Alignment.center,
                 child: Text(d.osName.isNotEmpty ? d.osName.substring(0, 1).toUpperCase() : '📱',
                     style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
@@ -453,15 +453,15 @@ class _DevicesPageState extends State<DevicesPage> {
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 6, vertical: 1.5),
                             decoration: BoxDecoration(
-                              color: MFColors.brand.withValues(alpha: .14),
+                              color: MBColors.brand.withValues(alpha: .14),
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(
-                                  color: MFColors.brand.withValues(alpha: .38)),
+                                  color: MBColors.brand.withValues(alpha: .38)),
                             ),
                             child: Text(AppStrings.t('this_device'),
                                 style: TextStyle(
                                     fontSize: 10,
-                                    color: MFColors.brandLight,
+                                    color: MBColors.brandLight,
                                     fontWeight: FontWeight.w700)),
                           ),
                         ],
@@ -470,7 +470,7 @@ class _DevicesPageState extends State<DevicesPage> {
                     const SizedBox(height: 2),
                     Text(
                       [d.osName, d.deviceModel].where((e) => e.isNotEmpty).join(' · '),
-                      style:  TextStyle(fontSize: 11, color: MFColors.txt3),
+                      style:  TextStyle(fontSize: 11, color: MBColors.txt3),
                     ),
                   ],
                 ),
@@ -521,7 +521,7 @@ class _DevicesPageState extends State<DevicesPage> {
               _ActionBtn(
                 icon: Icons.edit_outlined,
                 label: AppStrings.t('edit_remark_btn'),
-                color: MFColors.brandLight,
+                color: MBColors.brandLight,
                 loading: _savingRemarkId == d.id,
                 onTap: () => _editRemark(d),
               ),
@@ -533,7 +533,7 @@ class _DevicesPageState extends State<DevicesPage> {
                 _ActionBtn(
                   icon: Icons.delete_outline,
                   label: AppStrings.t('delete'),
-                  color: MFColors.red,
+                  color: MBColors.red,
                   loading: _deletingId == d.id,
                   onTap: () => _deleteDevice(d),
                 )
@@ -541,7 +541,7 @@ class _DevicesPageState extends State<DevicesPage> {
                 _ActionBtn(
                   icon: Icons.add_circle_outline,
                   label: AppStrings.t('upgrade_devices_btn'),
-                  color: MFColors.brand,
+                  color: MBColors.brand,
                   onTap: _openUpgradeDevices,
                 ),
             ],
@@ -564,13 +564,13 @@ class _DevicesPageState extends State<DevicesPage> {
   Color _stateColor(DeviceInfo d) {
     switch (d.activityState) {
       case 'active':
-        return MFColors.green;
+        return MBColors.green;
       case 'recent':
-        return MFColors.amber;
+        return MBColors.amber;
       case 'offline':
-        return MFColors.txt3;
+        return MBColors.txt3;
     }
-    return d.online ? MFColors.green : MFColors.txt3;
+    return d.online ? MBColors.green : MBColors.txt3;
   }
 
   /// 最后访问文案：绝对时间 +「X 前」；没有 last_seen 时用 last_access
@@ -600,7 +600,7 @@ class _DevicesPageState extends State<DevicesPage> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('$k ', style: TextStyle(fontSize: 10.5, color: MFColors.txt3)),
+            Text('$k ', style: TextStyle(fontSize: 10.5, color: MBColors.txt3)),
             Flexible(
               child: Text(v,
                   maxLines: 1,
@@ -608,7 +608,7 @@ class _DevicesPageState extends State<DevicesPage> {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                       fontSize: 10.5,
-                      color: MFColors.txt2,
+                      color: MBColors.txt2,
                       fontFamily: kNumFont)),
             ),
           ],

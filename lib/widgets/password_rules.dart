@@ -42,14 +42,14 @@ class PasswordRuleHints extends StatelessWidget {
     return Row(
       children: [
         Icon(ok ? Icons.check_circle : Icons.circle_outlined,
-            size: 12, color: ok ? MFColors.green : MFColors.txt3),
+            size: 12, color: ok ? MBColors.green : MBColors.txt3),
         const SizedBox(width: 5),
         Expanded(
           child: Text(text,
               style: TextStyle(
                   fontSize: 10.5,
                   height: 1.4,
-                  color: ok ? MFColors.green : MFColors.txt3)),
+                  color: ok ? MBColors.green : MBColors.txt3)),
         ),
       ],
     );

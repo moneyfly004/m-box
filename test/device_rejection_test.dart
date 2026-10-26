@@ -1,9 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:moneyfly/core/models/models.dart';
-import 'package:moneyfly/core/services/account_service.dart';
-import 'package:moneyfly/core/services/subscription_service.dart';
-import 'package:moneyfly/l10n/app_strings.dart';
+import 'package:mbox/core/models/models.dart';
+import 'package:mbox/core/services/account_service.dart';
+import 'package:mbox/core/services/subscription_service.dart';
+import 'package:mbox/l10n/app_strings.dart';
 
 /// 后端「拒绝载荷」识别 + 连接门禁的回归测试。
 ///

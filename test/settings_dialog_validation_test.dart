@@ -21,15 +21,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:moneyfly/core/proxy/proxy_core.dart';
-import 'package:moneyfly/core/services/account_service.dart';
-import 'package:moneyfly/core/services/settings_store.dart';
-import 'package:moneyfly/l10n/app_strings.dart';
-import 'package:moneyfly/pages/settings/settings_page.dart';
-import 'package:moneyfly/theme/app_theme.dart';
-import 'package:moneyfly/theme/theme_controller.dart';
+import 'package:mbox/core/proxy/proxy_core.dart';
+import 'package:mbox/core/services/account_service.dart';
+import 'package:mbox/core/services/settings_store.dart';
+import 'package:mbox/l10n/app_strings.dart';
+import 'package:mbox/pages/settings/settings_page.dart';
+import 'package:mbox/theme/app_theme.dart';
+import 'package:mbox/theme/theme_controller.dart';
 
-const String _settingsKey = 'moneyfly_settings_v1';
+const String _settingsKey = 'mbox_settings_v1';
 
 /// 起页面：380×620 是应用允许的最小窗口（对话框最挤的尺寸）
 Future<void> _pump(WidgetTester tester, {Size size = const Size(380, 620)}) async {
@@ -41,7 +41,7 @@ Future<void> _pump(WidgetTester tester, {Size size = const Size(380, 620)}) asyn
       ChangeNotifierProvider.value(value: ConnectionController.instance),
       ChangeNotifierProvider.value(value: AccountService.instance),
     ],
-    child: MaterialApp(theme: buildMoneyFlyTheme(), home: const SettingsPage()),
+    child: MaterialApp(theme: buildMBoxTheme(), home: const SettingsPage()),
   ));
   await tester.pump(const Duration(milliseconds: 300));
 }

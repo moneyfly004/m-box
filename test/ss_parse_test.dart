@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:moneyfly/core/services/subscription_service.dart';
+import 'package:mbox/core/services/subscription_service.dart';
 
 void main() {
   test('ss:// SIP002：base64(method:password)@host:port 正确解析 cipher/password', () {
@@ -18,7 +18,7 @@ void main() {
     expect(n.port, 9910);
     expect(n.cipher, 'aes-128-gcm');
     expect(n.password, 'example-pass');
-    // raw 里也要有 cipher/password，供 mihomo 配置生成直接取用
+    // raw 里也要有 cipher/password，供配置生成直接取用
     expect(n.raw['cipher'], 'aes-128-gcm');
     expect(n.raw['password'], 'example-pass');
   });

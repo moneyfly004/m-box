@@ -1,11 +1,11 @@
 // 残留内核收割策略：只收真孤儿，绝不杀别的实例正在用的活内核。
 //
 // 背景（2026-09-14 真实日志）：三次快速启动产生多实例，新实例的启动清扫
-// 对「命令行含 moneyfly_core 的所有 mihomo」无条件 Stop-Process，把 17:09
+// 对「命令行含 mbox_core 的所有 sing-box」无条件 Stop-Process，把 17:09
 // 那个实例正在用的内核杀了（PowerShell 终止码 -1，与日志完全吻合），随后
 // 因 autoReconnect 默认关闭不再恢复 —— 用户看到的是「好好的突然断线」。
 import 'package:flutter_test/flutter_test.dart';
-import 'package:moneyfly/core/proxy/proxy_core_cli.dart';
+import 'package:mbox/core/proxy/proxy_core_cli.dart';
 
 bool _stale({
   int pid = 100,
@@ -28,7 +28,7 @@ void main() {
       expect(_stale(parentAlive: false), isTrue);
     });
 
-    test('父进程是活着的 MoneyFly → 别的实例在用，绝不收（核心回归）', () {
+    test('父进程是活着的 MBox → 别的实例在用，绝不收（核心回归）', () {
       expect(_stale(parentAlive: true, parentIsApp: true), isFalse);
     });
 

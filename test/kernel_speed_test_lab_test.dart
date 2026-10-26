@@ -3,16 +3,16 @@
 // 内核测速 vs TCP 测速 **对照实验**（可复现、自包含，不依赖任何生产资源）。
 //
 // 运行:
-//   MONEYFLY_MIHOMO=$PWD/mihomo-bin/mihomo-darwin-arm64 \
+//   MBOX_SINGBOX=$PWD/.core_dl/sing-box-1.14.4-darwin-arm64/sing-box \
 //     flutter test test/kernel_speed_test_lab_test.dart --tags e2e --concurrency=1
 //
 // 为什么是 e2e 测试而不是 dart run 脚本：它要调用**生产代码**
 // （SpeedTester / SpeedProbeKernel），而这些类依赖 Flutter（app_log 等），
 // `dart run` 编译不过；放到 flutter test 里跑才能保证「验证的就是真代码」。
-// 它同时会启动真实 mihomo 进程 + 占用本地端口，因此打 e2e 标签串行执行。
+// 它同时会启动真实 sing-box 进程 + 占用本地端口，因此打 e2e 标签串行执行。
 //
 // ## 实验设计
-// 起一个**本机真实代理服务**（mihomo 自己，SOCKS5 入站），再起两种「端口开着
+// 起一个**本机真实代理服务**（sing-box 自己，mixed 入站 + 用户名口令），再起两种「端口开着
 // 但代理链路不可用」的假服务（普通 HTTP 服务 / 只 accept 不响应的黑洞），
 // 把它们当作 4 个节点，用**生产代码**跑两遍：
 //
@@ -33,13 +33,13 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:moneyfly/core/models/models.dart';
-import 'package:moneyfly/core/proxy/kernel_delay_api.dart';
-import 'package:moneyfly/core/proxy/speed_probe_kernel.dart';
-import 'package:moneyfly/core/services/speed_tester.dart';
+import 'package:mbox/core/models/models.dart';
+import 'package:mbox/core/proxy/kernel_delay_api.dart';
+import 'package:mbox/core/proxy/speed_probe_kernel.dart';
+import 'package:mbox/core/services/speed_tester.dart';
 
-final mihomoBin = Platform.environment['MONEYFLY_MIHOMO'] ??
-    'mihomo-bin/mihomo-darwin-arm64';
+final singBoxBin = Platform.environment['MBOX_SINGBOX'] ??
+    '.core_dl/sing-box-1.14.4-darwin-arm64/sing-box';
 
 Future<int> freePort() async {
   final s = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
@@ -76,35 +76,39 @@ void main() {
 
 Future<void> _runLab() async {
   stdout.writeln('=== 内核测速 vs TCP 测速 对照实验 ===');
-  stdout.writeln('mihomo: $mihomoBin');
+  stdout.writeln('sing-box: $singBoxBin');
   stdout.writeln('内核版本: ${await _kernelVersion()}\n');
 
   // ---------------------------------------------------------------- 实验环境
-  // ① 真实代理服务：mihomo 自己的 SOCKS5 入站（本机 127.0.0.1:<port>）
+  // ① 真实代理服务：sing-box 自己的 mixed 入站（本机 127.0.0.1:<port>）
   final proxyPort = await freePort();
   final upstreamDir =
       Directory('${Directory.systemTemp.path}/mf_lab_upstream')..createSync(recursive: true);
-  final upstreamCfg = '''
-mixed-port: $proxyPort
-allow-lan: false
-# SOCKS5 入站开启认证：这样「凭据错误」才是一个真实存在的失败场景
-# （不加认证时任意用户名/密码都会被接受，那个节点其实是可用的）
-authentication:
-  - 'labuser:labpass'
-mode: rule
-log-level: warning
-ipv6: false
-dns:
-  enable: true
-  nameserver: ['223.5.5.5']
-proxies: []
-rules:
-  - MATCH,DIRECT
-''';
-  File('${upstreamDir.path}/config.yaml').writeAsStringSync(upstreamCfg);
+  // sing-box 的 mixed 入站开启用户名口令：这样「凭据错误」才是一个真实存在的
+  // 失败场景（不加认证时任意用户名/密码都会被接受，那个节点其实是可用的）
+  final upstreamCfg = {
+    'log': {'level': 'warning'},
+    'inbounds': [
+      {
+        'type': 'mixed',
+        'tag': 'lab-in',
+        'listen': '127.0.0.1',
+        'listen_port': proxyPort,
+        'users': [
+          {'username': 'labuser', 'password': 'labpass'},
+        ],
+      },
+    ],
+    'outbounds': [
+      {'type': 'direct', 'tag': 'direct'},
+    ],
+    'route': {'rules': <Object>[], 'final': 'direct'},
+  };
+  File('${upstreamDir.path}/config.json')
+      .writeAsStringSync(const JsonEncoder.withIndent('  ').convert(upstreamCfg));
   final upstream = await Process.start(
-    mihomoBin,
-    ['-d', upstreamDir.path],
+    singBoxBin,
+    ['run', '-c', '${upstreamDir.path}/config.json', '-D', upstreamDir.path],
     environment: {'PATH': Platform.environment['PATH'] ?? ''},
   );
   final upstreamLog = <String>[];
@@ -271,8 +275,9 @@ rules:
 
 Future<String> _kernelVersion() async {
   try {
-    final r = await Process.run(mihomoBin, ['-v']);
-    return (r.stdout as String).trim().split('\n').first;
+    final r = await Process.run(singBoxBin, ['version']);
+    final out = (r.stdout as String).trim().split('\n');
+    return out.isEmpty ? '（未知）' : out.first;
   } catch (_) {
     return '（未知）';
   }

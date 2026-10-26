@@ -4,10 +4,10 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:moneyfly/core/services/app_data_cleaner.dart';
-import 'package:moneyfly/core/services/local_paths.dart';
-import 'package:moneyfly/core/services/subscription_cache.dart';
-import 'package:moneyfly/core/services/update_service.dart';
+import 'package:mbox/core/services/app_data_cleaner.dart';
+import 'package:mbox/core/services/local_paths.dart';
+import 'package:mbox/core/services/subscription_cache.dart';
+import 'package:mbox/core/services/update_service.dart';
 
 /// 本地数据清理 / 订阅缓存 单测：
 /// - 订阅缓存：写入 → 同版本读取 → 版本升级失效删除 → 清除；
@@ -74,9 +74,9 @@ void main() {
       await SubscriptionCache.instance
           .write(subscribeUrl: 'https://old.example.com', raw: 'proxies: []');
       SharedPreferences.setMockInitialValues({
-        'moneyfly_settings_v1': jsonEncode({'autoConnect': true, 'dns': '1.1.1.1'}),
-        'moneyfly_auto_login': true,
-        'moneyfly_lang': 'en',
+        'mbox_settings_v1': jsonEncode({'autoConnect': true, 'dns': '1.1.1.1'}),
+        'mbox_auto_login': true,
+        'mbox_lang': 'en',
       });
 
       await AppDataCleaner.cleanupOnLaunch();
@@ -87,8 +87,8 @@ void main() {
       expect((await LocalPaths.readMarker()).length, 32);
       // 偏好被清（出厂状态）
       final prefs = await SharedPreferences.getInstance();
-      expect(prefs.getString('moneyfly_settings_v1'), isNull);
-      expect(prefs.getBool('moneyfly_auto_login'), isNull);
+      expect(prefs.getString('mbox_settings_v1'), isNull);
+      expect(prefs.getBool('mbox_auto_login'), isNull);
     });
 
     test('老安装（标记存在）+ 版本一致 → 缓存保留（可作启动兜底）', () async {

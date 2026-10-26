@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:moneyfly/core/services/window_geometry.dart';
+import 'package:mbox/core/services/window_geometry.dart';
 
 /// 客户实测（2026-10-18）：「某些 Windows 电脑装好后进程在跑、托盘有图标，
 /// 但主界面打不开」，真因是窗口被摆到了屏幕外 / 尺寸超过屏幕。

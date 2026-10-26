@@ -3,15 +3,15 @@ library;
 
 // sing-box 配置生成器测试：JSON 结构断言 + （有本地内核时）真实内核 check 校验与 Clash API 行为验证。
 //
-// 与 mihomo 版的语义对照：
+// 与旧内核版的语义对照：
 // - `cfg['tun']`              → `cfg['inbounds']` 里 `type=='tun'` 的那一项
 // - `cfg['rules']`(List<Str>) → `cfg['route']['rules']`(有序 List<Map>)，用 `clash_mode`
 //                               前缀区分「智能模式(Rule)」与「全局模式(Global)」两套规则
 // - `cfg['proxies']`          → `cfg['outbounds']` 里 selector/direct/block 之外的项
 // - `cfg['mixed-port']`       → mixed 入站的 `listen_port`
 // - `external-controller`/`secret`/`mode` → `cfg['experimental']['clash_api']`
-// - mihomo 的 `rule-providers`(.mrs) → sing-box 的 `route.rule_set`(.srs)
-// - mihomo 内置的 GLOBAL 组 → sing-box 没有，全局模式靠 `clash_mode:'Global'` 规则 +
+// - 旧内核的 `rule-providers`(.mrs) → sing-box 的 `route.rule_set`(.srs)
+// - 旧内核内置的 GLOBAL 组 → sing-box 没有，全局模式靠 `clash_mode:'Global'` 规则 +
 //   [select] 选择器实现（切节点仍是 PUT /proxies/select）
 import 'dart:convert';
 import 'dart:io';
@@ -19,12 +19,12 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:moneyfly/core/models/models.dart';
-import 'package:moneyfly/core/proxy/singbox_config.dart';
+import 'package:mbox/core/models/models.dart';
+import 'package:mbox/core/proxy/singbox_config.dart';
 
-/// 定位本地 sing-box 二进制（MONEYFLY_SINGBOX 或 .core_dl/ 随包下载的内核）
+/// 定位本地 sing-box 二进制（MBOX_SINGBOX 或 .core_dl/ 随包下载的内核）
 String? _localSingBox() {
-  final env = Platform.environment['MONEYFLY_SINGBOX'];
+  final env = Platform.environment['MBOX_SINGBOX'];
   if (env != null && env.trim().isNotEmpty && File(env).existsSync()) {
     return File(env).absolute.path;
   }
@@ -41,7 +41,7 @@ String? _localSingBox() {
 
 /// 把仓库内置 .srs 规则集复制到临时内核目录。
 /// sing-box 的 `rule_set` 用的是**离线二进制规则集**：文件缺失时 `check`/`run`
-/// 直接 FATAL（不像 mihomo 会触发内核联网下载），所以真实内核用例要么不引用
+/// 直接 FATAL（不像旧内核会触发联网下载），所以真实内核用例要么不引用
 /// 规则集（ruleSetDir=null），要么先把 assets/rules/*.srs 拷到临时目录。
 /// 返回成功复制的文件名（空 = 仓库里没有内置规则集）。
 List<String> _seedRuleSets(String dir) {
@@ -71,7 +71,7 @@ Future<int> _freePort() async {
   return port >= 1024 ? port : _freePort();
 }
 
-// ===== sing-box 配置的读取小工具（按真实结构取值，避免走到 mihomo 的键上）=====
+// ===== sing-box 配置的读取小工具（按真实结构取值，避免走到旧内核的键上）=====
 
 List<Map<String, dynamic>> _inbounds(Map<String, dynamic> cfg) =>
     (cfg['inbounds'] as List).cast<Map<String, dynamic>>();
@@ -634,7 +634,7 @@ void main() {
   });
 
   test('fakeIpFilterExtra: 追加到 DNS 内网后缀表, 空值忽略', () {
-    // sing-box 没有 fake-ip-filter：内网/本地点名走 dns-local，等价于 mihomo 的
+    // sing-box 没有 fake-ip-filter：内网/本地点名走 dns-local，等价于旧内核的
     // fake-ip-filter，额外名单就是往这张后缀表里追加
     final tun = SingBoxConfigBuilder.build(
         nodes: [vlessNode],
@@ -675,7 +675,7 @@ void main() {
   // ===== 真实内核验证（有本地 sing-box 二进制时执行）=====
   final singbox = _localSingBox();
   final skipMsg = singbox == null
-      ? '未找到本地 sing-box 内核（可用 MONEYFLY_SINGBOX 指定）'
+      ? '未找到本地 sing-box 内核（可用 MBOX_SINGBOX 指定）'
       : null;
 
   /// 覆盖全协议 + 特殊字符名的节点池。
@@ -683,7 +683,7 @@ void main() {
   List<ProxyNode> allProtocolNodes() => [
         mkNode('vless', raw: {
           'reality-opts': {
-            // sing-box 会校验 X25519 公钥格式（mihomo 不校验），用真实生成的 key
+            // sing-box 会校验 X25519 公钥格式（旧内核不校验），用真实生成的 key
             'public-key': 'R4V_BnGe4UM6IM6Ls_GlFzr9E1P9h307pB9I1tgwGXA',
             'short-id': '00112233',
           },

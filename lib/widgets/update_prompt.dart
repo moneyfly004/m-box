@@ -117,12 +117,12 @@ abstract final class UpdatePrompt {
       context: context,
       barrierDismissible: false,
       builder: (_) => AlertDialog(
-        backgroundColor: MFColors.card,
+        backgroundColor: MBColors.card,
         title: Text(AppStrings.t('update_installing_title'),
             style: const TextStyle(fontSize: 15)),
         content: Text(
             AppStrings.t('update_installing_body', {'v': pending.version}),
-            style: TextStyle(fontSize: 13, color: MFColors.txt2)),
+            style: TextStyle(fontSize: 13, color: MBColors.txt2)),
       ),
     ));
 
@@ -207,7 +207,7 @@ abstract final class UpdatePrompt {
         context: context,
         barrierDismissible: !force,
         builder: (ctx) => AlertDialog(
-          backgroundColor: MFColors.card2,
+          backgroundColor: MBColors.card2,
           title: Text('${AppStrings.t('new_version')} v$version',
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
           content: Column(
@@ -220,13 +220,13 @@ abstract final class UpdatePrompt {
                     : (UpdateService.canInstallInApp
                         ? AppStrings.t('update_downloading_body')
                         : AppStrings.t('update_manual_body', {'v': version})),
-                style: TextStyle(fontSize: 13, color: MFColors.txt2, height: 1.6),
+                style: TextStyle(fontSize: 13, color: MBColors.txt2, height: 1.6),
               ),
               if (info!.sizeText != null && info.sizeText!.isNotEmpty) ...[
                 const SizedBox(height: 6),
                 Text(AppStrings.t('update_body',
                     {'cur': UpdateInfo.currentVersion, 'latest': version, 'size': ' · ${info.sizeText}'}),
-                    style: TextStyle(fontSize: 12, color: MFColors.txt3, height: 1.6)),
+                    style: TextStyle(fontSize: 12, color: MBColors.txt3, height: 1.6)),
               ],
             ],
           ),
@@ -384,7 +384,7 @@ abstract final class UpdatePrompt {
     await showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: MFColors.card2,
+        backgroundColor: MBColors.card2,
         title: Text(AppStrings.t('update_fallback_title'),
             style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
         content: Column(
@@ -392,10 +392,10 @@ abstract final class UpdatePrompt {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(reason,
-                style: TextStyle(fontSize: 13, color: MFColors.txt2, height: 1.6)),
+                style: TextStyle(fontSize: 13, color: MBColors.txt2, height: 1.6)),
             const SizedBox(height: 10),
             Text(AppStrings.t('update_fallback_body'),
-                style: TextStyle(fontSize: 12, color: MFColors.txt3, height: 1.6)),
+                style: TextStyle(fontSize: 12, color: MBColors.txt3, height: 1.6)),
           ],
         ),
         actions: [
@@ -426,11 +426,11 @@ abstract final class UpdatePrompt {
   /// （我们的 App 是 ad-hoc 签名，一旦带隔离属性就只会报「已损坏」）。
   static Future<void> _showMacManualHelp(BuildContext context) async {
     if (!context.mounted) return;
-    const cmd = 'xattr -dr com.apple.quarantine /Applications/MoneyFly.app';
+    const cmd = 'xattr -dr com.apple.quarantine /Applications/MBox.app';
     await showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: MFColors.card2,
+        backgroundColor: MBColors.card2,
         title: Text(AppStrings.t('update_manual_help'),
             style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
         content: SingleChildScrollView(
@@ -439,23 +439,23 @@ abstract final class UpdatePrompt {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(AppStrings.t('update_manual_steps'),
-                  style: TextStyle(fontSize: 12.5, color: MFColors.txt2, height: 1.7)),
+                  style: TextStyle(fontSize: 12.5, color: MBColors.txt2, height: 1.7)),
               const SizedBox(height: 12),
               Text(AppStrings.t('update_manual_damaged_hint'),
-                  style: TextStyle(fontSize: 12, color: MFColors.txt3, height: 1.6)),
+                  style: TextStyle(fontSize: 12, color: MBColors.txt3, height: 1.6)),
               const SizedBox(height: 8),
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: MFColors.card,
+                  color: MBColors.card,
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: MFColors.line),
+                  border: Border.all(color: MBColors.line),
                 ),
                 child: SelectableText(cmd,
                     style: TextStyle(
                         fontSize: 11.5,
-                        color: MFColors.txt,
+                        color: MBColors.txt,
                         fontFamily: kNumFont)),
               ),
             ],
@@ -566,7 +566,7 @@ abstract final class UpdatePrompt {
       builder: (_) => PopScope(
         canPop: false,
         child: AlertDialog(
-          backgroundColor: MFColors.card2,
+          backgroundColor: MBColors.card2,
           content: Row(children: [
             const SizedBox(
                 width: 18, height: 18,
@@ -598,7 +598,7 @@ abstract final class UpdatePrompt {
       builder: (_) => PopScope(
         canPop: false,
         child: AlertDialog(
-          backgroundColor: MFColors.card2,
+          backgroundColor: MBColors.card2,
           title: Text(AppStrings.t('update_downloading_pkg'),
               style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
           content: ValueListenableBuilder<double?>(
@@ -611,14 +611,14 @@ abstract final class UpdatePrompt {
                 const SizedBox(height: 10),
                 Text(
                   v == null ? '' : '${(v * 100).clamp(0, 100).toStringAsFixed(0)}%',
-                  style: TextStyle(fontSize: 12, color: MFColors.txt3),
+                  style: TextStyle(fontSize: 12, color: MBColors.txt3),
                 ),
                 const SizedBox(height: 8),
                 // 取消的真实语义写清楚：不再等待、不会安装；底层下载（与后台
                 // 预下载共享）无法从 UI 侧 abort，所以如实说明而不是假装停掉
                 Text(AppStrings.t('update_cancel_hint'),
                     style: TextStyle(
-                        fontSize: 11, color: MFColors.txt3, height: 1.5)),
+                        fontSize: 11, color: MBColors.txt3, height: 1.5)),
               ],
             ),
           ),
@@ -644,7 +644,7 @@ abstract final class UpdatePrompt {
     await showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: MFColors.card2,
+        backgroundColor: MBColors.card2,
         content: Text(text, style: const TextStyle(fontSize: 13, height: 1.6)),
         actions: [
           TextButton(

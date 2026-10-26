@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:moneyfly/theme/app_theme.dart';
+import 'package:mbox/theme/app_theme.dart';
 
 void main() {
   test('formatPrice 去掉无意义尾零，保留真实小数', () {

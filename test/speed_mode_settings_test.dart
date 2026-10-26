@@ -10,25 +10,25 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:moneyfly/core/api/api_client.dart';
-import 'package:moneyfly/core/models/models.dart';
-import 'package:moneyfly/core/proxy/proxy_core.dart';
-import 'package:moneyfly/core/proxy/proxy_core_cli.dart';
-import 'package:moneyfly/core/services/account_service.dart';
-import 'package:moneyfly/core/services/settings_store.dart';
-import 'package:moneyfly/core/services/speed_test_mode.dart';
-import 'package:moneyfly/core/services/subscription_service.dart';
-import 'package:moneyfly/l10n/app_strings.dart';
-import 'package:moneyfly/pages/nodes/nodes_page.dart';
-import 'package:moneyfly/pages/settings/settings_page.dart';
-import 'package:moneyfly/theme/app_theme.dart';
+import 'package:mbox/core/api/api_client.dart';
+import 'package:mbox/core/models/models.dart';
+import 'package:mbox/core/proxy/proxy_core.dart';
+import 'package:mbox/core/proxy/proxy_core_cli.dart';
+import 'package:mbox/core/services/account_service.dart';
+import 'package:mbox/core/services/settings_store.dart';
+import 'package:mbox/core/services/speed_test_mode.dart';
+import 'package:mbox/core/services/subscription_service.dart';
+import 'package:mbox/l10n/app_strings.dart';
+import 'package:mbox/pages/nodes/nodes_page.dart';
+import 'package:mbox/pages/settings/settings_page.dart';
+import 'package:mbox/theme/app_theme.dart';
 
 Widget _wrap(Widget child) => MultiProvider(
       providers: [
         ChangeNotifierProvider.value(value: ConnectionController.instance),
         ChangeNotifierProvider.value(value: AccountService.instance),
       ],
-      child: MaterialApp(theme: buildMoneyFlyTheme(), home: child),
+      child: MaterialApp(theme: buildMBoxTheme(), home: child),
     );
 
 /// 限定在弹窗内查找控件（设置行的描述文案常与选项文案撞词）
@@ -47,7 +47,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUp(() async {
-    SharedPreferences.setMockInitialValues({'moneyfly_lang': 'zh'});
+    SharedPreferences.setMockInitialValues({'mbox_lang': 'zh'});
     SettingsStore.resetForTest();
     await AppStrings.setLang('zh', persist: false);
     ProxyCoreCli.manageSystemProxy = false;

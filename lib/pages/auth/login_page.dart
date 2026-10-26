@@ -23,7 +23,7 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  static const _autoLoginKey = 'moneyfly_auto_login';
+  static const _autoLoginKey = 'mbox_auto_login';
 
   final _account = TextEditingController();
   final _password = TextEditingController();
@@ -144,14 +144,14 @@ class _LoginPageState extends State<LoginPage> {
     showDialog<void>(
       context: context,
       builder: (dialogCtx) => AlertDialog(
-        backgroundColor: MFColors.card2,
+        backgroundColor: MBColors.card2,
         shape: const RoundedRectangleBorder(
             borderRadius: BorderRadius.all(Radius.circular(18))),
         title: Text(AppStrings.t('rate_limit_title'),
             textAlign: TextAlign.center,
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
         content: Text(body,
-            style: TextStyle(fontSize: 13, color: MFColors.txt2, height: 1.7)),
+            style: TextStyle(fontSize: 13, color: MBColors.txt2, height: 1.7)),
         actionsAlignment: MainAxisAlignment.center,
         actions: [
           TextButton(
@@ -188,14 +188,14 @@ class _LoginPageState extends State<LoginPage> {
     showDialog<void>(
       context: context,
       builder: (_) => AlertDialog(
-        backgroundColor: MFColors.card2,
+        backgroundColor: MBColors.card2,
         shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(18))),
         title: Text(AppStrings.t('account_disabled_title'),
             textAlign: TextAlign.center,
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
         content: Text(msg,
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 13.5, color: MFColors.txt2, height: 1.7)),
+            style: TextStyle(fontSize: 13.5, color: MBColors.txt2, height: 1.7)),
         actionsAlignment: MainAxisAlignment.center,
         actions: [
           TextButton(
@@ -230,12 +230,12 @@ class _LoginPageState extends State<LoginPage> {
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
-                      BoxShadow(color: MFColors.brand.withValues(alpha: .35), blurRadius: 40, offset: Offset(0, 16)),
+                      BoxShadow(color: MBColors.brand.withValues(alpha: .35), blurRadius: 40, offset: Offset(0, 16)),
                     ],
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(20),
-                    child: Image.asset('assets/moneyfly-logo.png', width: compact ? 60 : 76, height: compact ? 60 : 76),
+                    child: Image.asset('assets/mbox-logo.png', width: compact ? 60 : 76, height: compact ? 60 : 76),
                   ),
                 ),
               ),
@@ -247,7 +247,7 @@ class _LoginPageState extends State<LoginPage> {
               const SizedBox(height: 6),
                Center(
                 child: Text(AppStrings.t('slogan'),
-                    style: TextStyle(fontSize: 12.5, color: MFColors.txt3, letterSpacing: 3)),
+                    style: TextStyle(fontSize: 12.5, color: MBColors.txt3, letterSpacing: 3)),
               ),
               SizedBox(height: compact ? 24 : 44),
               _Field(
@@ -267,14 +267,14 @@ class _LoginPageState extends State<LoginPage> {
                 onSubmitted: (_) => _loading ? null : _login(),
                 trailing: IconButton(
                   icon: Icon(_obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                      size: 20, color: MFColors.txt3),
+                      size: 20, color: MBColors.txt3),
                   onPressed: () => setState(() => _obscure = !_obscure),
                 ),
               ),
               const SizedBox(height: 8),
               Row(
                 children: [
-                   Text(AppStrings.t('auto_login'), style: TextStyle(fontSize: 13, color: MFColors.txt2)),
+                   Text(AppStrings.t('auto_login'), style: TextStyle(fontSize: 13, color: MBColors.txt2)),
                   const Spacer(),
                   Switch(
                     value: _autoLogin,
@@ -286,7 +286,7 @@ class _LoginPageState extends State<LoginPage> {
                 ],
               ),
               SizedBox(height: compact ? 10 : 16),
-              MFPrimaryButton(
+              MBPrimaryButton(
                 label: _cooldownLeft > 0
                     ? AppStrings.t('rate_limit_cooldown', {'n': '$_cooldownLeft'})
                     : AppStrings.t('login_button'),
@@ -303,15 +303,15 @@ class _LoginPageState extends State<LoginPage> {
                     onTap: () => Navigator.of(context).push(
                         MaterialPageRoute(builder: (_) => const RegisterPage())),
                     child: Text.rich(TextSpan(children: [
-                      TextSpan(text: AppStrings.t('no_account'), style: TextStyle(fontSize: 13.5, color: MFColors.txt2)),
-                      TextSpan(text: AppStrings.t('register'), style: TextStyle(fontSize: 13.5, color: MFColors.brandLight, fontWeight: FontWeight.w600)),
+                      TextSpan(text: AppStrings.t('no_account'), style: TextStyle(fontSize: 13.5, color: MBColors.txt2)),
+                      TextSpan(text: AppStrings.t('register'), style: TextStyle(fontSize: 13.5, color: MBColors.brandLight, fontWeight: FontWeight.w600)),
                     ])),
                   ),
-                  Container(width: 1, height: 12, margin: const EdgeInsets.symmetric(horizontal: 18), color: MFColors.line2),
+                  Container(width: 1, height: 12, margin: const EdgeInsets.symmetric(horizontal: 18), color: MBColors.line2),
                   _LinkTap(
                     onTap: () => Navigator.of(context).push(
                         MaterialPageRoute(builder: (_) => const ForgotPasswordPage())),
-                    child: Text(AppStrings.t('forgot_password'), style: TextStyle(fontSize: 13.5, color: MFColors.txt2)),
+                    child: Text(AppStrings.t('forgot_password'), style: TextStyle(fontSize: 13.5, color: MBColors.txt2)),
                   ),
                 ],
               ),
@@ -350,13 +350,13 @@ class _Field extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.only(left: 2, bottom: 7),
-          child: Text(label, style:  TextStyle(fontSize: 12.5, color: MFColors.txt2, fontWeight: FontWeight.w500)),
+          child: Text(label, style:  TextStyle(fontSize: 12.5, color: MBColors.txt2, fontWeight: FontWeight.w500)),
         ),
         TextField(
           controller: controller,
           obscureText: obscure,
           style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 15),
-          cursorColor: MFColors.brand,
+          cursorColor: MBColors.brand,
           textInputAction: action,
           onSubmitted: onSubmitted,
           decoration: InputDecoration(hintText: hint, suffixIcon: trailing),

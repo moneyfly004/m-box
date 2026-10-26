@@ -1,7 +1,7 @@
 // 回归：Android 看门狗判死逻辑。核心保证——App 切后台/弹系统框/限流导致的
 // 瞬时轮询失败，绝不能误判内核死亡而断开（用户报告「连接后自动缩小随即断开」）。
 import 'package:flutter_test/flutter_test.dart';
-import 'package:moneyfly/core/proxy/proxy_core_embedded.dart';
+import 'package:mbox/core/proxy/proxy_core_embedded.dart';
 
 void main() {
   const threshold = 3;
