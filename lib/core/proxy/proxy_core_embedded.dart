@@ -179,7 +179,17 @@ class ProxyCoreEmbedded extends ProxyCore {
     while (sw.elapsed < const Duration(seconds: 20)) {
       try {
         final r = await _api.get('/version', options: Options(validateStatus: (s) => true));
-        if (r.statusCode == 200) {
+        // 只要内核回了 HTTP（哪怕是 401/403）就说明它已经活了：
+        // 401/403 只代表 secret 与配置不一致（热切换/测速会失败，见 watchdog 的
+        // 同名判断）。之前这里只认 200 → iOS 上 secret 一旦不一致，内核其实早就
+        // 起来了，用户却要白等满 20s 然后看到「内核启动超时」（这条路径真机踩过）。
+        final code = r.statusCode ?? 0;
+        if (code > 0 && code < 500) {
+          if (code == 401 || code == 403) {
+            _apiAuthFailed = true;
+            AppLog.error('内核 API 鉴权失败（HTTP $code）：热切换/测速会失败，'
+                '请检查 secret 是否与配置一致');
+          }
           _running = true;
           _startWatchdog();
           _startTrafficStream();

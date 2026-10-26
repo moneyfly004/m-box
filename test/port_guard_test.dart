@@ -134,7 +134,18 @@ void main() {
       final p = await PortGuard.pickFree(from: busy.port, avoid: {busy.port + 2});
       expect(p, isNot(busy.port), reason: '不能挑到正被占用的端口');
       expect(p, isNot(busy.port + 2), reason: '不能挑到 avoid 里的端口');
-      expect(await PortGuard.isFree(p), isTrue);
+      // 不能断言「pickFree 返回后该端口仍空闲」：CI 里 e2e 组与单测是**并行**
+      // 跑的（Windows job 两组测试并发），pickFree 返回→复查之间端口可能被
+      // 另一个测试进程抢走。那是并发环境的常态，不是 pickFree 的 bug。
+      // 真正要保证的性质是「多试几次一定能挑到空闲端口」。
+      var gotFree = false;
+      for (var i = 0; i < 8 && !gotFree; i++) {
+        final q = await PortGuard.pickFree(from: busy.port, avoid: {busy.port + 2});
+        gotFree = q != busy.port &&
+            q != busy.port + 2 &&
+            await PortGuard.isFree(q);
+      }
+      expect(gotFree, isTrue, reason: '多次尝试后应当挑到一个当前真正空闲的端口');
     });
   });
 

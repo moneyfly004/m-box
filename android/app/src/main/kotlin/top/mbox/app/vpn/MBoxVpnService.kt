@@ -487,8 +487,9 @@ class MBoxVpnService : VpnService(), PlatformInterface, CommandServerHandler {
 
     override fun usePlatformAutoDetectInterfaceControl(): Boolean = true
 
-    override fun useProcFS(): Boolean = false
-
+    // sing-box 1.14 的 PlatformInterface 删掉了 useProcFS()（改成
+    // usePlatformShell()/usePlatformBridge() 两个开关），留着这个 override
+    // 直接编译失败：'useProcFS' overrides nothing。
     override fun underNetworkExtension(): Boolean = false
 
     override fun includeAllNetworks(): Boolean = false

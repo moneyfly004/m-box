@@ -3,7 +3,7 @@
 基于 **sing-box** 内核的全平台代理客户端：macOS / Windows / Android / iOS，
 一套 Dart 代码 + 三端各自的 sing-box 接入方式。
 
-- 内核：**sing-box 1.14.4**（Android 内核库 1.14.0，见下）
+- 内核：**sing-box 1.14.4**（Android 内核库 1.14.4，见下）
   - 桌面（macOS / Windows）：官方 `SagerNet/sing-box` 预编译二进制，随安装包内置，
     可在「设置 → 内核管理」里检测更新 / 热替换 / 回滚
   - Android：`android/app/libs/libmbox.aar`（sing-box 官方核心经 gomobile bind，
@@ -33,7 +33,7 @@ bash tool/fetch_ruleset.sh
 bash tool/fetch_singbox.sh 1.14.4      # 放进 app bundle / build/singbox
 
 # 3) Android 内核 AAR（下载的是 libmoneyfly-<ver>.aar，落盘为 libmbox.aar）
-bash tool/build_singbox_aar.sh 1.14.0  # FORCE_BUILD=1 可本地 gomobile 编译
+bash tool/build_singbox_aar.sh 1.14.4  # FORCE_BUILD=1 可本地 gomobile 编译
 
 # 4) iOS 内核框架（约 100MB，仓库不入库）
 bash tool/fetch_singbox_ios.sh 1.14.4

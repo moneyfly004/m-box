@@ -28,6 +28,35 @@ final class MBoxLibboxEngine {
 
     static func version() -> String { LibboxVersion() }
 
+    /// 挑一个当前空闲的本地 TCP 端口给命令服务用（0 = 用 unix socket）。
+    ///
+    /// 为什么要 TCP：libbox 的 unix socket 路径受 Darwin `sun_path`(104B) 限制，
+    /// iOS 扩展容器路径已经 80+ 字节，加 `/command.sock` 极易越界（实测 bind
+    /// 直接 `invalid argument`，内核起不来）。TCP 回环没有这个限制。
+    static func pickCommandServerPort() -> Int32 {
+        for _ in 0..<8 {
+            let port = Int32.random(in: 40000...60000)
+            if isTCPPortFree(port) { return port }
+        }
+        return 0
+    }
+
+    private static func isTCPPortFree(_ port: Int32) -> Bool {
+        let fd = socket(AF_INET, SOCK_STREAM, 0)
+        guard fd >= 0 else { return false }
+        defer { close(fd) }
+        var addr = sockaddr_in()
+        addr.sin_family = sa_family_t(AF_INET)
+        addr.sin_port = in_port_t(UInt16(port).bigEndian)
+        addr.sin_addr.s_addr = inet_addr("127.0.0.1")
+        let rc = withUnsafePointer(to: &addr) { ptr in
+            ptr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sa in
+                bind(fd, sa, socklen_t(MemoryLayout<sockaddr_in>.size))
+            }
+        }
+        return rc == 0
+    }
+
     /// 给内核 unix socket 用的**短**目录。
     ///
     /// 为什么必须短：libbox 的 CommandServer 把监听地址固定写成
@@ -71,6 +100,14 @@ final class MBoxLibboxEngine {
         options.basePath = Self.shortBasePath(for: home)
         options.workingPath = home
         options.tempPath = NSTemporaryDirectory()
+        // 命令服务优先走 **TCP 回环**：libbox 的 unix socket 路径是
+        // `<basePath>/command.sock`，而 Darwin 的 sun_path 只有 104 字节，
+        // iOS 扩展容器路径本身就 80+ 字节 —— 稍微长一点就 `bind: invalid argument`
+        // （真机实测的第一个坑）。TCP 只受端口占用影响，端口自己挑、挑不到再退回 unix。
+        let cmdPort = Self.pickCommandServerPort()
+        options.commandServerListenPort = cmdPort
+        TunnelDiag.log("命令服务监听: " + (cmdPort == 0 ? "unix socket（短路径）"
+            : "TCP 127.0.0.1:\(cmdPort)"))
         let ver = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? ""
         options.appVersion = ver
         options.appMarketingVersion = ver
@@ -86,7 +123,28 @@ final class MBoxLibboxEngine {
                                  userInfo: [NSLocalizedDescriptionKey: "CommandServer 创建失败"])
         }
         self.server = server
-        try server.start()
+        let tServer = Date()
+        do {
+            try server.start()
+            TunnelDiag.log("✓ 命令服务已启动（\(Int(Date().timeIntervalSince(tServer) * 1000))ms）")
+        } catch {
+            let firstError = error
+            TunnelDiag.log("✗ 命令服务启动失败: \(error.localizedDescription)")
+            guard cmdPort != 0 else { throw firstError }
+            // TCP 端口被占/被系统拒绝时退回 unix socket（短 basePath）
+            TunnelDiag.log("退回 unix socket 重试 …")
+            options.commandServerListenPort = 0
+            var retryErr: NSError?
+            guard LibboxSetup(options, &retryErr) else {
+                throw retryErr ?? firstError
+            }
+            guard let server2 = LibboxNewCommandServer(serverHandler, platform, &retryErr) else {
+                throw retryErr ?? firstError
+            }
+            self.server = server2
+            try server2.start()
+            TunnelDiag.log("✓ 命令服务已启动（unix socket 兜底）")
+        }
 
         // 日志通道：CommandClient + CommandLog（失败不影响内核运行）
         let clientOptions = LibboxCommandClientOptions()
@@ -100,9 +158,37 @@ final class MBoxLibboxEngine {
             }
         }
 
-        // 阻塞直到配置解析完成/失败
-        try server.startOrReloadService(configContent, options: nil)
-        TunnelDiag.log("✓ startOrReloadService 返回，内核已启动")
+        // 阻塞直到配置解析完成/失败。这里必须带看门狗：
+        // 真机上出现过「内核 Start 一直不返回 → App 侧只看到内核启动超时」，
+        // 没有返回就等于没有任何线索。10s 不返回就主动取证并失败。
+        let tStart = Date()
+        var startError: Error?
+        let done = DispatchSemaphore(value: 0)
+        DispatchQueue.global(qos: .userInitiated).async {
+            do {
+                try server.startOrReloadService(configContent, options: nil)
+            } catch {
+                startError = error
+            }
+            done.signal()
+        }
+        let waited = done.wait(timeout: .now() + .seconds(10))
+        let elapsed = Int(Date().timeIntervalSince(tStart) * 1000)
+        if waited == .timedOut {
+            TunnelDiag.log("✗ 内核 Start 10s 未返回（卡在启动阶段）")
+            TunnelDiag.dumpKernelLogTail(home: home)
+            throw NSError(domain: "mbox", code: -5, userInfo: [
+                NSLocalizedDescriptionKey:
+                    "内核启动超时（Start 10s 未返回）。诊断：\(TunnelDiag.kernelLogTail(home: home))"
+            ])
+        }
+        if let startError {
+            TunnelDiag.log("✗ startOrReloadService 抛错（\(elapsed)ms）: "
+                + "\(startError.localizedDescription)")
+            TunnelDiag.dumpKernelLogTail(home: home)
+            throw startError
+        }
+        TunnelDiag.log("✓ startOrReloadService 返回（\(elapsed)ms），内核已启动")
     }
 
     func reload(configContent: String) throws {

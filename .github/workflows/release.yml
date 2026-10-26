@@ -84,7 +84,7 @@ concurrency:
 env:
   FLUTTER_VERSION: '3.44.4' # 与开发机一致，保证构建可复现
   SINGBOX_VERSION: '1.14.4' # sing-box 官方内核版本（桌面二进制 + iOS 框架）
-  SINGBOX_LIB_VERSION: '1.14.0' # Android AAR（moneyfly004/sing-box-lib 的 release tag）
+  SINGBOX_LIB_VERSION: '1.14.4' # Android AAR（moneyfly004/sing-box-lib 的 release tag）
 
 jobs:
   # ================= Linux 校验（唯一一次 ubuntu 全量测试） =================

@@ -56,7 +56,7 @@ Dart 侧控制面（`proxy_core.dart`）因此只做两件事：模式值用 `Ru
 |---|---|---|
 | macOS | `MBox.app/Contents/MacOS/sing-box` | `SagerNet/sing-box` 官方 `darwin-arm64/amd64` tar.gz（1.14.4） |
 | Windows | `<安装目录>/sing-box.exe` | 官方 `windows-amd64` zip（1.14.4） |
-| Android | `android/app/libs/libmbox.aar` | `moneyfly004/sing-box-lib` release 的 `libmoneyfly-1.14.0.aar`（Java 包 `top.moneyfly.libbox`，AAR 内 native 库叫 `libmoneyfly.so`）；`FORCE_BUILD=1` 可用 gomobile 从官方源码重编任意版本 |
+| Android | `android/app/libs/libmbox.aar` | `moneyfly004/sing-box-lib` release 的 `libmoneyfly-1.14.4.aar`（Java 包 `top.moneyfly.libbox`，AAR 内 native 库叫 `libmoneyfly.so`）；`FORCE_BUILD=1` 可用 gomobile 从官方源码重编任意版本 |
 | iOS | `ios/Libbox.xcframework` | `tool/fetch_singbox_ios.sh`（gomobile bind `./experimental/libbox`，Go 1.24+ 需先 `go get -tool golang.org/x/mobile/cmd/gobind`） |
 
 内核管理页（`kernel_page.dart`）：显示当前版本、检查官方最新版、下载缓存、

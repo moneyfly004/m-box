@@ -129,6 +129,28 @@ enum TunnelDiag {
         RawIO.write(kernelFd, text.hasSuffix("\n") ? text : text + "\n")
     }
 
+    /// sing-box 自己写的日志（`log.output` 指向 `<home>/kernel.log`）尾部。
+    ///
+    /// 和上面的 kernelRing 不是一回事：kernelRing 是 libbox 通过 CommandClient
+    /// 推给扩展的日志；这条路径是**内核直接写文件**，在 `Start` 卡死/CommandClient
+    /// 通道还没建立时，只有这个文件里有内容（内核启动失败的真正原因通常在这里）。
+    static func kernelLogTail(home: String, maxBytes: Int = 6000) -> String {
+        let path = (home as NSString).appendingPathComponent("kernel.log")
+        guard let fh = FileHandle(forReadingAtPath: path) else { return "（无 kernel.log）" }
+        defer { try? fh.close() }
+        let size = (try? fh.seekToEnd()) ?? 0
+        let start = size > UInt64(maxBytes) ? size - UInt64(maxBytes) : 0
+        try? fh.seek(toOffset: start)
+        let data = (try? fh.readToEnd()) ?? Data()
+        let text = String(decoding: data, as: UTF8.self)
+        return text.isEmpty ? "（kernel.log 为空）" : text
+    }
+
+    /// 把内核日志尾部写进诊断轨迹（同时进内存环与落盘文件，App 能直接看到）
+    static func dumpKernelLogTail(home: String) {
+        log("内核 kernel.log 尾部:\n" + kernelLogTail(home: home))
+    }
+
     /// App Group 容器是否可用（不可用意味着共享配置/kernel.log 都拿不到）
     static var appGroupPath: String? { sharedContainer()?.path }
 
