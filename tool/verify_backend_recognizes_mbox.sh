@@ -39,17 +39,29 @@ if not rows:
     print("✗ 设备列表为空"); sys.exit(1)
 def key(r): return r.get("last_seen") or ""
 rows.sort(key=key, reverse=True)
-bad = 0
 print(f"设备数: {len(rows)}")
 for r in rows[:6]:
     sw = r.get("software_name"); ver = r.get("software_version")
     ua = (r.get("user_agent") or "")[:58]
     flag = "✓" if sw and sw != "Unknown" else "✗"
-    if flag == "✗" and (r.get("user_agent") or "").lower().startswith(("mbox", "moneyfly")):
-        bad += 1
-    print(f"  {flag} software_name={sw!r:14} version={ver!r:8} ua={ua}")
-if bad:
-    print("\n✗ 仍有 MBox 请求被记成 Unknown —— 后端还没更新（部署 internal/services/ua_parser.go 的改动）")
-    sys.exit(2)
-print("\n✓ MBox 已被后端识别（software_name=MBox）")
+    print("  %s software_name=%-12r version=%-8r last_seen=%s  ua=%s" % (flag, sw, ver, r.get("last_seen"), ua))
+
+# 判定只看**最新一次** MBox 请求的结果：
+# 部署之前就已经登记过的老行会一直是 Unknown（那是历史数据，
+# 要等对应设备下次拉订阅才会被就地更新），不能拿它判「后端没生效」。
+mbox_rows = [r for r in rows if (r.get("user_agent") or "").lower().startswith("mbox")]
+if not mbox_rows:
+    print("\n? 设备里没有 MBox 记录（先用客户端拉一次订阅再跑本脚本）")
+    sys.exit(0)
+newest = mbox_rows[0]
+sw = newest.get("software_name")
+if sw and sw != "Unknown":
+    stale = [r for r in mbox_rows if (r.get("software_name") or "Unknown") == "Unknown"]
+    print(f"\n✓ 后端已识别 MBox（最新一条 software_name={sw!r}）")
+    if stale:
+        print(f"  另有 {len(stale)} 条历史行仍是 Unknown —— 那些设备下次拉订阅时会被就地更新，"
+              f"也可以在后台手动删掉")
+    sys.exit(0)
+print("\n✗ 最新的 MBox 请求仍被记成 Unknown —— 后端还没更新（UA 解析里没有 mbox 规则）")
+sys.exit(2)
 '
