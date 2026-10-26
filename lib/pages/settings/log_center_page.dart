@@ -12,7 +12,7 @@ import '../../l10n/app_strings.dart';
 import '../../theme/app_theme.dart';
 
 /// 日志中心：两个 Tab
-/// - 内核日志（实时）：mihomo 引擎输出 —— 引擎级排障（连不上/打不开网页）
+/// - 内核日志（实时）：sing-box 引擎输出 —— 引擎级排障（连不上/打不开网页）
 /// - 运行日志：App 自身记录 —— 应用流程排障（没自动连/订阅没更新等）
 class LogCenterPage extends StatelessWidget {
   const LogCenterPage({super.key});
@@ -401,30 +401,11 @@ class _KernelLogTabState extends State<_KernelLogTab>
     );
   }
 
-  /// 级别数值：越大越严重（与 mihomo 的 debug/info/warning/error/silent 一致）
-  static int _levelRank(String level) {
-    switch (level.toLowerCase()) {
-      case 'debug':
-        return 0;
-      case 'info':
-        return 1;
-      case 'warning':
-      case 'warn':
-        return 2;
-      case 'error':
-        return 3;
-      case 'silent':
-        return 4;
-      default:
-        return 1; // 无法识别的行（如自有的提示行）按 info 处理
-    }
-  }
+  /// 级别数值：越大越严重。兼容 sing-box（trace/debug/info/warn/error/fatal/panic）
+  /// 与旧内核的 warning/silent 写法。
+  static int _levelRank(String level) => kernelLogLevelRank(level);
 
-  /// 从 mihomo 日志行里取级别（形如 `time="…" level=info msg="…"`）
-  static String _lineLevel(String line) {
-    final m = RegExp(r'level=([a-zA-Z]+)').firstMatch(line);
-    return m?.group(1) ?? 'info';
-  }
+  static String _lineLevel(String line) => kernelLogLineLevel(line);
 
   /// 本页显示的行：**按当前级别过滤**。
   /// 原先级别只作用于「内核输出」（PATCH /configs），已收集的日志不受影响，
@@ -608,4 +589,45 @@ class _AppLogTabState extends State<_AppLogTab>
       ],
     );
   }
+}
+
+/// 内核日志级别排序：数值越大越严重。
+///
+/// 同时兼容 sing-box（trace/debug/info/warn/error/fatal/panic）与旧内核写法
+/// （warning/silent）。**必须放在顶层并可测**：这套映射曾按旧内核格式写死，
+/// 换成 sing-box 后行内级别是 `INFO`/`DEBUG` 而非 `level=info`，
+/// 导致日志页的级别过滤完全失效（切 debug/error 看到的内容一样）。
+int kernelLogLevelRank(String level) {
+  switch (level.toLowerCase()) {
+    case 'trace':
+    case 'debug':
+      return 0;
+    case 'info':
+      return 1;
+    case 'warning':
+    case 'warn':
+      return 2;
+    case 'error':
+    case 'fatal':
+    case 'panic':
+      return 3;
+    case 'silent':
+      return 4;
+    default:
+      return 1; // 无法识别的行（如 app 自己写的 `[app] …` 提示行）按 info 处理
+  }
+}
+
+/// 从内核日志行里取级别，兼容两种格式：
+///  - sing-box：`+0800 2026-10-26 18:06:04 INFO [3230225162 0ms] inbound/...`
+///  - 旧内核：  `time="…" level=info msg="…"`
+final _sbLevelRe = RegExp(r'\s(TRACE|DEBUG|INFO|WARN|WARNING|ERROR|FATAL|PANIC)\s');
+final _kvLevelRe = RegExp(r'level=([a-zA-Z]+)');
+
+String kernelLogLineLevel(String line) {
+  final kv = _kvLevelRe.firstMatch(line);
+  if (kv != null) return kv.group(1)!.toLowerCase();
+  final sb = _sbLevelRe.firstMatch(line);
+  if (sb != null) return sb.group(1)!.toLowerCase();
+  return 'info';
 }

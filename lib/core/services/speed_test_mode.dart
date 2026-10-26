@@ -3,7 +3,7 @@
 /// 对标 Shadowrocket 的「Ping / Connect」两种测速：
 ///
 /// - [kernel]（Connect / 内核测速）：让**内核真的通过该节点发一次请求**
-///   （mihomo `GET /proxies/{name}/delay`），密码/UUID/公钥/协议/回程全部
+///   （`GET /proxies/{name}/delay`），密码/UUID/公钥/协议/回程全部
 ///   参与验证 —— 这才是「节点可用」。慢一点（每节点一次真实建连 + 一次
 ///   HTTP 往返），但不会给假阳性。
 /// - [tcp]（Ping / TCP 测速）：只对 `服务器:端口` 做 TCP 握手计时。

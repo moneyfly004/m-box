@@ -164,7 +164,7 @@ class KernelManager {
     } catch (_) {}
   }
 
-  /// sing-box 官方只发布一套构建（没有 mihomo 那种「兼容版/标准版」之分），
+  /// sing-box 官方只发布一套构建（没有旧内核那种「兼容版/标准版」之分），
   /// 故桌面端也不再提供变体切换，UI 依据本值隐藏该选项。
   static Future<bool> get supportsVariant async => false;
 
@@ -343,7 +343,7 @@ class KernelManager {
     return _activate(dir, cacheFile);
   }
 
-  /// 把缓存内核激活为「当前生效」（userKernelDir/mihomo[.exe]），带备份回滚与自检
+  /// 把缓存内核激活为「当前生效」（userKernelDir/sing-box[.exe]），带备份回滚与自检
   Future<String> _activate(Directory dir, File cacheFile) async {
     final active = File('${dir.path}/$_exeName');
     final bak = File('${dir.path}/.$_exeName.bak');

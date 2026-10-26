@@ -85,7 +85,7 @@ class SettingsStore {
         'accessControlApps': <String>[],
         // 用户自定义「直连名单」（域名后缀列表，命中直接不走代理）
         'bypassDomains': <String>[],
-        // 用户追加的「必须走代理」域名（内置默认名单见 mihomo_config）
+        // 用户追加的「必须走代理」域名（内置默认名单见 singbox_config）
         'forceProxyDomains': <String>[],
         'bypassLan': true,
         // 外观模式：light / warm / gray / darkgray / darkblue / black

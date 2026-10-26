@@ -339,25 +339,25 @@ class UpdateService {
         .toList();
     if (kIsWeb) return null;
     // 本平台的**可接受前缀集合**：兜底也只在集合内挑，避免把 Android APK
-    // 或另一架构的包发给当前平台（旧兜底是「名字含 MoneyFly- 就用」）。
+    // 或另一架构的包发给当前平台（旧兜底是「名字含 MBox- 就用」）。
     final List<String> prefixes;
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
         // 主流机型 arm64-v8a(个别老 32 位机型请手动装对应 APK)
-        prefixes = const ['MoneyFly-android-arm64-v8a-'];
+        prefixes = const ['MBox-android-arm64-v8a-'];
         break;
       case TargetPlatform.iOS:
         // iOS 走侧载分发（IPA 挂 GitHub Releases）：TrollStore / 自签安装。
         // 只提示新版本 + 给出 IPA 下载地址，不在 App 内自更新（系统不允许）。
-        prefixes = const ['MoneyFly-ios-'];
+        prefixes = const ['MBox-ios-'];
         break;
       case TargetPlatform.macOS:
         prefixes = await _isMacIntel()
-            ? const ['MoneyFly-macos-x64-']
-            : const ['MoneyFly-macos-arm64-'];
+            ? const ['MBox-macos-x64-']
+            : const ['MBox-macos-arm64-'];
         break;
       case TargetPlatform.windows:
-        prefixes = const ['MoneyFly-setup-'];
+        prefixes = const ['MBox-setup-'];
         break;
       default:
         return null; // 未知平台：宁可不提示更新，也不给错包
@@ -647,7 +647,7 @@ class UpdateService {
 
   /// 「重启即更新」用：缓存里已下好、且比当前版本新的安装包。
   ///
-  /// 只认本平台的安装器文件名前缀（Windows: `MoneyFly-setup-<ver>.exe`），
+  /// 只认本平台的安装器文件名前缀（Windows: `MBox-setup-<ver>.exe`），
   /// 版本从文件名解析并与当前版本比较 —— 比当前版本旧或相同的缓存一律忽略
   /// （用户手里可能留着老包）。多个候选取版本最高的。
   Future<({String path, String version})?> pendingNewerInstaller() async {
@@ -657,7 +657,7 @@ class UpdateService {
     for (final f in dir.listSync()) {
       if (f is! File) continue;
       final name = f.uri.pathSegments.isEmpty ? '' : f.uri.pathSegments.last;
-      final m = RegExp(r'^MoneyFly-setup-(\d+\.\d+\.\d+)\.exe$').firstMatch(name);
+      final m = RegExp(r'^MBox-setup-(\d+\.\d+\.\d+)\.exe$').firstMatch(name);
       if (m == null) continue;
       final v = m.group(1)!;
       if (!_newerThanCurrent(v)) continue;

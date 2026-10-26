@@ -32,8 +32,8 @@ class _MirrorAdapter implements HttpClientAdapter {
 {
   "tag_name": "v9.9.9",
   "assets": [
-    {"name": "MoneyFly-setup-9.9.9.exe",
-     "browser_download_url": "https://github.com/moneyfly004/moneyfly/releases/download/v9.9.9/MoneyFly-setup-9.9.9.exe",
+    {"name": "MBox-setup-9.9.9.exe",
+     "browser_download_url": "https://github.com/moneyfly004/moneyfly/releases/download/v9.9.9/MBox-setup-9.9.9.exe",
      "size": ${assetBytes.length}},
     {"name": "SHA256SUMS-windows.txt",
      "browser_download_url": "https://github.com/moneyfly004/moneyfly/releases/download/v9.9.9/SHA256SUMS-windows.txt",
@@ -65,7 +65,7 @@ class _MirrorAdapter implements HttpClientAdapter {
       );
     }
     if (url.contains('SHA256SUMS')) {
-      final sums = '${UpdateService.sha256HexForTest(assetBytes)}  MoneyFly-setup-9.9.9.exe\n';
+      final sums = '${UpdateService.sha256HexForTest(assetBytes)}  MBox-setup-9.9.9.exe\n';
       return ResponseBody.fromString(sums, 200, headers: {
         Headers.contentTypeHeader: ['text/plain'],
       });
@@ -194,7 +194,7 @@ void main() {
 
       // 安装包请求只应打到镜像，不再浪费一次直连超时
       final assetCalls = adapter.calls
-          .where((u) => u.contains('MoneyFly-setup-9.9.9.exe'))
+          .where((u) => u.contains('MBox-setup-9.9.9.exe'))
           .toList();
       expect(assetCalls, isNotEmpty);
       expect(assetCalls.every((u) => u.startsWith('https://ghfast.top/')), isTrue,
@@ -253,11 +253,11 @@ void main() {
         panelKey.add(key);
         return {
           'version': '2.2.20',
-          'asset_name': 'MoneyFly-setup-2.2.20.exe',
+          'asset_name': 'MBox-setup-2.2.20.exe',
           'size_bytes': 27262976,
           'sha256': 'a' * 64,
           'download_url':
-              'https://github.com/moneyfly004/moneyfly/releases/download/v2.2.20/MoneyFly-setup-2.2.20.exe',
+              'https://github.com/moneyfly004/moneyfly/releases/download/v2.2.20/MBox-setup-2.2.20.exe',
         };
       };
 
@@ -265,7 +265,7 @@ void main() {
 
       expect(info, isNotNull, reason: 'GitHub 不通时必须靠面板拿到更新信息');
       expect(info!.latestVersion, '2.2.20');
-      expect(info.assetName, 'MoneyFly-setup-2.2.20.exe');
+      expect(info.assetName, 'MBox-setup-2.2.20.exe');
       expect(info.sha256, 'a' * 64, reason: 'sha256 由自己的服务器给出，校验不降级');
       expect(info.sizeBytes, 27262976);
       expect(info.sizeText, '26 MB');
@@ -280,11 +280,11 @@ void main() {
       UpdateService.debugGhDio = Dio()..httpClientAdapter = adapter;
       UpdateService.debugPanelLatestOverride = (_) async => {
             'version': '2.2.20',
-            'asset_name': 'MoneyFly-setup-2.2.20.exe',
+            'asset_name': 'MBox-setup-2.2.20.exe',
             'size_bytes': bytes.length,
             'sha256': UpdateService.sha256HexForTest(bytes),
             'download_url':
-                'https://github.com/moneyfly004/moneyfly/releases/download/v2.2.20/MoneyFly-setup-2.2.20.exe',
+                'https://github.com/moneyfly004/moneyfly/releases/download/v2.2.20/MBox-setup-2.2.20.exe',
           };
 
       final info = await UpdateService.instance.check();
@@ -327,8 +327,8 @@ void main() {
         ..httpClientAdapter = _MirrorAdapter(mirrorWorks: false);
       UpdateService.debugPanelLatestOverride = (_) async => {
             'version': '2.2.20',
-            'asset_name': 'MoneyFly-setup-2.2.20.exe',
-            'download_url': 'https://github.com/x/y/MoneyFly-setup-2.2.20.exe',
+            'asset_name': 'MBox-setup-2.2.20.exe',
+            'download_url': 'https://github.com/x/y/MBox-setup-2.2.20.exe',
           };
       final info = await UpdateService.instance.check();
       expect(info, isNotNull);

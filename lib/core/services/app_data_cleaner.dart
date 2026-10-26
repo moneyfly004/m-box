@@ -65,7 +65,7 @@ class AppDataCleaner {
     if (cache != null) {
       await LocalPaths.clearDirectoryContents(cache);
     }
-    // 4) 桌面端内核工作目录（mihomo config.yaml + geo 数据）；
+    // 4) 桌面端内核工作目录（sing-box config.json + .srs 规则集）；
     //    Android 内核文件位于 filesDir（= 支持目录，第 1 步已清）
     if (!Platform.isAndroid && !Platform.isIOS) {
       await LocalPaths.deleteBestEffort(

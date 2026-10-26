@@ -5,10 +5,10 @@ import '../models/models.dart';
 
 /// sing-box 配置生成器（目标内核：sing-box 1.14.x）。
 ///
-/// 与 mihomo 版的**功能对齐**：同样的入参、同样的路由语义、同样走 Clash API
+/// 与 v2.x 旧内核版的**功能对齐**：同样的入参、同样的路由语义、同样走 Clash API
 /// 做模式/节点热切换，只是产物从 Clash YAML 变成 sing-box JSON。
 ///
-/// 与 mihomo 的路线差异（都是 sing-box 的硬约束，不是取舍）：
+/// 与旧内核的路线差异（都是 sing-box 的硬约束，不是取舍）：
 /// - 没有内置 GEOSITE/GEOIP 规则：sing-box 1.12 起移除 legacy geo 字段，
 ///   国内分流改用 **binary rule-set（.srs）**（SagerNet/sing-geosite、
 ///   SagerNet/sing-geoip 的 geosite-cn / geoip-cn）；
@@ -75,7 +75,7 @@ class SingBoxConfigBuilder {
     final ports = _sanitizePorts(localPort, clashApiPort);
     final stack =
         const {'system', 'gvisor', 'mixed'}.contains(tunStack) ? tunStack : 'gvisor';
-    // fake-ip 生效条件与 mihomo 版一致：显式选择，或 auto 且走 TUN
+    // fake-ip 生效条件与旧版一致：显式选择，或 auto 且走 TUN
     final useFakeIp =
         dnsMode == 'fake-ip' || (dnsMode != 'redir-host' && isTun);
 
@@ -286,7 +286,7 @@ class SingBoxConfigBuilder {
         'clash_api': {
           'external_controller': '127.0.0.1:${ports.clashApiPort}',
           'secret': secret,
-          // 与 mihomo 版一致：Rule/Global 两态，PATCH /configs 热切换
+          // 与旧版一致：Rule/Global 两态，PATCH /configs 热切换
           'default_mode': smartMode ? 'Rule' : 'Global',
         },
         // 不要把连接/规则状态写盘：移动端扩展容器空间有限，且每次连接
@@ -541,7 +541,7 @@ class SingBoxConfigBuilder {
       case 'hysteria2':
         base['password'] = n.password ?? raw['password']?.toString() ?? raw['auth']?.toString() ?? '';
         final t = tls();
-        // 这些协议的证书普遍是伪装 SNI，强制校验必然握手失败 —— 与 mihomo
+        // 这些协议的证书普遍是伪装 SNI，强制校验必然握手失败 —— 与旧版
         // 版同一策略：UDP+TLS 协议默认放宽（设置可关）
         if (udpSkipCertVerify && _udpTlsTypes.contains(n.type)) {
           t['insecure'] = true;
@@ -723,7 +723,7 @@ class SingBoxConfigBuilder {
 
   /// 测速专用内核的最小配置（**不带任何入站监听、不建 TUN、不碰系统代理**）。
   ///
-  /// 与生产配置的差异（同 mihomo 版，逐条都有理由）：
+  /// 与生产配置的差异（逐条都有理由）：
   /// - 没有 `inbounds`：不占用户端口、不会被误当系统代理目标；
   /// - 没有 `tun`：不建虚拟网卡、不动路由表（无需管理员权限）；
   /// - 不引用规则集：无需 .srs 文件，内核启动零网络；
@@ -860,7 +860,7 @@ class SingBoxConfigBuilder {
     return out;
   }
 
-  /// 内置「必须走代理」域名后缀（与 mihomo 版完全一致）
+  /// 内置「必须走代理」域名后缀
   static const List<String> defaultForceProxyDomains = [
     // AI
     'openai.com',

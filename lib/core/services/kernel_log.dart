@@ -7,7 +7,7 @@ import '../utils/serial_executor.dart';
 import 'app_log.dart';
 import 'local_paths.dart';
 
-/// 内核（mihomo）原始输出落盘：连续日志 `kernel_log.txt` + 崩溃快照
+/// 内核（sing-box）原始输出落盘：连续日志 `kernel_log.txt` + 崩溃快照
 /// `kernel_crash.log`。
 ///
 /// 为什么需要落盘：内核一死，内存里那点尾部输出（proxy_core_cli 的
@@ -16,7 +16,7 @@ import 'local_paths.dart';
 /// 无法定因，就是「没有证据」而不是「没有问题」。
 ///
 /// 抓的是 App 侧对内核 stdout/stderr 的捕获（`Process.start` 的两条流），
-/// 因此 Go panic（只写 stderr、**不写** mihomo 自己的 log-file）同样能留下。
+/// 因此 Go panic（只写 stderr、**不写**内核自己的 log-file）同样能留下。
 ///
 /// 写路径与 [AppLog] 同构：全局串行队列 + 超限按整行保留后半，
 /// 杜绝并发 append 与旋转交错导致的「读半份改写」。

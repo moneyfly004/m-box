@@ -1,6 +1,6 @@
 /// TUN 启动失败的判定与分类（纯 Dart，无 Flutter 依赖，可单测）。
 ///
-/// 为什么需要它：sing-box 与 mihomo 共用 sing-tun，TUN 起不来时**不会让
+/// 为什么需要它：sing-box 用 sing-tun，TUN 起不来时**不会让
 /// Clash API 报错**（sing-box 通常直接 FATAL 退出，进程监控会兜底；但桌面
 /// 以 root/提权方式重试的过程中仍可能出现「进程还活着、TUN 是死的」窗口）
 /// → App 若只看 API 200，就会「显示已连接、零流量、零报错」（force 模式尤其

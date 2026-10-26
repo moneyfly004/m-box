@@ -291,6 +291,7 @@ class ProxyCoreCli extends ProxyCore {
       if (pid == null || ppid == null) continue;
       final cmd = m.group(3) ?? '';
       cmdByPid[pid] = cmd;
+      // 同时匹配旧内核进程名，保证从旧版本升级上来的残留内核也能被回收
       if ((cmd.contains('sing-box') || cmd.contains('mihomo')) &&
           cmd.contains(tag)) {
         candidates.add((pid: pid, ppid: ppid));
@@ -410,7 +411,7 @@ class ProxyCoreCli extends ProxyCore {
     _proc!.stdout.transform(utf8.decoder).transform(const LineSplitter()).listen(_onLog);
     _proc!.stderr.transform(utf8.decoder).transform(const LineSplitter()).listen(_onLog);
     unawaited(_watchProcess());
-    // sing-box 在 warn 级别下启动**不输出任何日志**（mihomo 有 banner），
+    // sing-box 在 warn 级别下启动**不输出任何日志**（旧内核有 banner），
     // 内核日志页会一片空白 → 补一条 app 侧启动记录（内核路径/端口/模式/规则集）
     _onLog('[app] sing-box 已启动：$binary');
     _onLog('[app] 配置 $_configPath｜本地端口 $_localPort｜API 端口 $_clashApiPort'
@@ -521,7 +522,7 @@ class ProxyCoreCli extends ProxyCore {
 
     final killFut = () async {
       if (p == null) return;
-      // 优先通过 Clash API 请求内核优雅退出（mihomo 清理 TUN/虚拟网卡），
+      // 优先通过 Clash API 请求内核优雅退出（清理 TUN/虚拟网卡），
       // SIGTERM 在 Windows 上无效，直接 kill 会残留虚拟网卡。
       try {
         await _api.request('/shutdown',
@@ -685,7 +686,7 @@ class ProxyCoreCli extends ProxyCore {
     }
   }
 
-  /// 流量统计：mihomo 的 /traffic 是持续流（每秒推送一行
+  /// 流量统计：Clash API 的 /traffic 是持续流（每秒推送一行
   /// {"up":Δ,"down":Δ}，单位字节/秒），流式解析直接换算 MB/s 回调。
   /// 断开/出错后重连流，直到内核停止。
   void _startStatsTimer() {

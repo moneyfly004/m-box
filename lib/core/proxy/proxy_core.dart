@@ -1587,7 +1587,7 @@ class ConnectionController extends ChangeNotifier {
       if (switchingMode) return; // 切换中忽略再次点击
       // Android 内核以 embed(cmfa)模式运行：Clash API 禁 PATCH /configs(405)，
       // 无法热切模式 → 自动断开并以新模式重连（1~2s）。
-      // 参考：mihomo cmfa 构建 SetEmbedMode(true) 禁 update/patch configs。
+      // 参考：sing-box 嵌入模式（SetEmbedMode）同样禁用 update/patch configs。
       switchingMode = true;
       notifyListeners();
       unawaited(_modeRestartByReconnect());

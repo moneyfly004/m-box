@@ -30,7 +30,7 @@ Directory _updateDir(Directory cache) {
 }
 
 File _installer(Directory dir, String version, {int bytes = 1024}) {
-  final f = File('${_updateDir(dir).path}/MoneyFly-setup-$version.exe');
+  final f = File('${_updateDir(dir).path}/MBox-setup-$version.exe');
   f.writeAsBytesSync(List<int>.filled(bytes, 7));
   return f;
 }
@@ -90,11 +90,11 @@ void main() {
     test('非本平台安装器（APK/DMG/zip）一律忽略', () async {
       UpdateInfo.currentVersion = '2.2.13';
       final d = _updateDir(cache);
-      File('${d.path}/MoneyFly-android-arm64-v8a-2.2.14.apk')
+      File('${d.path}/MBox-android-arm64-v8a-2.2.14.apk')
           .writeAsBytesSync([1, 2, 3]);
-      File('${d.path}/MoneyFly-macos-arm64-2.2.14.dmg')
+      File('${d.path}/MBox-macos-arm64-2.2.14.dmg')
           .writeAsBytesSync([1, 2, 3]);
-      File('${d.path}/MoneyFly-setup-2.2.14.exe.sha256')
+      File('${d.path}/MBox-setup-2.2.14.exe.sha256')
           .writeAsStringSync('x');
 
       expect(await UpdateService.instance.pendingNewerInstaller(), isNull);

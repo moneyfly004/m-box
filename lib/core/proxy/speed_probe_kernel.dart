@@ -24,7 +24,7 @@ class KernelProbeException implements Exception {
   String toString() => detail == null ? message : '$message（$detail）';
 }
 
-/// 测速专用内核（临时 mihomo 实例，仅用于 `/proxies/{name}/delay` 真连接测速）。
+/// 测速专用内核（临时 sing-box 实例，仅用于 `/proxies/{name}/delay` 真连接测速）。
 ///
 /// ## 为什么需要它
 /// 「内核测速」= 让内核真的通过节点发一次请求。它要求有一个**运行中**的内核。

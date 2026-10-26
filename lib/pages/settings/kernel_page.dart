@@ -6,7 +6,7 @@ import '../../l10n/app_strings.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/mf_row.dart';
 
-/// 内核管理页：显示当前内置 mihomo 版本、官方最新版本；
+/// 内核管理页：显示当前内置 sing-box 版本、官方最新版本；
 /// 桌面端可直接下载官方预编译内核并替换（FlClash 同款能力）。
 class KernelPage extends StatefulWidget {
   const KernelPage({super.key});

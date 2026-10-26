@@ -273,9 +273,9 @@ jobs:
           V=${{ github.event.inputs.version || github.ref_name }}
           V=${V#v}
           mkdir -p dist
-          cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk dist/MoneyFly-android-armeabi-v7a-$V.apk
-          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk  dist/MoneyFly-android-arm64-v8a-$V.apk
-          cp build/app/outputs/flutter-apk/app-x86_64-release.apk  dist/MoneyFly-android-x86_64-$V.apk
+          cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk dist/MBox-android-armeabi-v7a-$V.apk
+          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk  dist/MBox-android-arm64-v8a-$V.apk
+          cp build/app/outputs/flutter-apk/app-x86_64-release.apk  dist/MBox-android-x86_64-$V.apk
           # 校验和文件名必须按 job 区分：旧实现 android 与 windows 都写
           # SHA256SUMS.txt，release job 用 merge-multiple 下载时互相覆盖 ——
           # 实测 v2.2.9 的 SHA256SUMS.txt 里只有 4 个 Android 条目，Windows 的
@@ -327,7 +327,7 @@ jobs:
           V=${{ github.event.inputs.version || github.ref_name }}
           V=${V#v}
           mkdir -p dist
-          cp build/app/outputs/bundle/release/app-release.aab dist/MoneyFly-android-$V.aab
+          cp build/app/outputs/bundle/release/app-release.aab dist/MBox-android-$V.aab
           cd dist && sha256sum * > SHA256SUMS-android-aab.txt
       - uses: actions/upload-artifact@v4
         with:
@@ -398,7 +398,7 @@ jobs:
           # zip 便携版（解压即用）——powershell 需要 Windows 路径
           WIN_RELEASE_DIR=$(cygpath -w "$(pwd)/$RELEASE_DIR")
           WIN_DIST=$(cygpath -w "$(pwd)/dist")
-          powershell -Command "Compress-Archive -Path '$WIN_RELEASE_DIR\*' -DestinationPath '$WIN_DIST\MoneyFly-windows-x64-portable-$V.zip' -Force"
+          powershell -Command "Compress-Archive -Path '$WIN_RELEASE_DIR\*' -DestinationPath '$WIN_DIST\MBox-windows-x64-portable-$V.zip' -Force"
 
           # Inno Setup 安装版（开始菜单/桌面快捷方式/卸载器）
           "/c/Program Files (x86)/Inno Setup 6/ISCC.exe" //DVERSION="$V" //DBUILD_DIR="$WIN_RELEASE_DIR" scripts/windows_installer.iss
@@ -431,7 +431,7 @@ jobs:
           # Windows runner 上 python3 不一定在 PATH（用 python），两种都试一次
           PY="$(command -v python3 || command -v python)"
           "$PY" tool/scan_release_artifacts.py \
-            dist/MoneyFly-windows-x64-portable-*.zip \
+            dist/MBox-windows-x64-portable-*.zip \
             dist/MBox-setup-*.exe
 
       - uses: actions/upload-artifact@v4
@@ -499,15 +499,15 @@ jobs:
           # Gatekeeper 拦截，双击这个脚本即可清掉隔离属性
           cp scripts/fix_quarantine_macos.command "$STAGE/修复已损坏.command" && chmod +x "$STAGE/修复已损坏.command"
           codesign --force --deep -s - --entitlements macos/Runner/Release.entitlements "$STAGE/MBox.app"
-          hdiutil create -volname MoneyFly -srcfolder "$STAGE" -ov -format UDZO "dist/MoneyFly-macos-arm64-$V.dmg"
-          cd dist && shasum -a 256 MoneyFly-macos-arm64-$V.dmg > SHA256SUMS-macos-arm64.txt
+          hdiutil create -volname MBox -srcfolder "$STAGE" -ov -format UDZO "dist/MBox-macos-arm64-$V.dmg"
+          cd dist && shasum -a 256 MBox-macos-arm64-$V.dmg > SHA256SUMS-macos-arm64.txt
         env:
           INPUT_VERSION: ${{ github.event.inputs.version }}
       - uses: actions/upload-artifact@v4
         with:
           name: moneyfly-macos-arm64
           path: |
-            dist/MoneyFly-macos-arm64-*.dmg
+            dist/MBox-macos-arm64-*.dmg
             dist/SHA256SUMS-macos-arm64.txt
 
   macos-x64:
@@ -566,15 +566,15 @@ jobs:
           # Gatekeeper 拦截，双击这个脚本即可清掉隔离属性
           cp scripts/fix_quarantine_macos.command "$STAGE/修复已损坏.command" && chmod +x "$STAGE/修复已损坏.command"
           codesign --force --deep -s - --entitlements macos/Runner/Release.entitlements "$STAGE/MBox.app"
-          hdiutil create -volname MoneyFly -srcfolder "$STAGE" -ov -format UDZO "dist/MoneyFly-macos-x64-$V.dmg"
-          cd dist && shasum -a 256 MoneyFly-macos-x64-$V.dmg > SHA256SUMS-macos-x64.txt
+          hdiutil create -volname MBox -srcfolder "$STAGE" -ov -format UDZO "dist/MBox-macos-x64-$V.dmg"
+          cd dist && shasum -a 256 MBox-macos-x64-$V.dmg > SHA256SUMS-macos-x64.txt
         env:
           INPUT_VERSION: ${{ github.event.inputs.version }}
       - uses: actions/upload-artifact@v4
         with:
           name: moneyfly-macos-x64
           path: |
-            dist/MoneyFly-macos-x64-*.dmg
+            dist/MBox-macos-x64-*.dmg
             dist/SHA256SUMS-macos-x64.txt
 
   macos-universal:
@@ -646,8 +646,8 @@ jobs:
           # Gatekeeper 拦截，双击这个脚本即可清掉隔离属性
           cp scripts/fix_quarantine_macos.command "$STAGE/修复已损坏.command" && chmod +x "$STAGE/修复已损坏.command"
           codesign --force --deep -s - --entitlements macos/Runner/Release.entitlements "$STAGE/MBox.app"
-          hdiutil create -volname MoneyFly -srcfolder "$STAGE" -ov -format UDZO "dist/MoneyFly-macos-universal-$V.dmg"
-          cd dist && shasum -a 256 MoneyFly-macos-universal-$V.dmg > SHA256SUMS-macos-universal.txt
+          hdiutil create -volname MBox -srcfolder "$STAGE" -ov -format UDZO "dist/MBox-macos-universal-$V.dmg"
+          cd dist && shasum -a 256 MBox-macos-universal-$V.dmg > SHA256SUMS-macos-universal.txt
         env:
           INPUT_VERSION: ${{ github.event.inputs.version }}
       # 停止线：dmg 只能在 macOS 上 hdiutil 挂载后真扫（Linux runner 扫不了，
@@ -657,13 +657,13 @@ jobs:
         env:
           PYTHONUTF8: '1'
           PYTHONIOENCODING: 'utf-8'
-        run: python3 tool/scan_release_artifacts.py dist/MoneyFly-macos-universal-*.dmg
+        run: python3 tool/scan_release_artifacts.py dist/MBox-macos-universal-*.dmg
 
       - uses: actions/upload-artifact@v4
         with:
           name: moneyfly-macos-universal
           path: |
-            dist/MoneyFly-macos-universal-*.dmg
+            dist/MBox-macos-universal-*.dmg
             dist/SHA256SUMS-macos-universal.txt
 
   # ================= iOS：侧载 IPA（TrollStore / 自签） =================
@@ -756,15 +756,15 @@ jobs:
           codesign --force -s - \
             --entitlements ios/Runner/Runner.entitlements \
             Payload/Runner.app
-          zip -qry "dist/MoneyFly-ios-$V.ipa" Payload
-          (cd dist && shasum -a 256 "MoneyFly-ios-$V.ipa" > SHA256SUMS-ios.txt && ls -lh)
+          zip -qry "dist/MBox-ios-$V.ipa" Payload
+          (cd dist && shasum -a 256 "MBox-ios-$V.ipa" > SHA256SUMS-ios.txt && ls -lh)
         env:
           INPUT_VERSION: ${{ github.event.inputs.version }}
       - uses: actions/upload-artifact@v4
         with:
           name: moneyfly-ios
           path: |
-            dist/MoneyFly-ios-*.ipa
+            dist/MBox-ios-*.ipa
             dist/SHA256SUMS-ios.txt
 
   # ================= 发布到 GitHub Releases =================
@@ -806,10 +806,10 @@ jobs:
           PYTHONIOENCODING: 'utf-8'
         run: |
           python3 tool/scan_release_artifacts.py \
-            dist/MoneyFly-android-*.apk \
-            dist/MoneyFly-android-*.aab \
-            dist/MoneyFly-ios-*.ipa \
-            dist/MoneyFly-windows-x64-portable-*.zip
+            dist/MBox-android-*.apk \
+            dist/MBox-android-*.aab \
+            dist/MBox-ios-*.ipa \
+            dist/MBox-windows-x64-portable-*.zip
 
       - name: 创建 Release 并上传产物
         uses: softprops/action-gh-release@v2

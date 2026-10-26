@@ -28,7 +28,7 @@ UpdateInfo _info(String version,
       latestVersion: version,
       downloadUrl: url ?? 'https://example.com/$version.pkg',
       sizeText: '1 MB',
-      assetName: name ?? 'MoneyFly-macos-arm64-$version.dmg',
+      assetName: name ?? 'MBox-macos-arm64-$version.dmg',
       sha256: sha256,
       sizeBytes: sizeBytes,
     );

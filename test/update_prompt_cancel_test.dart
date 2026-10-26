@@ -23,7 +23,7 @@ UpdateInfo _info(String version) => UpdateInfo(
       latestVersion: version,
       downloadUrl: 'https://example.com/$version.pkg',
       sizeText: '1 MB',
-      assetName: 'MoneyFly-macos-arm64-$version.dmg',
+      assetName: 'MBox-macos-arm64-$version.dmg',
       sha256: '',
     );
 

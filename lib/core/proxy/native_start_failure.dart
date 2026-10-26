@@ -6,8 +6,8 @@
 ///         nor current process has android.permission.INTERACT_ACROSS_USERS.
 /// ```
 ///
-/// 这句话**不是**本 App、也不是 mihomo 内核打的（本仓库、APK 的 dex/原生库、
-/// mihomo v1.19.30 里都搜不到 `getPackageUid` 这个串）。它是 Android 框架的
+/// 这句话**不是**本 App、也不是内核打的（本仓库、APK 的 dex/原生库、
+/// sing-box/libbox 里都搜不到 `getPackageUid` 这个串）。它是 Android 框架的
 /// 跨用户权限校验：
 ///
 /// ```java

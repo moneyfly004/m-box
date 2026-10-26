@@ -261,7 +261,7 @@ class _SettingsPageState extends State<SettingsPage> {
             trailing: _switch(_s['bypassLan'] == true, (v) => _set('bypassLan', v)))),
         // 智能模式下「必须走代理」的网站（内置默认名单 + 这里追加）：
         // chatgpt / gemini / linkedin / tiktok 等被国内 DNS 污染或误判成直连
-        // 时打不开，这里让用户能自己补（详见 mihomo_config 的 defaultForceProxyDomains）
+        // 时打不开，这里让用户能自己补（详见 singbox_config 的 defaultForceProxyDomains）
         _item(['settings_force_proxy'], _row(icon: '🌐', title: AppStrings.t('settings_force_proxy'),
             desc: AppStrings.t('settings_force_proxy_desc'),
             value: '${_forceProxyExtra().length}',

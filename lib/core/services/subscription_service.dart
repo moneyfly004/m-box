@@ -745,7 +745,7 @@ class SubscriptionService {
   }
 
   /// 兼容 base64 / 明文链接列表：vmess / vless / trojan / ss / socks5 /
-  /// hysteria2（含 `hy2://` 简写）/ tuic / anytls 等，统一转成 mihomo 认识的
+  /// hysteria2（含 `hy2://` 简写）/ tuic / anytls 等，统一转成内核认识的
   /// Clash map。
   static List<ProxyNode> parseBase64Nodes(String raw) {
     String text = raw;
@@ -858,8 +858,8 @@ class SubscriptionService {
       final tls = m['tls']?.toString() == 'tls';
       final net = m['net']?.toString() ?? 'tcp';
       final sni = m['sni']?.toString();
-      // 转成 mihomo 标准 vmess map：避免 vmess JSON 的 `type`(加密) 与
-      // mihomo 的 `type`(协议) 冲突导致内核把节点当成 type=none 而加载失败
+      // 转成标准 vmess map：避免 vmess JSON 的 `type`(加密) 与
+      // 内核的 `type`(协议) 冲突导致把节点当成 type=none 而加载失败
       final raw = <String, dynamic>{
         'name': tag,
         'type': 'vmess',
@@ -1302,7 +1302,7 @@ class SubscriptionService {
   }
 
   /// 解析 WireGuard：`wireguard://base64(ini_conf)#tag`
-  /// （链接里直接是 base64 的 .conf 内容，解析成 mihomo wireguard map）
+  /// （链接里直接是 base64 的 .conf 内容，解析成 wireguard endpoint）
   static ProxyNode? _parseWireguard(String uri) {
     try {
       final conf = _b64UrlDecode(uri.substring('wireguard://'.length).split('#').first);

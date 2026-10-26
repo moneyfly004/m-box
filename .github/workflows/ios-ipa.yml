@@ -3,7 +3,7 @@ name: iOS IPA (测试包)
 # 只构建 iOS IPA，用于真机（TrollStore）调试迭代：
 #   · 不碰 Android / Windows / macOS，几分钟出包；
 #   · 产物覆盖发布到固定的 `ios-test` 预发布，手机浏览器可直接下载安装：
-#     https://github.com/moneyfly004/moneyfly/releases/download/ios-test/MoneyFly-ios-test.ipa
+#     https://github.com/moneyfly004/m-box/releases/download/ios-test/MBox-ios-test.ipa
 #   · 正式版本仍走 release.yml（tag 触发，全平台 + Releases）。
 #
 # 触发：Actions 页面手动 Run workflow（workflow_dispatch）。
@@ -63,12 +63,12 @@ jobs:
             --entitlements ios/Runner/Runner.entitlements \
             Payload/Runner.app
           # 固定文件名：手机上永远用同一个 URL 下载，省得每次找新版号
-          zip -qry "dist/MoneyFly-ios-test.ipa" Payload
+          zip -qry "dist/MBox-ios-test.ipa" Payload
           # 版本号写进随包的一份说明，便于确认装的是哪一版
           V=$(grep '^version:' pubspec.yaml | awk '{print $2}')
           echo "pubspec version: $V" > dist/VERSION.txt
           echo "commit: $(git rev-parse --short HEAD)" >> dist/VERSION.txt
-          (cd dist && shasum -a 256 MoneyFly-ios-test.ipa > SHA256SUMS-ios-test.txt && cat VERSION.txt && ls -lh)
+          (cd dist && shasum -a 256 MBox-ios-test.ipa > SHA256SUMS-ios-test.txt && cat VERSION.txt && ls -lh)
       - name: 覆盖发布到 ios-test（预发布，仅供调试）
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -76,8 +76,8 @@ jobs:
           gh release view ios-test >/dev/null 2>&1 || gh release create ios-test \
             --prerelease --title "iOS 测试包（TrollStore 调试用）" \
             --notes "每次手动触发覆盖同名 IPA，仅供真机调试，勿分发给用户。"
-          gh release upload ios-test dist/MoneyFly-ios-test.ipa dist/SHA256SUMS-ios-test.txt dist/VERSION.txt --clobber
-          echo "下载地址：https://github.com/moneyfly004/moneyfly/releases/download/ios-test/MoneyFly-ios-test.ipa"
+          gh release upload ios-test dist/MBox-ios-test.ipa dist/SHA256SUMS-ios-test.txt dist/VERSION.txt --clobber
+          echo "下载地址：https://github.com/moneyfly004/m-box/releases/download/ios-test/MBox-ios-test.ipa"
       - uses: actions/upload-artifact@v4
         with:
           name: moneyfly-ios-test

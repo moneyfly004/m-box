@@ -40,7 +40,7 @@ else
 fi
 
 # 顺带清掉下载目录里那些 DMG 的隔离标记，免得下次又拖出一个带标记的 App
-for f in "$HOME/Downloads"/MoneyFly-*.dmg; do
+for f in "$HOME/Downloads"/MBox-*.dmg; do
   [ -e "$f" ] || continue
   xattr -dr com.apple.quarantine "$f" 2>/dev/null && echo "✓ 已清除隔离属性：$(basename "$f")"
 done
