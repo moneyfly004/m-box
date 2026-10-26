@@ -102,7 +102,7 @@ void main() async {
     try {
       await windowManager.ensureInitialized();
       unawaited(windowManager.setPreventClose(true));
-      unawaited(windowManager.setTitle('MoneyFly'));
+      unawaited(windowManager.setTitle(AppStrings.t('app_name')));
       // 最小尺寸放宽到 340×520：旧值 380×620 在 1024×600 这类小屏 / 高 DPI 缩放的
       // 机器上会超过屏幕可用高度，窗口就没法完整显示（用户看到"界面打不开"）
       unawaited(windowManager.setMinimumSize(const Size(340, 520)));

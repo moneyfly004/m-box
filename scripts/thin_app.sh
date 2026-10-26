@@ -1,6 +1,6 @@
 #!/bin/bash
 # 把 universal .app 裁剪为单一架构（用于发布 Apple 芯片版 / Intel 版）
-# 用法: scripts/thin_app.sh <arm64|x86_64> <MoneyFly.app 路径>
+# 用法: scripts/thin_app.sh <arm64|x86_64> <MBox.app 路径>
 set -euo pipefail
 
 ARCH="$1"
@@ -28,4 +28,4 @@ done < <(find "$APP" -type f -print0)
 
 # 裁剪后重新 ad-hoc 签名（直接分发模式；正式分发请换 Developer ID 证书）
 codesign --force --deep -s - "$APP"
-echo "完成: $APP ($(lipo -archs "$APP/Contents/MacOS/MoneyFly"))"
+echo "完成: $APP ($(lipo -archs "$APP/Contents/MacOS/MBox"))"

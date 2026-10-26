@@ -22,14 +22,17 @@ class GeoUpdateService {
   GeoUpdateService._();
   static final GeoUpdateService instance = GeoUpdateService._();
 
-  /// 更新来源：SagerNet 官方规则集仓库（与 CI 构建下载同源）
-  ///   geosite-cn.srs ← SagerNet/sing-geosite
-  ///   geoip-cn.srs   ← SagerNet/sing-geoip
+  /// 更新来源：SagerNet 官方规则集仓库的 **rule-set 分支**（与 CI 构建、
+  /// tool/fetch_ruleset.sh 完全同源）。
+  ///
+  /// 注意：不能用 `releases/latest/download/*.srs` —— SagerNet 的 release
+  /// 只发 `.db`（sing-box 1.14 尚不支持该格式），`.srs` 只存在于 rule-set
+  /// 分支（实测 releases 路径 404，raw 分支 200）。
   static const _urls = {
     'geosite-cn.srs':
-        'https://github.com/SagerNet/sing-geosite/releases/latest/download/geosite-cn.srs',
+        'https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-cn.srs',
     'geoip-cn.srs':
-        'https://github.com/SagerNet/sing-geoip/releases/latest/download/geoip-cn.srs',
+        'https://raw.githubusercontent.com/SagerNet/sing-geoip/rule-set/geoip-cn.srs',
   };
 
   /// 每个文件最小合理体积（字节）：.srs 二进制规则集约 0.4–2MB，
@@ -133,7 +136,9 @@ class GeoUpdateService {
         try { if (await tmp.exists()) await tmp.delete(); } catch (_) {}
       }
     }
-    throw Exception('所有下载通道都失败 → ${failures.join(' / ')}');
+    final msg = '所有下载通道都失败 → ${failures.join(' / ')}';
+    AppLog.error('GEO 分流数据 $file 更新失败：$msg');
+    throw Exception(msg);
   }
 
   /// 把异常压成一句话（超时/HTTP 码/文件过小），便于展示与排查

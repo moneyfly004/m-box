@@ -391,7 +391,7 @@ class _KernelPageState extends State<KernelPage> {
               },
             ),
             if (KernelManager.isDesktop) ...[
-              _section('mihomo'),
+              _section('sing-box'),
               if (_checking)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 10),
@@ -423,7 +423,7 @@ class _KernelPageState extends State<KernelPage> {
                     margin: const EdgeInsets.only(top: 4),
                     child: _row(
                       icon: '⬇️',
-                      title: AppStrings.t('kernel_new_found', {'ver': 'v$_latest'}),
+                      title: AppStrings.t('kernel_new_found', {'ver': '$_latest'}),
                       desc: AppStrings.t('kernel_update_desc'),
                       onTap: _downloading ? null : _update,
                     ),
@@ -432,7 +432,7 @@ class _KernelPageState extends State<KernelPage> {
                   Padding(
                     padding: const EdgeInsets.fromLTRB(4, 2, 4, 4),
                     child: Text(
-                        AppStrings.t('kernel_up_to_date', {'ver': 'v$_current'}),
+                        AppStrings.t('kernel_up_to_date', {'ver': '$_current'}),
                         style: TextStyle(
                             fontSize: 12, color: MFColors.txt2)),
                   ),

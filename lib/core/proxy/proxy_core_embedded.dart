@@ -411,7 +411,9 @@ class ProxyCoreEmbedded extends ProxyCore {
 
   @override
   Future<void> setKernelLogLevel(String level) async {
-    // sing-box 的 clash API 不支持热改日志级别（由启动配置决定）→ no-op
+    // sing-box 的 Clash API 不支持热改日志级别（实测 PATCH 返回 204 但内核
+    // 不生效），级别只由启动配置决定 → 移动端保持 no-op，重连后生效。
+    // （原生侧日志由 libbox 的 CommandLog 全量推送，不受此开关影响。）
   }
 
   @override

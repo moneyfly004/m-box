@@ -1,6 +1,6 @@
-; MoneyFly Windows 安装包（Inno Setup 6）
+; MBox Windows 安装包（Inno Setup 6）
 ; 用法: ISCC.exe /DVERSION=1.0.0 /DBUILD_DIR=C:\...\Release scripts\windows_installer.iss
-; 产物: ..\dist\MoneyFly-setup-<VERSION>.exe（相对脚本所在目录）
+; 产物: ..\dist\MBox-setup-<VERSION>.exe（相对脚本所在目录）
 
 #ifndef VERSION
   #define VERSION "1.0.0"
@@ -11,11 +11,11 @@
 
 [Setup]
 AppId={{B0C9E8F7-4D2A-4C5E-9F1B-6A3D2E7C8B1A}
-AppName=MoneyFly
+AppName=MBox
 AppVersion={#VERSION}
 AppPublisher=top.moneyfly
 AppPublisherURL=https://dy.moneyfly.top
-; 默认安装目录：**C 盘**用户级目录 %LOCALAPPDATA%\Programs\MoneyFly。
+; 默认安装目录：**C 盘**用户级目录 %LOCALAPPDATA%\Programs\MBox。
 ; 为什么不用 {autopf}：PrivilegesRequired=lowest 时它等于 {userpf}（同一个位置），
 ; 但这个脚本要**显式钉在 C 盘**（用户要求「安装时默认装到 C 盘」），并且必须同时满足：
 ;   - 免管理员：应用内「重启即更新」是静默安装（/SILENT），需要 UAC 的目录会让
@@ -27,17 +27,17 @@ DefaultDirName={code:GetDefaultDir}
 ; D 盘/E 盘的用户会一直默认装回那个盘（用户反馈"要默认装到 C 盘"的真实原因之一）。
 ; 旧目录里的程序仍会被旧版卸载程序正常卸载（按 AppId 识别，与目录无关）。
 UsePreviousAppDir=no
-DefaultGroupName=MoneyFly
+DefaultGroupName=MBox
 ; 便携解压为 zip 版；安装版默认不强制管理员（v1 系统代理模式无需提权，
 ; 后续 TUN 模式需要时改为 requireAdministrator）
 PrivilegesRequired=lowest
 OutputDir=..\dist
-OutputBaseFilename=MoneyFly-setup-{#VERSION}
+OutputBaseFilename=MBox-setup-{#VERSION}
 Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
 SetupIconFile=..\windows\runner\resources\app_icon.ico
-UninstallDisplayIcon={app}\moneyfly.exe
+UninstallDisplayIcon={app}\mbox.exe
 ; 支持 Windows 10 及以上（Flutter 引擎最低要求，见 README「系统要求」）
 MinVersion=10.0
 
@@ -52,15 +52,15 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 Source: "{#BUILD_DIR}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{group}\MoneyFly"; Filename: "{app}\moneyfly.exe"
-Name: "{group}\{cm:UninstallProgram,MoneyFly}"; Filename: "{uninstallexe}"
-Name: "{autodesktop}\MoneyFly"; Filename: "{app}\moneyfly.exe"; Tasks: desktopicon
+Name: "{group}\MBox"; Filename: "{app}\mbox.exe"
+Name: "{group}\{cm:UninstallProgram,MBox}"; Filename: "{uninstallexe}"
+Name: "{autodesktop}\MBox"; Filename: "{app}\mbox.exe"; Tasks: desktopicon
 
 [Run]
 ; 注意：**不能加 skipifsilent**。应用内「重启即更新」用的是 /SILENT 静默安装，
 ; 加了 skipifsilent 装完就不会拉起 App —— 用户看到的就是「升级装完了但程序没回来」
 ; （旧版本还停在后台/或窗口消失）。nowait 让安装器立刻返回，不阻塞收尾。
-Filename: "{app}\moneyfly.exe"; Description: "{cm:LaunchProgram,MoneyFly}"; Flags: nowait postinstall
+Filename: "{app}\mbox.exe"; Description: "{cm:LaunchProgram,MBox}"; Flags: nowait postinstall
 
 ; ===== 卸载清理 =====
 ; ⚠️ 这里**只能删纯缓存**，绝不能删应用数据目录：
@@ -77,7 +77,7 @@ Type: filesandordirs; Name: "{localappdata}\Temp\moneyfly_core"
 
 [Code]
 // 默认安装目录（见 [Setup] DefaultDirName={code:GetDefaultDir}）：
-// 常规机器 = C:\Users\<用户>\AppData\Local\Programs\MoneyFly；
+// 常规机器 = C:\Users\<用户>\AppData\Local\Programs\MBox；
 // 用户配置目录不在系统盘时 = <系统盘>:\MoneyFly（同样是免管理员的用户级位置）。
 function GetDefaultDir(Param: String): String;
 var
@@ -105,7 +105,7 @@ function PrepareToInstall(var NeedsRestart: Boolean): String;
 var
   ResultCode: Integer;
 begin
-  Exec('taskkill.exe', '/f /im moneyfly.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec('taskkill.exe', '/f /im mbox.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   Result := '';
 end;
 

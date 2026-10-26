@@ -191,7 +191,7 @@ void main() {
       UpdatePrompt.debugOpenUrlOverride = (url) async => opened = url;
       await tester.tap(find.text(AppStrings.t('update_open_download_page')));
       await tester.pumpAndSettle();
-      expect(opened, contains('github.com/moneyfly004/moneyfly/releases'),
+      expect(opened, contains('github.com/moneyfly004/m-box/releases'),
           reason: '应打开 Releases 页面（网页），不是直链 —— 直链会被浏览器打上隔离属性');
       await flow;
     });

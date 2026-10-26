@@ -8,7 +8,7 @@
 覆盖范围：
   * APK / AAB / IPA / ZIP：原生解包逐条扫描（含 libapp.so / App / app.so /
     flutter_assets / assets / META-INF）
-  * DMG：macOS 上 hdiutil 挂载后扫描 MoneyFly.app 全量；非 macOS 明确报
+  * DMG：macOS 上 hdiutil 挂载后扫描 MBox.app 全量；非 macOS 明确报
     "SKIPPED"，不假装扫过
   * EXE：能拿到 7z / innoextract 就解包扫描，否则明确 SKIPPED
   * 每条内容都按 ASCII + UTF-16LE 两种编码匹配，并把长 base64 段解一层再扫

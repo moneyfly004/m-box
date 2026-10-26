@@ -410,6 +410,11 @@ class ProxyCoreCli extends ProxyCore {
     _proc!.stdout.transform(utf8.decoder).transform(const LineSplitter()).listen(_onLog);
     _proc!.stderr.transform(utf8.decoder).transform(const LineSplitter()).listen(_onLog);
     unawaited(_watchProcess());
+    // sing-box 在 warn 级别下启动**不输出任何日志**（mihomo 有 banner），
+    // 内核日志页会一片空白 → 补一条 app 侧启动记录（内核路径/端口/模式/规则集）
+    _onLog('[app] sing-box 已启动：$binary');
+    _onLog('[app] 配置 $_configPath｜本地端口 $_localPort｜API 端口 $_clashApiPort'
+        '｜模式 ${_smartMode ? "智能(Rule)" : "全局(Global)"}');
 
     // 等内核就绪（Clash API 可访问 + 本地 mixed 端口真的在监听）
     final sw = Stopwatch()..start();
@@ -499,11 +504,11 @@ class ProxyCoreCli extends ProxyCore {
   ///   跑不了新版内核(官方 amd64 按新指令集编译) —— 已默认改用官方
   ///   compatible 版,仍出现可到「设置 → 内核管理」手动更新为兼容内核;
   /// - 无任何日志输出且反复被终止：多为杀毒软件/Windows 安全中心拦截
-  ///   mihomo.exe,请把 MoneyFly 安装目录加入白名单
+  ///   sing-box.exe，请把 MBox 安装目录加入白名单
   String get _winKernelHint => Platform.isWindows
       ? '。提示：若退出码为 0xC0000005/0xC000001D 多为 CPU 过老与新版内核不兼容'
           '(可到设置→内核管理更新兼容内核)；若反复「无日志即退出」多为杀毒软件/'
-          'Windows 安全中心拦截 mihomo.exe，请将 MoneyFly 安装目录加入白名单'
+          'Windows 安全中心拦截 sing-box.exe，请将 MBox 安装目录加入白名单'
       : '';
 
   @override
@@ -582,9 +587,11 @@ class ProxyCoreCli extends ProxyCore {
 
   @override
   Future<void> setKernelLogLevel(String level) async {
-    // sing-box 的 clash API 不支持热改日志级别（PATCH /configs 只认
-    // mode / 端口等少数字段），级别由启动时的配置文件决定 → 这里保持 no-op，
-    // 用户改了级别在下次连接生效。
+    // sing-box 的 Clash API 不支持热改日志级别（实测 PATCH /configs
+    // {"log-level":...} 返回 204 但内核不生效），级别只能由启动配置决定。
+    // 这里不去假装成功，而是往内核日志流里写一条明确提示，让用户知道
+    // 「改了、但要重连才生效」。
+    _onLog('[app] 日志级别已切换为 $level（sing-box 不支持热更，重新连接后生效）');
   }
 
   @override

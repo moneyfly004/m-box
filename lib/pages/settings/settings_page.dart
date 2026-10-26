@@ -202,7 +202,7 @@ class _SettingsPageState extends State<SettingsPage> {
             value: '${_s['clashApiPort'] ?? 9090}',
             onTap: _pickClashApiPort)),
         _item(['settings_kernel', 'settings_kernel_desc'], _row(icon: '🧩', title: AppStrings.t('settings_kernel'),
-            desc: 'MetaCubeX/mihomo',
+            desc: 'SagerNet/sing-box',
             onTap: () => Navigator.of(context).push(
                 MaterialPageRoute(builder: (_) => const KernelPage())))),
         _item(['settings_geo_data'], _row(icon: '🌍', title: AppStrings.t('settings_geo_data'),

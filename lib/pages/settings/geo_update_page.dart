@@ -7,7 +7,7 @@ import '../../l10n/app_strings.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/mf_row.dart';
 
-/// 分流数据管理页（国家 IP 库 country.mmdb / 分流规则 geosite.dat）。
+/// 分流数据管理页（sing-box 规则集 geosite-cn.srs / geoip-cn.srs）。
 ///
 /// 说明：两份数据随 App 构建时内置（安装包自带最新版），启动/连接全程从
 /// 本地读取、零联网；本页提供「手动检查更新」——显式从官方源下载最新版
@@ -99,12 +99,12 @@ class _GeoUpdatePageState extends State<GeoUpdatePage> {
             _row(
               icon: '🧠',
               title: AppStrings.t('geo_country_lib'),
-              value: 'country.mmdb',
+              value: 'geoip-cn.srs',
             ),
             _row(
               icon: '🧭',
               title: AppStrings.t('geo_rules'),
-              value: 'geosite.dat',
+              value: 'geosite-cn.srs',
             ),
             _row(
               icon: '📦',

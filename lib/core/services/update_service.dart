@@ -110,7 +110,7 @@ class UpdateService {
   /// 后台下载进度（0~1；null = 未在下载）
   static final ValueNotifier<double?> downloadProgress = ValueNotifier(null);
 
-  static const String githubRepo = 'moneyfly004/moneyfly';
+  static const String githubRepo = 'moneyfly004/m-box';
 
   /// GitHub API 专用裸客户端（不经 [ApiClient]）。
   /// 更新检测不能复用后端通道：ApiClient 会为每个请求注入

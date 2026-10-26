@@ -26,7 +26,7 @@ case "$(uname -s)" in
     chmod +x "$BIN"
     # 放入已构建的 app bundle（Debug 与 Release 都放，flutter run / build 均可直接连接）
     for CONF in Debug Release; do
-      APP="build/macos/Build/Products/$CONF/MoneyFly.app"
+      APP="build/macos/Build/Products/$CONF/MBox.app"
       if [ -d "$APP" ]; then
         mkdir -p "$APP/Contents/MacOS"
         cp "$BIN" "$APP/Contents/MacOS/sing-box"
@@ -45,6 +45,6 @@ case "$(uname -s)" in
   *)
     echo "本脚本目前支持 macOS 开发环境；Windows 开发机请手动下载:"
     echo "  $BASE/sing-box-$VERSION-windows-amd64.zip"
-    echo "解压后将 sing-box.exe 放到与 moneyfly.exe 同目录（build/windows/x64/runner/Release/）。"
+    echo "解压后将 sing-box.exe 放到与 mbox.exe 同目录（build/windows/x64/runner/Release/）。"
     ;;
 esac

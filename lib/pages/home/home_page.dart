@@ -864,7 +864,7 @@ class _HomePageState extends State<HomePage>
            Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('MoneyFly', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15.5)),
+              Text(AppStrings.t('app_name'), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15.5)),
               Text(AppStrings.t('home_ready'), style: TextStyle(fontSize: 10.5, color: MFColors.txt3)),
             ],
           ),

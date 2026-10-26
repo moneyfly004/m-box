@@ -1,5 +1,5 @@
 #!/bin/bash
-# 把 arm64 与 x64 两份 MoneyFly.app 合并为 universal.app：
+# 把 arm64 与 x64 两份 MBox.app 合并为 universal.app：
 # 对相对路径相同的 Mach-O 文件做 lipo -create 合并，其余资源取 arm64 侧。
 # 用法: scripts/merge_macos_universal.sh <arm64.app> <x64.app> <out.app> <entitlements.plist>
 set -euo pipefail

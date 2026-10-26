@@ -432,7 +432,7 @@ jobs:
           PY="$(command -v python3 || command -v python)"
           "$PY" tool/scan_release_artifacts.py \
             dist/MoneyFly-windows-x64-portable-*.zip \
-            dist/MoneyFly-setup-*.exe
+            dist/MBox-setup-*.exe
 
       - uses: actions/upload-artifact@v4
         with:
@@ -481,24 +481,24 @@ jobs:
       - name: 构建 macOS（arm64）
         run: flutter build macos --release
       - name: 校验架构
-        run: lipo build/macos/Build/Products/Release/MoneyFly.app/Contents/MacOS/MoneyFly -verify_arch arm64
+        run: lipo build/macos/Build/Products/Release/MBox.app/Contents/MacOS/MBox -verify_arch arm64
       - name: 内置 sing-box 内核（复用上面已下载的 arm64 内核，不再重复下载）
         run: |
-          APP="build/macos/Build/Products/Release/MoneyFly.app"
+          APP="build/macos/Build/Products/Release/MBox.app"
           cp build/singbox/sing-box "$APP/Contents/MacOS/sing-box"
           chmod +x "$APP/Contents/MacOS/sing-box"
           lipo "$APP/Contents/MacOS/sing-box" -verify_arch arm64
       - name: 打包 arm64 DMG
         run: |
           V="${INPUT_VERSION:-$GITHUB_REF_NAME}"; V="${V#v}"
-          APP="build/macos/Build/Products/Release/MoneyFly.app"; mkdir -p dist
+          APP="build/macos/Build/Products/Release/MBox.app"; mkdir -p dist
           STAGE="build/dmg-stage-arm64"; rm -rf "$STAGE" && mkdir -p "$STAGE"
-          cp -R "$APP" "$STAGE/MoneyFly.app" && ln -s /Applications "$STAGE/Applications"
+          cp -R "$APP" "$STAGE/MBox.app" && ln -s /Applications "$STAGE/Applications"
           cp scripts/uninstall_macos.command "$STAGE/uninstall.command" && chmod +x "$STAGE/uninstall.command"
           # 「已损坏，无法打开」的修复脚本：手动（浏览器）下载安装的用户一旦遇到
           # Gatekeeper 拦截，双击这个脚本即可清掉隔离属性
           cp scripts/fix_quarantine_macos.command "$STAGE/修复已损坏.command" && chmod +x "$STAGE/修复已损坏.command"
-          codesign --force --deep -s - --entitlements macos/Runner/Release.entitlements "$STAGE/MoneyFly.app"
+          codesign --force --deep -s - --entitlements macos/Runner/Release.entitlements "$STAGE/MBox.app"
           hdiutil create -volname MoneyFly -srcfolder "$STAGE" -ov -format UDZO "dist/MoneyFly-macos-arm64-$V.dmg"
           cd dist && shasum -a 256 MoneyFly-macos-arm64-$V.dmg > SHA256SUMS-macos-arm64.txt
         env:
@@ -548,24 +548,24 @@ jobs:
       - name: 构建 macOS（x64，Rosetta 整链）
         run: arch -x86_64 flutter build macos --release
       - name: 校验架构
-        run: lipo build/macos/Build/Products/Release/MoneyFly.app/Contents/MacOS/MoneyFly -verify_arch x86_64
+        run: lipo build/macos/Build/Products/Release/MBox.app/Contents/MacOS/MBox -verify_arch x86_64
       - name: 内置 sing-box 内核（复用上面已下载的内核，不再重复下载）
         run: |
-          APP="build/macos/Build/Products/Release/MoneyFly.app"
+          APP="build/macos/Build/Products/Release/MBox.app"
           cp build/singbox/sing-box "$APP/Contents/MacOS/sing-box"
           chmod +x "$APP/Contents/MacOS/sing-box"
           lipo "$APP/Contents/MacOS/sing-box" -verify_arch x86_64
       - name: 打包 x64 DMG
         run: |
           V="${INPUT_VERSION:-$GITHUB_REF_NAME}"; V="${V#v}"
-          APP="build/macos/Build/Products/Release/MoneyFly.app"; mkdir -p dist
+          APP="build/macos/Build/Products/Release/MBox.app"; mkdir -p dist
           STAGE="build/dmg-stage-x64"; rm -rf "$STAGE" && mkdir -p "$STAGE"
-          cp -R "$APP" "$STAGE/MoneyFly.app" && ln -s /Applications "$STAGE/Applications"
+          cp -R "$APP" "$STAGE/MBox.app" && ln -s /Applications "$STAGE/Applications"
           cp scripts/uninstall_macos.command "$STAGE/uninstall.command" && chmod +x "$STAGE/uninstall.command"
           # 「已损坏，无法打开」的修复脚本：手动（浏览器）下载安装的用户一旦遇到
           # Gatekeeper 拦截，双击这个脚本即可清掉隔离属性
           cp scripts/fix_quarantine_macos.command "$STAGE/修复已损坏.command" && chmod +x "$STAGE/修复已损坏.command"
-          codesign --force --deep -s - --entitlements macos/Runner/Release.entitlements "$STAGE/MoneyFly.app"
+          codesign --force --deep -s - --entitlements macos/Runner/Release.entitlements "$STAGE/MBox.app"
           hdiutil create -volname MoneyFly -srcfolder "$STAGE" -ov -format UDZO "dist/MoneyFly-macos-x64-$V.dmg"
           cd dist && shasum -a 256 MoneyFly-macos-x64-$V.dmg > SHA256SUMS-macos-x64.txt
         env:
@@ -617,10 +617,10 @@ jobs:
       - name: 构建 macOS release（universal）
         run: flutter build macos --release
       - name: 校验双架构
-        run: lipo build/macos/Build/Products/Release/MoneyFly.app/Contents/MacOS/MoneyFly -verify_arch arm64 x86_64
+        run: lipo build/macos/Build/Products/Release/MBox.app/Contents/MacOS/MBox -verify_arch arm64 x86_64
       - name: 内置 sing-box 内核（universal：arm64 + amd64）
         run: |
-          APP="build/macos/Build/Products/Release/MoneyFly.app"
+          APP="build/macos/Build/Products/Release/MBox.app"
           mkdir -p sb && cd sb
           curl -fL --retry 5 --retry-delay 3 --retry-all-errors --max-time 300 -o sb-arm64.tar.gz \
             "https://github.com/SagerNet/sing-box/releases/download/v$SINGBOX_VERSION/sing-box-$SINGBOX_VERSION-darwin-arm64.tar.gz"
@@ -638,14 +638,14 @@ jobs:
       - name: 打包 universal DMG
         run: |
           V="${INPUT_VERSION:-$GITHUB_REF_NAME}"; V="${V#v}"
-          APP="build/macos/Build/Products/Release/MoneyFly.app"; mkdir -p dist
+          APP="build/macos/Build/Products/Release/MBox.app"; mkdir -p dist
           STAGE="build/dmg-stage-universal"; rm -rf "$STAGE" && mkdir -p "$STAGE"
-          cp -R "$APP" "$STAGE/MoneyFly.app" && ln -s /Applications "$STAGE/Applications"
+          cp -R "$APP" "$STAGE/MBox.app" && ln -s /Applications "$STAGE/Applications"
           cp scripts/uninstall_macos.command "$STAGE/uninstall.command" && chmod +x "$STAGE/uninstall.command"
           # 「已损坏，无法打开」的修复脚本：手动（浏览器）下载安装的用户一旦遇到
           # Gatekeeper 拦截，双击这个脚本即可清掉隔离属性
           cp scripts/fix_quarantine_macos.command "$STAGE/修复已损坏.command" && chmod +x "$STAGE/修复已损坏.command"
-          codesign --force --deep -s - --entitlements macos/Runner/Release.entitlements "$STAGE/MoneyFly.app"
+          codesign --force --deep -s - --entitlements macos/Runner/Release.entitlements "$STAGE/MBox.app"
           hdiutil create -volname MoneyFly -srcfolder "$STAGE" -ov -format UDZO "dist/MoneyFly-macos-universal-$V.dmg"
           cd dist && shasum -a 256 MoneyFly-macos-universal-$V.dmg > SHA256SUMS-macos-universal.txt
         env:

@@ -10,7 +10,7 @@ void main() {
   testWidgets('启动进入登录页', (tester) async {
     await tester.pumpWidget(const MoneyFlyApp());
     await tester.pump(const Duration(milliseconds: 300));
-    expect(find.text('MoneyFly'), findsOneWidget);
+    expect(find.text('MBox'), findsOneWidget);
     expect(find.text('登 录'), findsOneWidget);
     expect(find.textContaining('注册', findRichText: true), findsWidgets);
     expect(find.textContaining('忘记密码', findRichText: true), findsWidgets);

@@ -28,7 +28,7 @@
          重装不自动恢复旧配置（订阅/节点/自动登录标记都随卸载消失，
          重装后必须重新登录并重新拉取订阅，不沿用旧账号旧配置） -->
     <application
-        android:label="MoneyFly"
+        android:label="MBox"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:allowBackup="false"
