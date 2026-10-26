@@ -64,6 +64,17 @@ on:
         description: '版本号（如 1.0.0，留空则用 pubspec）'
         required: false
         default: ''
+      only:
+        description: '只构建某个平台（迭代用；留空=全部）'
+        required: false
+        type: choice
+        default: ''
+        options:
+          - ''
+          - android
+          - windows
+          - macos
+          - ios
 
 # 同一个 ref 上连续推 tag / 反复手动触发时，取消上一次没跑完的运行
 concurrency:
@@ -110,6 +121,7 @@ jobs:
   # 要重新编译一遍测试 bundle，实测 237s > 174s，不划算。
   verify-macos:
     name: 校验 (macOS arm64, 真实内核)
+    if: ${{ inputs.only == '' || inputs.only == 'macos' }}
     runs-on: macos-14
     timeout-minutes: 25
     steps:
@@ -124,14 +136,13 @@ jobs:
       - name: 下载离线分流数据
         run: |
           bash tool/fetch_ruleset.sh
-      - name: 下载 sing-box 内核（真实内核 e2e 用）
-        run: |
-          mkdir -p build/singbox
-          curl -fL --retry 5 --retry-delay 3 --retry-all-errors --max-time 300 -o sb.tar.gz \
-            "https://github.com/SagerNet/sing-box/releases/download/v$SINGBOX_VERSION/sing-box-$SINGBOX_VERSION-darwin-arm64.tar.gz"
-          tar -xzf sb.tar.gz
-          cp "$(find . -maxdepth 3 -type f -name sing-box | head -1)" build/singbox/sing-box
-          chmod +x build/singbox/sing-box
+      - name: 缓存 sing-box 内核（按版本；省掉每次 30~90MB 下载）
+        uses: actions/cache@v4
+        with:
+          path: build/singbox
+          key: singbox-${{ runner.os }}-${{ github.job }}-${{ env.SINGBOX_VERSION }}
+      - name: 下载 sing-box 内核（darwin-arm64，命中缓存则不下载）
+        run: bash tool/fetch_kernel_ci.sh darwin-arm64
       - name: 校验
         run: |
           export MBOX_SINGBOX="$PWD/build/singbox/sing-box"
@@ -144,6 +155,7 @@ jobs:
   # （实测 133s → 92s）。
   verify-windows:
     name: 校验 (Windows, 真实内核)
+    if: ${{ inputs.only == '' || inputs.only == 'windows' }}
     runs-on: windows-latest
     timeout-minutes: 25
     steps:
@@ -159,15 +171,14 @@ jobs:
         shell: bash
         run: |
           bash tool/fetch_ruleset.sh
-      - name: 下载 sing-box 内核（真实内核 e2e 用）
+      - name: 缓存 sing-box 内核（按版本；省掉每次 30~90MB 下载）
+        uses: actions/cache@v4
+        with:
+          path: build/singbox
+          key: singbox-${{ runner.os }}-${{ github.job }}-${{ env.SINGBOX_VERSION }}
+      - name: 下载 sing-box 内核（windows-amd64，命中缓存则不下载）
         shell: bash
-        run: |
-          mkdir -p build/singbox
-          curl -fL --retry 5 --retry-delay 3 --retry-all-errors --max-time 300 -o sb.zip \
-            "https://github.com/SagerNet/sing-box/releases/download/v$SINGBOX_VERSION/sing-box-$SINGBOX_VERSION-windows-amd64.zip"
-          unzip -o sb.zip -d sb
-          EXE=$(find sb -iname "sing-box.exe" | head -1)
-          [ -n "$EXE" ] && cp "$EXE" build/singbox/sing-box.exe || { echo "zip 内未找到 sing-box.exe"; exit 1; }
+        run: bash tool/fetch_kernel_ci.sh windows-amd64
       - name: 校验（非 e2e 并行 + 真实内核 e2e 串行）
         shell: bash
         run: |
@@ -184,6 +195,7 @@ jobs:
   # 在 Rosetta 下再串行跑一遍全量要多花约 157s 而没有新信号。
   verify-macos-x64:
     name: 校验 (macOS x64/Rosetta, 真实内核)
+    if: ${{ inputs.only == '' || inputs.only == 'macos' }}
     runs-on: macos-14
     timeout-minutes: 25
     steps:
@@ -203,14 +215,13 @@ jobs:
       - name: 下载离线分流数据
         run: |
           bash tool/fetch_ruleset.sh
-      - name: 下载 sing-box 内核（Rosetta/x64 用官方 amd64 构建）
-        run: |
-          mkdir -p build/singbox
-          curl -fL --retry 5 --retry-delay 3 --retry-all-errors --max-time 300 -o sb.tar.gz \
-            "https://github.com/SagerNet/sing-box/releases/download/v$SINGBOX_VERSION/sing-box-$SINGBOX_VERSION-darwin-amd64.tar.gz"
-          tar -xzf sb.tar.gz
-          cp "$(find . -maxdepth 3 -type f -name sing-box | head -1)" build/singbox/sing-box
-          chmod +x build/singbox/sing-box
+      - name: 缓存 sing-box 内核（按版本；省掉每次 30~90MB 下载）
+        uses: actions/cache@v4
+        with:
+          path: build/singbox
+          key: singbox-${{ runner.os }}-${{ github.job }}-${{ env.SINGBOX_VERSION }}
+      - name: 下载 sing-box 内核（darwin-amd64，命中缓存则不下载）
+        run: bash tool/fetch_kernel_ci.sh darwin-amd64
       - name: 校验（真实内核 e2e，串行）
         run: |
           export MBOX_SINGBOX="$PWD/build/singbox/sing-box"
@@ -220,6 +231,7 @@ jobs:
   # ================= Android：多 ABI 分版本 =================
   android:
     name: Android APK (armeabi-v7a / arm64-v8a / x86_64)
+    if: ${{ inputs.only == '' || inputs.only == 'android' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -253,7 +265,6 @@ jobs:
           curl -fL --retry 5 --retry-delay 3 --retry-all-errors --max-time 300 -o android/app/libs/libmbox.aar \
             "https://github.com/moneyfly004/sing-box-lib/releases/download/v$SINGBOX_LIB_VERSION/libmoneyfly-$SINGBOX_LIB_VERSION.aar"
           ls -lh android/app/libs/libmbox.aar
-
       - name: 依赖
         run: flutter pub get
 
@@ -291,6 +302,7 @@ jobs:
   # 让关键路径白白多出 59s（实测）。拆到两个 runner 并行后，AAB 不再占关键路径。
   android-aab:
     name: Android AAB (应用商店备用)
+    if: ${{ inputs.only == '' || inputs.only == 'android' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -312,8 +324,7 @@ jobs:
         run: |
           mkdir -p android/app/libs
           curl -fL --retry 5 --retry-delay 3 --retry-all-errors --max-time 300 -o android/app/libs/libmbox.aar \
-            "https://github.com/moneyfly004/sing-box-lib/releases/download/v$SINGBOX_LIB_VERSION/libmoneyfly-$SINGBOX_LIB_VERSION.aar"
-      - name: 依赖
+            "https://github.com/moneyfly004/sing-box-lib/releases/download/v$SINGBOX_LIB_VERSION/libmoneyfly-$SINGBOX_LIB_VERSION.aar"      - name: 依赖
         run: flutter pub get
       - name: 构建 AAB（应用商店备用）
         run: flutter build appbundle --release --split-debug-info=build/symbols --obfuscate
@@ -337,6 +348,7 @@ jobs:
   # ================= Windows：exe 安装包 + zip 便携版 =================
   windows:
     name: Windows (exe 安装包 + zip 便携版)
+    if: ${{ inputs.only == '' || inputs.only == 'windows' }}
     runs-on: windows-latest
     timeout-minutes: 30
     steps:
@@ -358,21 +370,13 @@ jobs:
           ls -lh assets/rules/
 
       # ---- 先下载内核：让 flutter test 真实启动内核做端到端验证 ----
-      - name: 下载 sing-box 内核（官方预编译）
-        shell: bash
-        run: |
-          mkdir -p build/singbox
-          curl -fL --retry 5 --retry-delay 3 --retry-all-errors --max-time 300 -o sb.zip \
-            "https://github.com/SagerNet/sing-box/releases/download/v$SINGBOX_VERSION/sing-box-$SINGBOX_VERSION-windows-amd64.zip"
-          unzip -o sb.zip -d sb
-          # 官方 zip 内为 sing-box-<ver>-windows-<arch>/sing-box.exe
-          EXE=$(find sb -iname "sing-box.exe" | head -1)
-          [ -n "$EXE" ] && cp "$EXE" build/singbox/sing-box.exe || { echo "zip 内未找到 sing-box.exe"; exit 1; }
-          ls -la build/singbox/
-
-      # 测试已移到 verify-windows job（并行跑）：实测这个 runner 上测试要 92~207s，
-      # 串在构建前面就等于把关键路径拉长同样多。真实内核也在那边下载并验证 ——
-      # 本 job 保留内核下载只是为了「内嵌进安装包」。
+      - name: 缓存 sing-box 内核（按版本；省掉每次 30~90MB 下载）
+        uses: actions/cache@v4
+        with:
+          path: build/singbox
+          key: singbox-${{ runner.os }}-${{ github.job }}-${{ env.SINGBOX_VERSION }}
+      - name: 下载 sing-box 内核（windows-amd64，命中缓存则不下载）
+        run: bash tool/fetch_kernel_ci.sh windows-amd64
       - name: 构建 Windows release
         run: flutter build windows --release
 
@@ -449,6 +453,7 @@ jobs:
   #  - universal = lipo 合并 arm64 与 x64 两份 app（scripts/merge_macos_universal.sh）。
   macos-arm64:
     name: macOS arm64
+    if: ${{ inputs.only == '' || inputs.only == 'macos' }}
     runs-on: macos-14
     timeout-minutes: 30
     steps:
@@ -469,15 +474,13 @@ jobs:
       - name: 下载离线分流数据
         run: |
           bash tool/fetch_ruleset.sh
-      - name: 下载 sing-box 内核（测试与内嵌共用同一份 arm64 内核）
-        run: |
-          mkdir -p build/singbox
-          curl -fL --retry 5 --retry-delay 3 --retry-all-errors --max-time 300 -o sb.tar.gz \
-            "https://github.com/SagerNet/sing-box/releases/download/v$SINGBOX_VERSION/sing-box-$SINGBOX_VERSION-darwin-arm64.tar.gz"
-          tar -xzf sb.tar.gz
-          cp "$(find . -maxdepth 3 -type f -name sing-box | head -1)" build/singbox/sing-box
-          chmod +x build/singbox/sing-box
-      # 测试已移到 verify-macos job（并行跑）。本 job 只下载内核用于「内嵌」。
+      - name: 缓存 sing-box 内核（按版本；省掉每次 30~90MB 下载）
+        uses: actions/cache@v4
+        with:
+          path: build/singbox
+          key: singbox-${{ runner.os }}-${{ github.job }}-${{ env.SINGBOX_VERSION }}
+      - name: 下载 sing-box 内核（darwin-arm64，命中缓存则不下载）
+        run: bash tool/fetch_kernel_ci.sh darwin-arm64
       - name: 构建 macOS（arm64）
         run: flutter build macos --release
       - name: 校验架构
@@ -512,6 +515,7 @@ jobs:
 
   macos-x64:
     name: macOS x64 (Intel)
+    if: ${{ inputs.only == '' || inputs.only == 'macos' }}
     runs-on: macos-14
     timeout-minutes: 30
     steps:
@@ -536,15 +540,13 @@ jobs:
       - name: 下载离线分流数据
         run: |
           bash tool/fetch_ruleset.sh
-      - name: 下载 sing-box 内核（测试与内嵌共用同一份 x64 内核）
-        run: |
-          mkdir -p build/singbox
-          curl -fL --retry 5 --retry-delay 3 --retry-all-errors --max-time 300 -o sb.tar.gz \
-            "https://github.com/SagerNet/sing-box/releases/download/v$SINGBOX_VERSION/sing-box-$SINGBOX_VERSION-darwin-amd64.tar.gz"
-          tar -xzf sb.tar.gz
-          cp "$(find . -maxdepth 3 -type f -name sing-box | head -1)" build/singbox/sing-box
-          chmod +x build/singbox/sing-box
-      # 测试已移到 verify-macos-x64 job（并行跑）。本 job 只下载内核用于「内嵌」。
+      - name: 缓存 sing-box 内核（按版本；省掉每次 30~90MB 下载）
+        uses: actions/cache@v4
+        with:
+          path: build/singbox
+          key: singbox-${{ runner.os }}-${{ github.job }}-${{ env.SINGBOX_VERSION }}
+      - name: 下载 sing-box 内核（darwin-amd64，命中缓存则不下载）
+        run: bash tool/fetch_kernel_ci.sh darwin-amd64
       - name: 构建 macOS（x64，Rosetta 整链）
         run: arch -x86_64 flutter build macos --release
       - name: 校验架构
@@ -579,6 +581,7 @@ jobs:
 
   macos-universal:
     name: macOS universal（Flutter 原生双架构）
+    if: ${{ inputs.only == '' || inputs.only == 'macos' }}
     runs-on: macos-14
     timeout-minutes: 30
     steps:
@@ -598,15 +601,13 @@ jobs:
       - name: 下载离线分流数据
         run: |
           bash tool/fetch_ruleset.sh
-      - name: 下载 sing-box 内核（测试用，arm64）
-        run: |
-          mkdir -p build/singbox
-          curl -fL --retry 5 --retry-delay 3 --retry-all-errors --max-time 300 -o sb.tar.gz \
-            "https://github.com/SagerNet/sing-box/releases/download/v$SINGBOX_VERSION/sing-box-$SINGBOX_VERSION-darwin-arm64.tar.gz"
-          tar -xzf sb.tar.gz
-          cp "$(find . -maxdepth 3 -type f -name sing-box | head -1)" build/singbox/sing-box
-          chmod +x build/singbox/sing-box
-      # 只跑 e2e 组：全量测试由 arm64 job 覆盖，这里再跑一遍没有新信号
+      - name: 缓存 sing-box 内核（按版本；省掉每次 30~90MB 下载）
+        uses: actions/cache@v4
+        with:
+          path: build/singbox
+          key: singbox-${{ runner.os }}-${{ github.job }}-${{ env.SINGBOX_VERSION }}
+      - name: 下载 sing-box 内核（darwin-arm64，命中缓存则不下载）
+        run: bash tool/fetch_kernel_ci.sh darwin-arm64
       - name: 测试（仅真实内核 e2e，串行）
         run: |
           export MBOX_SINGBOX="$PWD/build/singbox/sing-box"
@@ -618,23 +619,26 @@ jobs:
         run: flutter build macos --release
       - name: 校验双架构
         run: lipo build/macos/Build/Products/Release/MBox.app/Contents/MacOS/MBox -verify_arch arm64 x86_64
-      - name: 内置 sing-box 内核（universal：arm64 + amd64）
+      - name: 内置 sing-box 内核（universal：arm64 + amd64 合并）
         run: |
           APP="build/macos/Build/Products/Release/MBox.app"
-          mkdir -p sb && cd sb
-          curl -fL --retry 5 --retry-delay 3 --retry-all-errors --max-time 300 -o sb-arm64.tar.gz \
-            "https://github.com/SagerNet/sing-box/releases/download/v$SINGBOX_VERSION/sing-box-$SINGBOX_VERSION-darwin-arm64.tar.gz"
-          curl -fL --retry 5 --retry-delay 3 --retry-all-errors --max-time 300 -o sb-x64.tar.gz \
-            "https://github.com/SagerNet/sing-box/releases/download/v$SINGBOX_VERSION/sing-box-$SINGBOX_VERSION-darwin-amd64.tar.gz"
-          mkdir -p arm64 x64
-          tar -xzf sb-arm64.tar.gz -C arm64
-          tar -xzf sb-x64.tar.gz -C x64
-          lipo -create "$(find arm64 -type f -name sing-box | head -1)" "$(find x64 -type f -name sing-box | head -1)" -output sing-box
-          chmod +x sing-box
-          cd ..
-          cp sb/sing-box "$APP/Contents/MacOS/sing-box"
-          chmod +x "$APP/Contents/MacOS/sing-box"
-          lipo "$APP/Contents/MacOS/sing-box" -verify_arch arm64 x86_64
+          OUT="$APP/Contents/MacOS/sing-box"
+          CACHED="build/singbox/sing-box-universal"
+          # 缓存里已有合并好的双架构内核 → 直接复制，两边都不用下
+          if [ -f "$CACHED" ] && lipo "$CACHED" -verify_arch arm64 x86_64 2>/dev/null; then
+            echo "✓ 复用缓存的双架构内核"
+            cp "$CACHED" "$OUT" && chmod +x "$OUT"
+            exit 0
+          fi
+          # 两个架构各下一次（走同一个缓存/重试脚本，落 build/singbox-<arch>）
+          SINGBOX_VERSION="$SINGBOX_VERSION" bash tool/fetch_kernel_ci.sh darwin-arm64
+          cp build/singbox/sing-box "$RUNNER_TEMP/sing-box-arm64"
+          SINGBOX_VERSION="$SINGBOX_VERSION" bash tool/fetch_kernel_ci.sh darwin-amd64
+          cp build/singbox/sing-box "$RUNNER_TEMP/sing-box-x64"
+          lipo -create "$RUNNER_TEMP/sing-box-arm64" "$RUNNER_TEMP/sing-box-x64" -output "$OUT"
+          chmod +x "$OUT"
+          lipo "$OUT" -verify_arch arm64 x86_64
+          cp "$OUT" "$CACHED"   # 存进缓存目录，下次直接复用
       - name: 打包 universal DMG
         run: |
           V="${INPUT_VERSION:-$GITHUB_REF_NAME}"; V="${V#v}"
@@ -676,6 +680,7 @@ jobs:
   # entitlements，正是侧载工具能识别并沿用的形态。
   ios:
     name: iOS (unsigned IPA, sideload)
+    if: ${{ inputs.only == '' || inputs.only == 'ios' }}
     runs-on: macos-14
     timeout-minutes: 30
     steps:
@@ -688,8 +693,9 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: ~/Library/Caches/CocoaPods
-          key: pods-${{ runner.os }}-${{ hashFiles('macos/Podfile') }}
-          restore-keys: pods-${{ runner.os }}-
+          key: pods-${{ runner.os }}-ios-${{ hashFiles('ios/Podfile') }}
+          restore-keys: pods-${{ runner.os }}-ios-
+
       - name: 依赖
         run: flutter pub get
       - name: 下载离线分流数据（iOS 随扩展 bundle 分发）
@@ -826,6 +832,7 @@ jobs:
     name: 发布到 GitHub Releases
     if: startsWith(github.ref, 'refs/tags/')
     needs: [verify, verify-macos, verify-macos-x64, verify-windows, android, android-aab, windows, macos-arm64, macos-x64, macos-universal, ios]
+    if: startsWith(github.ref, 'refs/tags/') && inputs.only == ''
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
