@@ -14,17 +14,21 @@
 # 用法: bash scripts/make_macos_dmg.sh <stage 目录> <输出 dmg 路径>
 set -euo pipefail
 
+# 注意：本脚本里的变量引用一律写成 ${VAR}。bash 会把紧跟在 $VAR 后面的多字节
+# 字符当成变量名的一部分（实测 macOS bash 3.2 报 `OUT�: unbound variable`），
+# 而这份脚本的输出文案里经常紧贴全角括号。
+
 STAGE="${1:?用法: make_macos_dmg.sh <stage 目录> <输出 dmg>}"
 OUT="${2:?缺少输出 dmg 路径}"
 
-[ -d "$STAGE" ] || { echo "错误: stage 目录不存在: $STAGE"; exit 1; }
+[ -d "$STAGE" ] || { echo "错误: stage 目录不存在: ${STAGE}"; exit 1; }
 mkdir -p "$(dirname "$OUT")"
 rm -f "$OUT"
 
 # 1) 卸掉残留的同名卷（-force：有进程占用也卸）
 STALE="$(hdiutil info | awk '/\/Volumes\/MBox/ {print $1}' | sort -u || true)"
 for dev in $STALE; do
-  echo "卸载残留卷 $dev"
+  echo "卸载残留卷 ${dev}"
   hdiutil detach "$dev" -force >/dev/null 2>&1 || true
 done
 
@@ -32,10 +36,10 @@ done
 for i in 1 2 3; do
   VOL="MBox-${RANDOM}${RANDOM}"
   if hdiutil create -volname "$VOL" -srcfolder "$STAGE" -ov -format UDZO "$OUT" >/tmp/hdiutil.log 2>&1; then
-    echo "✓ 已生成 $OUT（$(du -h "$OUT" | cut -f1)）"
+    echo "✓ 已生成 ${OUT}（$(du -h "${OUT}" | cut -f1)）"
     exit 0
   fi
-  echo "hdiutil 第 $i 次失败（卷名 $VOL）:"
+  echo "hdiutil 第 ${i} 次失败（卷名 ${VOL}）:"
   tail -5 /tmp/hdiutil.log || true
   # 失败时也可能留下半成品卷，顺手清掉再试
   for dev in $(hdiutil info | awk -v v="$VOL" '$0 ~ "/Volumes/" v {print $1}' | sort -u || true); do

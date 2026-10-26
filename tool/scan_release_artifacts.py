@@ -84,7 +84,11 @@ ALLOWED_DOMAIN_SUFFIXES = (
 # 第三方引擎/内核二进制：里面出现协议前缀、publicKey*、shortId 之类是库符号，
 # 不是节点数据。仍然扫，只是把"裸符号"类命中过滤掉（见 _is_library_symbol）。
 LIBRARY_HINTS = (
-    'libgojni.so', 'mihomo', 'mihomo.exe', 'libflutter.so', 'Flutter',
+    # 内核/引擎二进制内部的符号与字符串不算「节点数据泄漏」。
+    # 注意 'mihomo' / 'mihomo.exe' 两条是**历史遗留的过滤项**（老版本内核名）：
+    # 现在的产物里已经不可能出现它们（内核是 sing-box），留着只在万一有人把
+    # 旧内核打进去时避免误报。新增内核名请同步加到这里。
+    'libgojni.so', 'mihomo', 'mihomo.exe', 'libmoneyfly.so', 'libflutter.so', 'Flutter',
     'FlutterMacOS', 'flutter_windows.dll', 'PacketTunnel', '.sym',
     'geosite.dat', 'country.mmdb', '.mrs', 'NOTICES',
 )
