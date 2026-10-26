@@ -157,6 +157,10 @@ class MoneyFlyVpnService : VpnService(), PlatformInterface, CommandServerHandler
     @Volatile
     private var currentConfig: String? = null
 
+    /** 日志通道已报过一次错（避免 CommandClient 重连时刷屏） */
+    @Volatile
+    private var logChannelErrorLogged: Boolean = false
+
     /** 内核启动/停止串行化（Go 侧 CommandServer 的调用需避免并发） */
     private val coreExecutor = Executors.newSingleThreadExecutor()
 
@@ -318,7 +322,12 @@ class MoneyFlyVpnService : VpnService(), PlatformInterface, CommandServerHandler
                 override fun connected() {}
 
                 override fun disconnected(message: String?) {
-                    if (!message.isNullOrEmpty()) appendLog("[app] 日志通道断开: $message")
+                    // 只在第一次断开时记录：内核不支持时 CommandClient 会反复重连，
+                    // 每条都写会把日志页刷满
+                    if (!message.isNullOrEmpty() && !logChannelErrorLogged) {
+                        logChannelErrorLogged = true
+                        appendLog("[app] 日志通道断开（内核日志可能不全）: $message")
+                    }
                 }
 
                 override fun initializeClashMode(modeList: StringIterator?, currentMode: String?) {}
@@ -344,8 +353,9 @@ class MoneyFlyVpnService : VpnService(), PlatformInterface, CommandServerHandler
                 override fun writeStatus(status: StatusMessage?) {}
             }
             val options = CommandClientOptions().apply {
-                statusInterval = 0L // 不做状态轮询：流量统计走 Clash API
+                statusInterval = 10_000L // 状态轮询（SFA 同款：日志/状态两条命令一起订阅）
                 addCommand(Libbox.CommandLog)
+                addCommand(Libbox.CommandStatus)
             }
             val client = CommandClient(handler, options)
             client.connect()
@@ -465,7 +475,7 @@ class MoneyFlyVpnService : VpnService(), PlatformInterface, CommandServerHandler
     @SuppressLint("MissingPermission")
     private fun buildTunBuilder(options: TunOptions, withAccessControl: Boolean): Builder {
         val builder = Builder()
-            .setSession("MoneyFly")
+            .setSession("MBox")
             .setConfigureIntent(
                 PendingIntent.getActivity(
                     this, 0, Intent(this, MainActivity::class.java),

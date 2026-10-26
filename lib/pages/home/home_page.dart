@@ -1898,7 +1898,13 @@ class _TrafficCard extends StatelessWidget {
     required String unit,
     required Color color,
   }) {
-    return Row(
+    // 一行 = 圆点 + 图标 + 文案 + 定宽数值 + 定宽单位。
+    // 英文文案比中文长（"Upload"/"Download"），窄屏下这一行会溢出错位
+    // （实测 Android 411dp 报 "RIGHT OVERFLOWED BY 12 PIXELS"）→ 等比缩小兜底
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: Alignment.centerLeft,
+      child: Row(
       children: [
         Container(
           width: 8,
@@ -1941,6 +1947,7 @@ class _TrafficCard extends StatelessWidget {
                   fontSize: compact ? 10 : 10.5, color: MFColors.txt3)),
         ),
       ],
+      ),
     );
   }
 }
@@ -2029,7 +2036,12 @@ class _SessionInfoState extends State<_SessionInfo> {
         fontFeatures: const [FontFeature.tabularFigures()]);
     return SizedBox(
       height: 15,
-      child: Row(
+      // 窄屏 / 英文文案下这一行会溢出错位（实测 Android 411dp 报
+      // "RIGHT OVERFLOWED BY 12 PIXELS"）→ 整体按需等比缩小，永不溢出
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: Alignment.center,
+        child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text('${AppStrings.t('connected_for')} ${conn.sessionUptime}',
@@ -2057,6 +2069,7 @@ class _SessionInfoState extends State<_SessionInfo> {
                   overflow: TextOverflow.clip,
                   style: numStyle)),
         ],
+        ),
       ),
     );
   }

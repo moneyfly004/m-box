@@ -225,7 +225,7 @@ abstract final class UpdatePrompt {
               if (info!.sizeText != null && info.sizeText!.isNotEmpty) ...[
                 const SizedBox(height: 6),
                 Text(AppStrings.t('update_body',
-                    {'cur': 'v${UpdateInfo.currentVersion}', 'latest': 'v$version', 'size': ' · ${info.sizeText}'}),
+                    {'cur': UpdateInfo.currentVersion, 'latest': version, 'size': ' · ${info.sizeText}'}),
                     style: TextStyle(fontSize: 12, color: MFColors.txt3, height: 1.6)),
               ],
             ],

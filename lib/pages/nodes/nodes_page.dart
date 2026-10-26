@@ -313,8 +313,17 @@ class _NodesPageState extends State<NodesPage> {
               padding: const EdgeInsets.fromLTRB(22, 10, 22, 4),
               child: Row(
                 children: [
-                  Text(AppStrings.t('nodes_title'), style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w700)),
-                  const Spacer(),
+                  // 标题可收缩：英文/窄屏下「Nodes + 两个筛选芯片」会溢出
+                  // （实测 Android 411dp 报 "RIGHT OVERFLOWED BY 26 PIXELS"）
+                  Expanded(
+                    child: Text(
+                      AppStrings.t('nodes_title'),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          fontSize: 21, fontWeight: FontWeight.w700),
+                    ),
+                  ),
                   // 排序切换(默认国家/延迟/名称) + 刷新订阅。
                   // 都用 MFChip：命中区 ≥40px 且有按压反馈（旧实现是 24~26px 的
                   // 裸 GestureDetector，触屏上很难点准）

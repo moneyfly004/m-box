@@ -74,7 +74,9 @@ class SettingsStore {
         // TUN 用户态栈（Android 机型兼容性切换：gvisor 兼容性最好 / mixed 更快）
         'tunStack': 'gvisor',
         // 内核日志级别（debug/info/warning/error；连接启动与实时页热更共用）
-        'kernelLogLevel': 'warning',
+        // sing-box 在 warn 级别**不输出启动/连接信息**（只有真正的告警），
+        // 默认给 warning 会让「内核日志」页一片空白 → 默认 info
+        'kernelLogLevel': 'info',
         // DNS 解析模式：auto / fake-ip / redir-host
         'dnsMode': 'auto',
         // hysteria/hysteria2/tuic 放宽证书校验（默认开：这些协议普遍用伪装
