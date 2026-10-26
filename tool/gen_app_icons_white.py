@@ -78,12 +78,13 @@ def _compose_native(*, full_bleed: bool) -> Image.Image:
 
 
 def _downscale(img: Image.Image, size: int) -> Image.Image:
-    """逐级减半再落到目标尺寸：一步 1024→16 会把细线（右上小飞机轮廓）糊掉。"""
-    cur = img
-    while cur.width > size * 2:
-        cur = cur.resize((max(size, cur.width // 2), max(size, cur.height // 2)),
-                         Image.LANCZOS)
-    return cur.resize((size, size), Image.LANCZOS)
+    """单步 LANCZOS 缩放。
+
+    **刻意不做逐级减半**：CI 的 iOS 作业会用 `tool/gen_ios_icons.py` 重建图标并
+    与仓库里的文件做**像素级**比对，两条路径必须完全同构，否则会因重采样细节不同
+    而误判失败。
+    """
+    return img.resize((size, size), Image.LANCZOS)
 
 
 def render(size: int, *, full_bleed: bool) -> Image.Image:

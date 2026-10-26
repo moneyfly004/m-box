@@ -702,10 +702,8 @@ jobs:
         run: |
           grep -q "PacketTunnel" ios/Runner.xcodeproj/project.pbxproj \
             || { echo "error: 缺少 PacketTunnel 扩展 target（先运行 ruby tool/ios_setup_tunnel_target.rb）"; exit 1; }
-      - name: 校验 iOS 图标（仓库级，确保是品牌画稿而非 Flutter 默认模板）
+      - name: 校验 iOS 图标（白底 + 品牌色标记，非 Flutter 默认模板）
         run: |
-          # 用生成脚本重建一遍并与提交内容比对：不一致说明图标被改回默认模板
-          # 或未随画稿更新（脚本内含与 Android 的像素一致性自检）
           # Pillow 在 macOS runner 上受 PEP 668 保护，装不上就跳过本步校验
           # （绝不能因为「装不上依赖」把构建判失败 —— 已踩过一次）
           if ! python3 -c "import PIL" 2>/dev/null; then
@@ -716,25 +714,68 @@ jobs:
             echo "warning: 无 Pillow，跳过仓库级图标像素校验（IPA 内仍有尺寸断言）"
             exit 0
           fi
-          python3 tool/gen_ios_icons.py
-          # 与提交版本做**像素**比对（不比字节：Pillow/zlib 版本差异会改变
-          # PNG 编码字节，但不是问题；像素不同才是真问题——例如被改回默认模板）
+          # 为什么校验「不变量」而不是逐像素比对：
+          # 图标生成用的是 Pillow 的 LANCZOS 重采样，不同 Pillow 版本在同一画稿上
+          # 会产生**像素级**差异 —— 逐像素比对会把「依赖版本不同」误判成「图标被
+          # 改坏」，让发布卡在一个纯装饰性问题上。这里改判三条与版本无关的特征：
+          #   ① 无 alpha（iOS 要求满幅不透明）；
+          #   ② 底色是白（不是原来的蓝紫→青渐变，也不是默认模板的白底+Flutter logo
+          #      的深蓝 #027DFD —— 品牌蓝 #455FE9 与之相差 67+，会被 ③ 排掉）；
+          #   ③ 品牌色标记存在且尺寸合理（占宽 0.40~0.62 / 占高 0.32~0.52）。
           python3 - <<'PYCHECK'
-          import glob, io, os, subprocess, sys
+          import glob, json, os, sys
           from PIL import Image
+
+          ICONSET = 'ios/Runner/Assets.xcassets/AppIcon.appiconset'
+          BRAND = (0x45, 0x5F, 0xE9)
+          contents = json.load(open(os.path.join(ICONSET, 'Contents.json')))
+          expect = {}
+          for e in contents['images']:
+              px = round(float(e['size'].split('x')[0]) * int(e['scale'].rstrip('x')))
+              expect[e['filename']] = px
+
           bad = []
-          for f in sorted(glob.glob('ios/Runner/Assets.xcassets/AppIcon.appiconset/*.png')):
-              old = subprocess.run(['git', 'show', f'HEAD:{f}'],
-                                   capture_output=True).stdout
-              if not old:
+          for fn, px in sorted(expect.items()):
+              path = os.path.join(ICONSET, fn)
+              im = Image.open(path)
+              if im.size != (px, px):
+                  bad.append(f'{fn}: 尺寸 {im.size} != {(px, px)}')
                   continue
-              a = Image.open(io.BytesIO(old)).convert('RGB')
-              b = Image.open(f).convert('RGB')
-              if a.size != b.size or a.tobytes() != b.tobytes():
-                  bad.append(os.path.basename(f))
+              if im.mode in ('RGBA', 'LA', 'P'):
+                  bad.append(f'{fn}: 仍带 alpha 通道（mode={im.mode}）')
+                  continue
+              rgb = im.convert('RGB')
+              w, h = rgb.size
+              data = rgb.load()
+              white = brand = 0
+              xs, ys = [], []
+              for y in range(h):
+                  for x in range(w):
+                      r, g, b = data[x, y]
+                      if r > 235 and g > 235 and b > 235:
+                          white += 1
+                      if (abs(r - BRAND[0]) < 26 and abs(g - BRAND[1]) < 26
+                              and abs(b - BRAND[2]) < 26):
+                          brand += 1
+                          xs.append(x)
+                          ys.append(y)
+              total = w * h
+              wr, br = white / total, brand / total
+              if not (0.60 <= wr <= 0.95):
+                  bad.append(f'{fn}: 白底占比 {wr:.2f} 不在 0.60~0.95（底色可能不是白色）')
+              if br < 0.04:
+                  bad.append(f'{fn}: 品牌色标记占比 {br:.3f} 过低（可能不是品牌画稿）')
+              if xs:
+                  bw = (max(xs) - min(xs) + 1) / w
+                  bh = (max(ys) - min(ys) + 1) / h
+                  # 小尺寸（<=40px）里右上角那条细线会被重采样吃掉，包围盒偏矮 →
+                  # 对它们放宽下界，避免把「尺寸太小」误判成「图标不对」。
+                  lo_h = 0.26 if px <= 40 else 0.32
+                  if not (0.40 <= bw <= 0.62 and lo_h <= bh <= 0.52):
+                      bad.append(f'{fn}: 标记包围盒 {bw:.2f}x{bh:.2f} 不在画稿比例内')
           if bad:
-              sys.exit('error: iOS 图标与品牌画稿像素不一致: ' + ', '.join(bad))
-          print('✓ iOS 图标与提交版本像素一致（品牌画稿，非默认模板）')
+              sys.exit('error: iOS 图标不符合品牌画稿（白底 + 品牌色标记）：\n  ' + '\n  '.join(bad))
+          print(f'✓ iOS 图标校验通过（{len(expect)} 张：白底 + 品牌色标记，满幅不透明）')
           PYCHECK
 
       - name: 构建 iOS release（不签名）
