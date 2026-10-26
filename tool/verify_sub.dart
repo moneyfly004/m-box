@@ -1,7 +1,7 @@
 // ignore_for_file: avoid_print, unnecessary_brace_in_string_interps
 // 真实订阅全链路验证（运维/验收用）：
 //   1) 解析订阅 Clash YAML（与生产同路径 ProxyNode.fromClashMap）
-//   2) MihomoConfigBuilder 生成配置 → mihomo -t 校验
+//   2) SingBoxConfigBuilder 生成配置 → mihomo -t 校验
 //   3) 启动真实内核 → Clash API 核对 select/GLOBAL 组
 //   4) 对全部节点并发 delay 测速（走真实隧道），按协议类型统计成功率
 //   5) 热切节点 + rule/global 模式切换
@@ -11,7 +11,7 @@ import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:moneyfly/core/models/models.dart';
-import 'package:moneyfly/core/proxy/mihomo_config.dart';
+import 'package:moneyfly/core/proxy/singbox_config.dart';
 import 'package:yaml/yaml.dart';
 
 final mihomo =
@@ -40,13 +40,13 @@ Future<void> main(List<String> args) async {
   final sel = real.firstWhere((n) => n.type == 'vless', orElse: () => real.first);
   print('选中默认节点: ${sel.tag} (${sel.type})');
 
-  final cfg = MihomoConfigBuilder.build(
+  final cfg = SingBoxConfigBuilder.build(
     nodes: nodes, // 含面板伪节点，与生产一致
     selectedTag: sel.tag,
     smartMode: true,
     geoReady: true,
   );
-  final yamlText = MihomoConfigBuilder.encode(cfg);
+  final yamlText = SingBoxConfigBuilder.encode(cfg);
   final tmp = Directory.systemTemp.createTempSync('mf_verify');
   try {
     // geo 数据复制到 homeDir（生产由 GeoAssets 落盘）

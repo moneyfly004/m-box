@@ -22,17 +22,18 @@ extension KernelVariantX on KernelVariant {
   String get label => this == KernelVariant.compatible ? '兼容版' : '标准版';
 }
 
-/// 应用内内核管理（mihomo）：显示当前内置内核版本、检测官方最新版本、
+/// 应用内内核管理（sing-box）：显示当前内置内核版本、检测官方最新版本、
 /// 桌面端下载官方预编译二进制并热替换。
 ///
-/// 内核来源：MetaCubeX/mihomo 官方 GitHub Release（与 CI 构建下载同源）。
-/// Android 内核编译进 App（libmihomo.aar），无法运行期替换 —— 页面提示随 App 更新。
+/// 内核来源：SagerNet/sing-box 官方 GitHub Release（与 CI 构建下载同源）。
+/// Android/iOS 内核以 gomobile 静态库编译进 App（libmoneyfly.aar /
+/// Libbox.xcframework），无法运行期替换 —— 页面提示随 App 更新。
 class KernelManager {
   KernelManager._();
   static final KernelManager instance = KernelManager._();
 
   static String get _exeName =>
-      Platform.isWindows ? 'mihomo.exe' : 'mihomo';
+      Platform.isWindows ? 'sing-box.exe' : 'sing-box';
 
   /// 用户内核副本目录（应用支持目录/kernel，各平台均可写）。
   /// 切换/更新的内核放这里，**绝不动安装目录** —— 装到 Program Files 等
@@ -64,9 +65,10 @@ class KernelManager {
   static Future<bool> hasUserKernel() async =>
       (await userActivePath()) != null;
 
-  /// 生效内核查找优先级：测试注入(MONEYFLY_MIHOMO) → 用户副本 → 安装内置
+  /// 生效内核查找优先级：测试注入(MONEYFLY_SINGBOX) → 用户副本 → 安装内置
   static Future<String?> resolveKernelPath() async {
-    final override = Platform.environment['MONEYFLY_MIHOMO'];
+    final override = Platform.environment['MONEYFLY_SINGBOX'] ??
+        Platform.environment['MONEYFLY_MIHOMO']; // 旧变量名兼容
     if (override != null && override.isNotEmpty && File(override).existsSync()) {
       return override;
     }
@@ -162,23 +164,13 @@ class KernelManager {
     } catch (_) {}
   }
 
-  /// 该平台是否支持变体切换（桌面 x64/amd64；arm64 官方只有标准版）
-  static Future<bool> get supportsVariant async {
-    if (!isDesktop) return false;
-    if (Platform.isMacOS) {
-      final arch = await KernelManager.instance._macArch();
-      return arch != 'arm64';
-    }
-    if (Platform.isWindows) {
-      final arch = Platform.environment['PROCESSOR_ARCHITECTURE'] ?? 'AMD64';
-      return !arch.toUpperCase().contains('ARM64');
-    }
-    return false;
-  }
+  /// sing-box 官方只发布一套构建（没有 mihomo 那种「兼容版/标准版」之分），
+  /// 故桌面端也不再提供变体切换，UI 依据本值隐藏该选项。
+  static Future<bool> get supportsVariant async => false;
 
   /// 探测当前内置内核版本：
-  /// - 桌面：运行 `mihomo -v` 解析首行
-  /// - Android：MethodChannel 读 libmihomo.Version()
+  /// - 桌面：运行 `sing-box version` 解析首行
+  /// - Android/iOS：MethodChannel 读 libbox 内核版本
   /// 失败返回 null（页面显示未知 + 提示）。
   Future<String?> detectCurrent() async {
     try {
@@ -189,11 +181,12 @@ class KernelManager {
       }
       final bin = await resolveKernelPath();
       if (bin == null) return null;
-      final r = await Process.run(bin, ['-v'],
+      final r = await Process.run(bin, ['version'],
           environment: {'PATH': Platform.environment['PATH'] ?? ''});
       if (r.exitCode != 0) return null;
-      final first = (r.stdout as String).split('\n').firstWhere(
-          (l) => l.contains('Mihomo') || l.contains('mihomo'),
+      final out = '${r.stdout}${r.stderr}';
+      final first = out.split('\n').firstWhere(
+          (l) => l.toLowerCase().contains('sing-box'),
           orElse: () => '');
       final m = RegExp(r'v?(\d+\.\d+\.\d+)').firstMatch(first);
       return m?.group(1) ?? norm(first);
@@ -208,7 +201,7 @@ class KernelManager {
   Future<String?> fetchLatest() async {
     try {
       final dio = await _dio(receiveTimeout: const Duration(seconds: 8));
-      final r = await dio.get('https://api.github.com/repos/MetaCubeX/mihomo/releases/latest');
+      final r = await dio.get('https://api.github.com/repos/SagerNet/sing-box/releases/latest');
       if (r.statusCode == 200 && r.data is Map) {
         final tag = (r.data as Map)['tag_name']?.toString();
         return tag == null ? null : norm(tag);
@@ -292,7 +285,7 @@ class KernelManager {
     final tmp = Directory.systemTemp.createTempSync('mf_kernel_update');
     try {
       final url =
-          'https://github.com/MetaCubeX/mihomo/releases/download/v$version/$asset';
+          'https://github.com/SagerNet/sing-box/releases/download/v$version/$asset';
       final dio = await _dio(receiveTimeout: const Duration(minutes: 5));
       final archive = '${tmp.path}/$asset';
       await dio.download(url, archive, onReceiveProgress: (a, b) {
@@ -305,7 +298,7 @@ class KernelManager {
         await Process.run('chmod', ['+x', exePath]);
       }
       // 新内核自检
-      final check = await Process.run(exePath, ['-v'],
+      final check = await Process.run(exePath, ['version'],
           environment: {'PATH': Platform.environment['PATH'] ?? ''});
       if (check.exitCode != 0) return 'downloaded kernel failed self-check';
 
@@ -373,7 +366,7 @@ class KernelManager {
       return 'activate failed: $e';
     }
     // 自检
-    final verify = await Process.run(active.path, ['-v'],
+    final verify = await Process.run(active.path, ['version'],
         environment: {'PATH': Platform.environment['PATH'] ?? ''});
     if (verify.exitCode != 0) {
       try {
@@ -388,24 +381,17 @@ class KernelManager {
     return '';
   }
 
+  /// sing-box 官方只有一套构建（无 compatible 变体），所以 [variant] 不再
+  /// 影响资产名，仅为兼容既有 UI/设置项保留签名。
   Future<String?> _assetName(String version, KernelVariant variant) async {
     if (Platform.isMacOS) {
       final arch = await _macArch();
-      if (arch == 'arm64') return 'mihomo-darwin-arm64-v$version.gz';
-      // x64：标准版按新指令集(v3)编译，老 Intel/Rosetta 会启动即崩 → 默认兼容版
-      return variant == KernelVariant.compatible
-          ? 'mihomo-darwin-amd64-compatible-v$version.gz'
-          : 'mihomo-darwin-amd64-v$version.gz';
+      return 'sing-box-$version-darwin-$arch.tar.gz';
     }
     if (Platform.isWindows) {
       final arch = Platform.environment['PROCESSOR_ARCHITECTURE'] ?? 'AMD64';
-      if (arch.toUpperCase().contains('ARM64')) {
-        return 'mihomo-windows-arm64-v$version.zip';
-      }
-      // amd64 默认兼容版(老 CPU 0xC0000005 崩溃防护)，用户可在内核管理切换标准版
-      return variant == KernelVariant.compatible
-          ? 'mihomo-windows-amd64-compatible-v$version.zip'
-          : 'mihomo-windows-amd64-v$version.zip';
+      final a = arch.toUpperCase().contains('ARM64') ? 'arm64' : 'amd64';
+      return 'sing-box-$version-windows-$a.zip';
     }
     return null;
   }
@@ -421,14 +407,25 @@ class KernelManager {
   }
 
   /// 解压并返回可执行文件路径：
-  /// - macOS .gz → 单文件，gunzip 产物
-  /// - Windows .zip → Expand-Archive 后定位 mihomo.exe
+  /// - macOS `.tar.gz` → tar -xzf 后定位 `sing-box`（官方包内为
+  ///   `sing-box-<ver>-darwin-<arch>/sing-box`）
+  /// - Windows `.zip` → Expand-Archive 后定位 `sing-box.exe`
   Future<String?> _extract(String archive, String dir) async {
     if (Platform.isMacOS) {
-      final out = archive.replaceFirst('.gz', '');
-      final r = await Process.run('gunzip', ['-f', '-k', archive]);
+      final r = await Process.run('tar', ['-xzf', archive, '-C', dir]);
       if (r.exitCode != 0) return null;
-      return File(out).existsSync() ? out : null;
+      final found = Directory(dir)
+          .listSync(recursive: true)
+          .whereType<File>()
+          .where((f) =>
+              f.path.endsWith('/sing-box') ||
+              f.path.endsWith('\\sing-box'))
+          .toList();
+      if (found.isEmpty) return null;
+      final exe = found.first.path;
+      final target = '$dir/sing-box';
+      if (exe != target) File(exe).copySync(target);
+      return target;
     }
     if (Platform.isWindows) {
       final dest = '$dir/unzipped';
@@ -440,19 +437,17 @@ class KernelManager {
         'Expand-Archive -Path "$winZip" -DestinationPath "$winDest" -Force',
       ]);
       if (r.exitCode != 0) return null;
-      // 定位内核 exe（官方 zip 内文件名带平台前缀：mihomo-windows-amd64.exe，
-      // 按 .exe 扩展名取唯一文件）
+      // 定位内核 exe（官方 zip 内含 sing-box-<ver>-windows-<arch>/sing-box.exe）
       final found = Directory(dest)
           .listSync(recursive: true)
           .whereType<File>()
           .where((f) =>
-              f.path.toLowerCase().endsWith('.exe') &&
-              !f.path.toLowerCase().endsWith('mihomo.exe.old'))
+              f.path.toLowerCase().endsWith('sing-box.exe'))
           .toList();
       if (found.isEmpty) return null;
       final exe = found.first.path;
       // 拷到 dir 根，统一返回路径
-      final target = '$dir/mihomo.exe';
+      final target = '$dir/sing-box.exe';
       File(exe).copySync(target);
       return target;
     }

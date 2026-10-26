@@ -8,7 +8,7 @@ import 'package:flutter/foundation.dart';
 import '../models/models.dart';
 import '../services/app_log.dart';
 import 'kernel_delay_api.dart';
-import 'mihomo_config.dart';
+import 'singbox_config.dart';
 import 'proxy_core_cli.dart';
 
 /// 内核测速的启动/探测失败（带可展示原因，**绝不静默回落 TCP**）。
@@ -39,7 +39,7 @@ class KernelProbeException implements Exception {
 /// - **动态空闲端口**（`bind(0)` 取一个当前空闲的端口）：不碰用户设置的
 ///   `clashApiPort`(9090) / `localPort`(2080)，因此**连接与测速可同时存在**，
 ///   也不会把正在用的 9090 顶掉。
-/// - **无入站监听、无 TUN、无系统代理**：见 [MihomoConfigBuilder.buildProbe]。
+/// - **无入站监听、无 TUN、无系统代理**：见 [SingBoxConfigBuilder.buildProbe]。
 ///   不会修改系统代理、不需要管理员权限、不会建虚拟网卡。
 /// - **不进入 App 的「已连接」状态**：探测内核与连接状态机完全无关，
 ///   UI 上不会出现「假装连上了」。
@@ -169,7 +169,7 @@ class SpeedProbeKernel {
     // 比"猜 9091"可靠：不会踩用户改过的 clashApiPort，也不会踩别的软件占用的端口。
     final port = await _pickFreePort();
     _port = port;
-    final cfg = MihomoConfigBuilder.buildProbe(
+    final cfg = SingBoxConfigBuilder.buildProbe(
       nodes: nodes,
       controllerPort: port,
       onlyTags: onlyTags,
@@ -179,18 +179,15 @@ class SpeedProbeKernel {
     cfg.remove('_clashApiPort');
     cfg.remove('_clashApiSecret');
 
-    // 必须叫 config.yaml：mihomo `-d <homeDir>` 只会自动加载 homeDir 下的
-    // config.yaml，写成别的文件名它会**静默地**用内置默认配置启动
-    // （端口 7890 / 外部控制器 9090）—— 于是我们指定的控制器端口永远不响应，
-    // 表现为「启动超时」，同时还在用户机器上多占两个默认端口。
-    // 实测踩到过：日志里出现 `Mixed(http+socks) proxy listening at: 127.0.0.1:7890`。
-    final configPath = '${dir.path}/config.yaml';
+    // 显式 `-c <config.json>` 传配置：sing-box 不会「静默用默认配置」，
+    // 缺配置会直接报错退出，所以文件名不受限制（这里固定 config.json）。
+    final configPath = '${dir.path}/config.json';
     await File(configPath)
-        .writeAsString(MihomoConfigBuilder.encode(cfg), flush: true);
+        .writeAsString(SingBoxConfigBuilder.encode(cfg), flush: true);
 
     final proc = await Process.start(
       binary,
-      ['-d', dir.path],
+      ['run', '-c', configPath, '-D', dir.path],
       environment: {'PATH': Platform.environment['PATH'] ?? ''},
     ).catchError((Object e) {
       throw KernelProbeException('无法启动测速内核', detail: '$e');

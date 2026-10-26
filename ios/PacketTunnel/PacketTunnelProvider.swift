@@ -6,8 +6,8 @@ import ObjectiveC
 import UIKit
 import os.log
 
-#if canImport(Mihomelib)
-import Mihomelib
+#if canImport(Libbox)
+import Libbox
 #endif
 
 /// 直写 fd 的原始输出：不经 stdio / FileHandle 缓冲。
@@ -201,6 +201,7 @@ final class PacketBridge {
     /// 桥自己这一端
     private let bridgeFd: Int32
     private var running = true
+
     private let queue = DispatchQueue(label: "top.moneyfly.tunnel.bridge")
     private var outPackets = 0   // App → 内核
     private var inPackets = 0    // 内核 → App
@@ -298,7 +299,7 @@ final class PacketBridge {
 ///
 /// 为什么必须在这里跑内核：iOS 沙箱禁止 App 建 utun 接口，只有拥有
 /// `packet-tunnel-provider` entitlement 的 NetworkExtension 才能拿到隧道。
-/// 所以内核以 gomobile 静态库（Mihomelib.xcframework）形式跑在本扩展进程内，
+/// 所以内核以 gomobile 静态库（Libbox.xcframework，sing-box 官方核心）跑在本扩展进程内，
 /// TUN fd 由 `packetFlow` 提供 —— mihomo 的 sing-tun 在 `FileDescriptor != 0`
 /// 时会直接复用该 fd（sing-tun/tun_darwin.go），无需 root、无需自建接口。
 ///
@@ -307,6 +308,12 @@ final class PacketBridge {
 /// - 扩展：读 config.yaml → 下发网络参数 → 取 fd → 启动内核 → 抽日志到共享文件；
 /// - 控制面（切节点/测速/流量）：App 直连扩展内内核的 Clash API 127.0.0.1:<apiPort>。
 class PacketTunnelProvider: NEPacketTunnelProvider {
+
+    /// sing-box 内核（libbox）引擎；mihomo 时代的 Mihomelib 已替换
+    private var engine: MBoxLibboxEngine?
+    /// 本次启动用到的隧道 fd（openTun 时回给内核）
+    private var tunnelFd: Int32 = -1
+
 
     private let log = OSLog(subsystem: "top.moneyfly.app.tunnel", category: "tunnel")
 
@@ -581,51 +588,70 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         return fromPath ?? interfaceCandidates().first
     }
 
-    /// 在配置顶层写入/覆盖 `interface-name`（追加在末尾：顶层键顺序无所谓，
-    /// 也避开首行的 YAML 文档标记或注释）。
-    static func injectingInterfaceName(_ yaml: String, _ name: String) -> String {
-        var lines = yaml.split(separator: "\n", omittingEmptySubsequences: false)
-            .map(String.init)
-        if let idx = lines.firstIndex(where: { $0.hasPrefix("interface-name:") }) {
-            lines[idx] = "interface-name: \(name)"
-            return lines.joined(separator: "\n")
+    /// 把内核出站钉在物理接口上（sing-box JSON 版）。
+    ///
+    /// 为什么必须：隧道一起来，系统默认路由就指向我们自己的隧道；若内核
+    /// 自动探测出口接口，会探到「默认接口 = 自己的隧道」→ 出站包被自己的
+    /// TUN 抓回来 → 自环（真机表现：内核刚起就被系统杀掉、零日志）。
+    /// sing-box 的对应字段是 `route.default_interface` +
+    /// `route.auto_detect_interface=false`。
+    static func injectingInterfaceName(_ json: String, _ name: String) -> String {
+        guard var obj = (try? JSONSerialization.jsonObject(with: Data(json.utf8)))
+            as? [String: Any] else { return json }
+        var route = (obj["route"] as? [String: Any]) ?? [:]
+        route["auto_detect_interface"] = false
+        route["default_interface"] = name
+        obj["route"] = route
+        guard let data = try? JSONSerialization.data(withJSONObject: obj, options: []) else {
+            return json
         }
-        if lines.last?.isEmpty == false { lines.append("") }
-        lines.append("interface-name: \(name)")
-        return lines.joined(separator: "\n")
+        return String(data: data, encoding: .utf8) ?? json
     }
 
-    /// 只挑关键几行记进轨迹：出问题时能一眼看出内核到底吃到了什么配置
-    /// （fd 注入 / recvmsgx / mtu / 出站接口 / 栈），不用去猜。
-    static func summarizeConfig(_ yaml: String) -> String {
-        let keys = ["mode:", "log-level:", "log-level:", "interface-name:",
-                    "auto-detect-interface:", "recvmsgx:", "mtu:", "stack:",
-                    "file-descriptor:", "enable:", "auto-route:"]
-        var picked: [String] = []
-        var inTun = false
-        for raw in yaml.split(separator: "\n") {
-            let line = String(raw)
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
-            if line.hasPrefix("tun:") { inTun = true; picked.append("tun:"); continue }
-            if !line.hasPrefix(" ") { inTun = false }
-            if keys.contains(where: { trimmed.hasPrefix($0) }) {
-                if line.hasPrefix(" ") && !inTun { continue }
-                picked.append(trimmed)
+    /// 只挑关键字段记进轨迹：出问题时能一眼看出内核到底吃到了什么配置
+    /// （栈 / mtu / 出站接口 / 模式 / API 端口）。
+    static func summarizeConfig(_ json: String) -> String {
+        guard let obj = (try? JSONSerialization.jsonObject(with: Data(json.utf8)))
+            as? [String: Any] else { return "<配置非合法 JSON>" }
+        var parts: [String] = []
+        if let log = obj["log"] as? [String: Any], let level = log["level"] {
+            parts.append("log=\(level)")
+        }
+        if let inbounds = obj["inbounds"] as? [[String: Any]] {
+            for ib in inbounds {
+                let type = (ib["type"] as? String) ?? "?"
+                if type == "tun" {
+                    parts.append("tun(stack=\(ib["stack"] ?? "?") mtu=\(ib["mtu"] ?? "?") "
+                        + "auto_route=\(ib["auto_route"] ?? "?"))")
+                } else {
+                    parts.append("\(type)(port=\(ib["listen_port"] ?? "?"))")
+                }
             }
-            if picked.count > 24 { break }
         }
-        return picked.joined(separator: " ")
+        if let route = obj["route"] as? [String: Any] {
+            parts.append("final=\(route["final"] ?? "?")")
+            parts.append("default_if=\(route["default_interface"] ?? "-")")
+            if let rs = route["rule_set"] as? [[String: Any]] {
+                parts.append("rule_set=\(rs.count)")
+            }
+        }
+        if let exp = obj["experimental"] as? [String: Any],
+           let api = exp["clash_api"] as? [String: Any] {
+            parts.append("api=\(api["external_controller"] ?? "?")")
+            parts.append("mode=\(api["default_mode"] ?? "?")")
+        }
+        return parts.joined(separator: " ")
     }
 
-    /// 从配置里抠出 Clash API 的 secret（网络切换时要带鉴权 PATCH /configs）
-    static func extractSecret(from yaml: String) -> String {
-        for raw in yaml.split(separator: "\n") {
-            let line = String(raw)
-            guard line.hasPrefix("secret:") else { continue }
-            return line.dropFirst("secret:".count)
-                .trimmingCharacters(in: CharacterSet(charactersIn: " \"'"))
-        }
-        return ""
+    /// 从 sing-box 配置里抠出 Clash API 的 secret（网络切换时要带鉴权
+    /// PATCH /configs）
+    static func extractSecret(from json: String) -> String {
+        guard let obj = (try? JSONSerialization.jsonObject(with: Data(json.utf8)))
+            as? [String: Any],
+            let exp = obj["experimental"] as? [String: Any],
+            let api = exp["clash_api"] as? [String: Any],
+            let secret = api["secret"] as? String else { return "" }
+        return secret
     }
 
     /// 盯住网络路径：物理出口换了就热更新内核绑定（Clash API PATCH /configs，
@@ -701,9 +727,9 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         stopHeartbeat()
         stopPathWatch()
         stopLogPump()
-        #if canImport(Mihomelib)
-        MihomelibStop()
-        #endif
+        engine?.stop()
+        engine = nil
+        tunnelFd = -1
         // 用户态桥必须显式关掉：否则 socketpair 的两个 fd 会留在扩展进程里
         if let bridge {
             TunnelDiag.log(bridge.stats)
@@ -719,15 +745,12 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         let cmd = String(data: messageData, encoding: .utf8) ?? ""
         switch cmd {
         case "status":
-            var running = false
-            #if canImport(Mihomelib)
-            running = MihomelibRunning()
-            #endif
-            TunnelDiag.log("handleAppMessage(status) → \(running ? "running" : "stopped")")
-            completionHandler?(running ? Data("running".utf8) : Data("stopped".utf8))
+            let alive = (engine != nil)
+            TunnelDiag.log("handleAppMessage(status) → \(alive ? "running" : "stopped")")
+            completionHandler?(alive ? Data("running".utf8) : Data("stopped".utf8))
         case "version":
-            #if canImport(Mihomelib)
-            completionHandler?(Data(MihomelibVersion().utf8))
+            #if canImport(Libbox)
+            completionHandler?(Data(MBoxLibboxEngine.version().utf8))
             #else
             completionHandler?(Data("unknown".utf8))
             #endif
@@ -750,24 +773,26 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     // MARK: - 内核
 
     private func startEngine(home: String, yaml: String, fd: Int32) throws {
-        #if canImport(Mihomelib)
-        let data = Data(yaml.utf8)
-        TunnelDiag.log("调用 MihomelibStart（内核版本 \(MihomelibVersion())）…")
+        #if canImport(Libbox)
+        let engine = MBoxLibboxEngine()
+        engine.setTunnelFd(fd)
+        engine.setPhysicalInterface(boundInterface)
+        self.engine = engine
+        self.tunnelFd = fd
+        TunnelDiag.log("调用 libbox 启动内核（内核版本 \(MBoxLibboxEngine.version())）…")
         let began = Date()
-        // gomobile 生成的是 C 函数 `BOOL MihomelibStart(..., NSError**)`，
-        // Swift 不会自动转成 throws，需显式传 error 指针。
-        var err: NSError?
-        let ok = MihomelibStart(home, data, fd, &err)
-        let cost = Int(Date().timeIntervalSince(began) * 1000)
-        if !ok {
-            let why = err?.localizedDescription ?? "未知错误"
-            TunnelDiag.log("✗ MihomelibStart 返回失败（\(cost)ms）: \(why)")
-            throw tunnelError("内核启动失败：\(why)")
+        do {
+            try engine.start(home: home, configContent: yaml)
+        } catch {
+            let cost = Int(Date().timeIntervalSince(began) * 1000)
+            TunnelDiag.log("✗ libbox 启动失败（\(cost)ms）: \(error.localizedDescription)")
+            throw tunnelError("内核启动失败：\(error.localizedDescription)")
         }
-        TunnelDiag.log("✓ MihomelibStart 成功（\(cost)ms）")
+        let cost = Int(Date().timeIntervalSince(began) * 1000)
+        TunnelDiag.log("✓ libbox 启动成功（\(cost)ms）")
         #else
-        TunnelDiag.log("✗ 此构建未链接 Mihomelib.xcframework")
-        throw tunnelError("此构建未包含内核（Mihomelib.xcframework 缺失）")
+        TunnelDiag.log("✗ 此构建未链接 Libbox.xcframework")
+        throw tunnelError("此构建未包含内核（Libbox.xcframework 缺失）")
         #endif
     }
 
@@ -1081,7 +1106,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     /// 用 RULE-SET,cn 替代 GEOSITE,cn 后启动从 146ms/167MB 降到 15ms/50MB。
     private func seedGeoFiles(into home: String) {
         let fm = FileManager.default
-        for name in ["country.mmdb", "geosite.dat", "cn.mrs"] {
+        for name in ["geosite-cn.srs", "geoip-cn.srs"] {
             let dest = (home as NSString).appendingPathComponent(name)
             if fm.fileExists(atPath: dest),
                let attrs = try? fm.attributesOfItem(atPath: dest),
@@ -1089,22 +1114,22 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
                 let srcSize = Bundle.main.path(forResource: name, ofType: nil)
                     .flatMap { (try? fm.attributesOfItem(atPath: $0))?[.size] as? Int }
                 if srcSize == nil || srcSize == size {
-                    TunnelDiag.log("geo \(name) 已在位（\(size)B）")
+                    TunnelDiag.log("rule-set \(name) 已在位（\(size)B）")
                     continue
                 }
-                TunnelDiag.log("geo \(name) 版本变化（\(size)B → \(srcSize!)B），覆盖")
+                TunnelDiag.log("rule-set \(name) 版本变化（\(size)B → \(srcSize!)B），覆盖")
             }
             guard let src = Bundle.main.path(forResource: name, ofType: nil) else {
-                TunnelDiag.log("✗ geo 缺失于扩展 bundle: \(name)（规则将降级）")
+                TunnelDiag.log("✗ rule-set 缺失于扩展 bundle: \(name)（智能分流将降级）")
                 continue
             }
             try? fm.removeItem(atPath: dest)
             do {
                 try fm.copyItem(atPath: src, toPath: dest)
                 let size = ((try? fm.attributesOfItem(atPath: dest))?[.size] as? Int) ?? 0
-                TunnelDiag.log("geo \(name) 已复制（\(size)B）")
+                TunnelDiag.log("rule-set \(name) 已复制（\(size)B）")
             } catch {
-                TunnelDiag.log("✗ geo 复制失败 \(name): \(error.localizedDescription)")
+                TunnelDiag.log("✗ rule-set 复制失败 \(name): \(error.localizedDescription)")
             }
         }
     }
@@ -1122,12 +1147,8 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         // 500ms：内核启动期一旦被系统杀掉，抽得越勤，留下的内核日志越完整
         timer.schedule(deadline: .now(), repeating: .milliseconds(500))
         timer.setEventHandler {
-            #if canImport(Mihomelib)
-            let delta = MihomelibLogs()
-            guard !delta.isEmpty else { return }
-            // appendKernel 自己同步写 kernel.log（+ 内存环），别再写第二遍
-            TunnelDiag.appendKernel(delta)
-            #endif
+            // sing-box 的日志由 MBoxLogClient（LibboxCommandClient）实时推给
+            // TunnelDiag.appendKernel，这里不再轮询。
         }
         timer.resume()
         logPump = timer

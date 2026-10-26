@@ -88,14 +88,11 @@ flutter:
     # 托盘图标（Windows：tray_manager 底层 LoadImage(IMAGE_ICON) 只认 .ico，
     # PNG 会加载失败导致托盘图标空白；macOS 走 base64 仍用 PNG）
     - assets/tray_icon.ico
-    # mihomo 离线分流数据（内置，避免运行时依赖被墙的远程地址；
-    # CI 构建时从 MetaCubeX/meta-rules-dat 下载，本地用 tool/fetch_geodata.sh）
-    - assets/rules/geosite.dat
-    - assets/rules/country.mmdb
-    # mihomo .mrs 规则集（zstd+可直接查表，iOS 扩展专用）：
-    # GEOSITE,cn 的 succinct 匹配器启动期要 ~74MB 堆，远超 iOS 扩展内存上限，
-    # 真机表现为内核起来 ~200ms 被系统静默杀掉；换成 mrs 后实测 +2MB。
-    - assets/rules/cn.mrs
+    # sing-box 离线分流规则（binary rule-set，内置，避免运行时依赖被墙的
+    # 远程地址；CI 构建时从 SagerNet/sing-geosite、sing-geoip 的 rule-set
+    # 分支下载，本地用 tool/fetch_ruleset.sh）
+    - assets/rules/geosite-cn.srs
+    - assets/rules/geoip-cn.srs
     # 国旗图片（Windows 上 emoji 国旗显示为字母，用图片兜底）
     - assets/flags/
 

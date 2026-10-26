@@ -91,15 +91,16 @@ flutter {
 }
 
 dependencies {
-    // libmihomo.aar（mihomo 内核库）由 CI 从 moneyfly004/mihomo-lib 预编译
-    // release 下载（.github/workflows/release.yml）；本地调试用
-    // tool/build_mihomo_aar.sh 编译。缺失时构建出的 APK 无内核，属残次包，
+    // libmoneyfly.aar（sing-box 内核库，Java 包名 top.moneyfly.libbox）由 CI
+    // 从 moneyfly004/sing-box-lib 预编译 release 下载
+    // （.github/workflows/release.yml）；本地调试用
+    // tool/build_singbox_aar.sh。缺失时构建出的 APK 无内核，属残次包，
     // 直接报错给出清晰指引。
-    val coreAar = file("libs/libmihomo.aar")
+    val coreAar = file("libs/libmoneyfly.aar")
     if (!coreAar.exists()) {
         throw GradleException(
-            "缺少 android/app/libs/libmihomo.aar（mihomo 内核库）。\n" +
-                "CI 构建会自动下载预编译 aar；本地调试请先运行: bash tool/build_mihomo_aar.sh"
+            "缺少 android/app/libs/libmoneyfly.aar（sing-box 内核库）。\n" +
+                "CI 构建会自动下载预编译 aar；本地调试请先运行: bash tool/build_singbox_aar.sh"
         )
     }
     implementation(files(coreAar))

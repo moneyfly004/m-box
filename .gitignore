@@ -49,24 +49,22 @@ app.*.map.json
 /android/app/release
 dist/
 
-# mihomo 内核库（CI 编译/下载，不入库）
+# sing-box 内核库（CI 编译/下载，不入库）
 android/app/libs/*.aar
 android/app/libs/*.jar
-mihomo-bin/
+singbox-bin/
+# 内核二进制（桌面开发期下载）
+.core_dl/
 
-# 离线分流数据（CI 构建时从 MetaCubeX/meta-rules-dat 下载，不在仓库里存；
-# 本地开发用 tool/fetch_geodata.sh 获取）
-assets/rules/*.dat
-assets/rules/*.mmdb
-# .mrs 规则集（iOS 扩展用；同样构建期下载，见 tool/fetch_geodata.sh）
-assets/rules/*.mrs
+# 离线分流规则集（CI 构建时从 SagerNet/sing-geosite、sing-geoip 的 rule-set
+# 分支下载，不在仓库里存；本地开发用 tool/fetch_ruleset.sh 获取）
+assets/rules/*.srs
 
 # ---- iOS ----
-# 内核框架 418MB，不入库（构建前由 tool/fetch_mihomo_ios.sh 下载）
-ios/Mihomelib.xcframework/
-# 扩展的 geo 数据来自 assets/rules（构建期下载），不重复入库
-ios/PacketTunnel/country.mmdb
-ios/PacketTunnel/geosite.dat
+# 内核框架 ~100MB，不入库（构建前由 tool/fetch_singbox_ios.sh 生成）
+ios/Libbox.xcframework/
+# 扩展的规则集来自 assets/rules（构建期下载），不重复入库
+ios/PacketTunnel/*.srs
 ios/build/
 
 # iOS 打包产物（IPA/Payload 是构建输出，不入库：上一次误提交把 ~150MB 二进制带进了仓库）

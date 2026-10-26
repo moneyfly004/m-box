@@ -1,10 +1,12 @@
 /// TUN 启动失败的判定与分类（纯 Dart，无 Flutter 依赖，可单测）。
 ///
-/// 为什么需要它：mihomo 的 TUN 起不来时**不会退出、也不会让 Clash API 报错**，
-/// 只在日志里打一行 error 就继续跑 → App 若只看 API 200，就会「显示已连接、
-/// 零流量、零报错」（force 模式尤其致命）。所以必须读内核日志判定。
+/// 为什么需要它：sing-box 与 mihomo 共用 sing-tun，TUN 起不来时**不会让
+/// Clash API 报错**（sing-box 通常直接 FATAL 退出，进程监控会兜底；但桌面
+/// 以 root/提权方式重试的过程中仍可能出现「进程还活着、TUN 是死的」窗口）
+/// → App 若只看 API 200，就会「显示已连接、零流量、零报错」（force 模式尤其
+/// 致命）。所以必须读内核日志判定。
 ///
-/// 但判定不能粗：旧实现是「行里同时含 `tun` 和 `error`/`failed`」，而 mihomo
+/// 但判定不能粗：旧实现是「行里同时含 `tun` 和 `error`/`failed`」，而内核
 /// 日志里有一批**正常告警与转发期噪音**同样命中，会直接把一条本来好好的连接
 /// 判死、还提示用户「请以管理员身份运行」：
 ///   - `[TUN] Auto detect interface for <名> failed, return '<invalid>' …`
@@ -43,6 +45,9 @@ enum TunStartFailure {
 const _fatalMarkers = <String>[
   'start tun listening error',
   'start tun interface timeout',
+  // sing-box 启动 inbound/tun 失败时的 FATAL 前缀（进程随后退出，双保险）
+  'start service: start inbound/tun',
+  'start inbound/tun',
 ];
 
 /// 已核实的**正常** TUN 日志（从内核二进制里逐条挑出）。

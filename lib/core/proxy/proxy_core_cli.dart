@@ -8,23 +8,24 @@ import 'package:flutter/foundation.dart';
 import 'proxy_core.dart';
 import 'geo_assets.dart';
 import 'kernel_delay_api.dart';
-import 'mihomo_config.dart';
+import 'singbox_config.dart';
 import 'system_proxy.dart';
 import 'tun_failure.dart';
 import '../services/app_log.dart';
 import '../services/kernel_log.dart';
 import '../services/local_paths.dart';
 
-/// mihomo CLI 子进程 + 本地 Clash API（macOS / Windows / Linux）
+/// sing-box CLI 子进程 + 本地 Clash API（macOS / Windows / Linux）
 ///
-/// 连接 = 写 config.yaml → 启动 `mihomo -d <workDir>` → 轮询 Clash API 就绪；
+/// 连接 = 写 config.json → 启动 `sing-box run -c config.json -D <workDir>`
+/// → 轮询 Clash API 就绪；
 /// 切模式/切节点走 Clash API 热更新，不重启内核不断网；
 /// 流量统计 1s 拉一次 /traffic（仅连接时，断开即停）。
 ///
-/// 内核二进制位置（CI 打包进安装包；本地开发用 tool/fetch_mihomo.sh 获取）：
-///   macOS    `App.app/Contents/MacOS/mihomo`
-///   Windows  `exe 同目录/mihomo.exe`
-///   可用环境变量 MONEYFLY_MIHOMO 覆盖（开发调试用）。
+/// 内核二进制位置（CI 打包进安装包；本地开发用 tool/fetch_singbox.sh 获取）：
+///   macOS    `App.app/Contents/MacOS/sing-box`
+///   Windows  `exe 同目录/sing-box.exe`
+///   可用环境变量 MONEYFLY_SINGBOX 覆盖（开发调试用）。
 class ProxyCoreCli extends ProxyCore {
 
   /// 是否由 app 管理系统代理（连接时设置、断开时恢复）。
@@ -32,7 +33,7 @@ class ProxyCoreCli extends ProxyCore {
   static bool manageSystemProxy = true;
 
   /// 内核工作目录（config.yaml + 离线 geo 数据 country.mmdb/geosite.dat 落盘处；
-  /// mihomo -d 以此为 homeDir，默认文件名直接加载 geo）
+  /// sing-box 以 -D 指定工作目录，配置里用绝对路径引用规则集）
   static final String workDir = '${Directory.systemTemp.path}/moneyfly_core';
   static const _readyTimeout = Duration(seconds: 10);
 
@@ -45,12 +46,14 @@ class ProxyCoreCli extends ProxyCore {
   static List<String> logTailSnapshot() =>
       List.unmodifiable(_lastCoreLogs);
 
-  /// 当前智能(rule)/全局(global)状态 —— 决定热切节点时打 select 组还是 GLOBAL 组。
-  /// 启动时从配置 mode 字段同步；switchMode 时更新。
+  /// 当前智能(Rule)/全局(Global)状态。sing-box 的模式热切换走
+  /// PATCH /configs，节点热切换固定打 select 选择器（两种模式共用），
+  /// 这里保留状态仅用于日志/调试输出。
+  // ignore: unused_field
   bool _smartMode = true;
 
-  /// 最近一次成功切换/选中的节点 tag（切全局模式时把 GLOBAL 组指过来，
-  /// 避免全局模式仍走内核默认第一节点导致线路跳变）
+  /// 最近一次成功切换/选中的节点 tag（日志/调试用）
+  // ignore: unused_field
   String? _lastNodeTag;
 
   final Dio _api = Dio(BaseOptions(
@@ -127,7 +130,7 @@ class ProxyCoreCli extends ProxyCore {
   @override
   String? get lastError => _lastError;
 
-  /// 定位 mihomo 可执行文件（优先级：测试注入 → 用户切换/更新的副本
+  /// 定位 sing-box 可执行文件（优先级：测试注入 → 用户切换/更新的副本
   /// [KernelManager.userActivePath] → 安装内置）。
   /// 用户副本放在应用支持目录，任意安装目录(含只读的 Program Files)都可用。
   Future<String> resolveBinary() => resolveKernelBinary();
@@ -136,43 +139,45 @@ class ProxyCoreCli extends ProxyCore {
   /// 定位逻辑，否则会出现「连接能找到内核、测速找不到」这种只在部分安装方式下
   /// 复现的诡异故障（Program Files 只读、用户内核副本、测试注入三处任一不同）。
   static Future<String> resolveKernelBinary() async {
-    final override = Platform.environment['MONEYFLY_MIHOMO'];
-    if (override != null && override.isNotEmpty && File(override).existsSync()) {
-      return override;
+    // 环境变量注入（测试/开发）：MONEYFLY_SINGBOX 为主，MONEYFLY_MIHOMO 兼容旧脚本
+    for (final key in const ['MONEYFLY_SINGBOX', 'MONEYFLY_MIHOMO']) {
+      final v = Platform.environment[key];
+      if (v != null && v.isNotEmpty && File(v).existsSync()) return v;
     }
-    // 用户内核副本优先（内核管理页切换/更新写入的位置）
+    // 用户内核副本优先（内核管理页切换/更新写入的位置，与 KernelManager 同名）
     try {
       final support = await LocalPaths.supportDir();
       if (support != null) {
         final userBin =
-            '${support.path}/kernel/mihomo${Platform.isWindows ? '.exe' : ''}';
+            '${support.path}/kernel/sing-box${Platform.isWindows ? '.exe' : ''}';
         if (File(userBin).existsSync()) return userBin;
       }
     } catch (_) {}
     final exe = Platform.resolvedExecutable;
+    final name = 'sing-box${Platform.isWindows ? '.exe' : ''}';
     final candidates = <String>[
-      if (Platform.isMacOS) '${Directory(exe).parent.path}/mihomo',
-      '${Directory(exe).parent.path}/mihomo${Platform.isWindows ? '.exe' : ''}',
+      if (Platform.isMacOS) '${Directory(exe).parent.path}/$name',
+      '${Directory(exe).parent.path}/$name',
     ];
     for (final c in candidates) {
       if (File(c).existsSync()) return c;
     }
     throw FileSystemException(
-      '未找到 mihomo 内核二进制。\n'
-      '开发环境请运行: bash tool/fetch_mihomo.sh\n'
+      '未找到 sing-box 内核二进制。\n'
+      '开发环境请运行: bash tool/fetch_singbox.sh\n'
       '发布包由 CI 自动内置内核，无需额外操作。',
     );
   }
 
   bool _tunForceMode = false;
 
-  /// 清理指向本项目工作目录的「僵尸 mihomo 进程」。
+  /// 清理指向本项目工作目录的「僵尸 sing-box 进程」。
   ///
-  /// 场景：App 被强杀/崩溃/异常退出时，内核子进程(mihomo -d workDir)可能
+  /// 场景：App 被强杀/崩溃/异常退出时，内核子进程(sing-box run -c workDir/config.json)可能
   /// 残留，继续占用 9090/2080 与 cache.db 锁 —— 再次启动时新内核
   /// bind 失败("address already in use")+ "[CacheFile] can't open cache
   /// file: timeout"，表现为「退出后重开连不上」。
-  /// 只匹配命令行含 moneyfly_core 的 mihomo，不会误杀其它 Clash 类软件。
+  /// 只匹配命令行含本项目工作目录标记的内核，不会误杀其它代理软件。
   ///
   /// **只收真孤儿**（[isStaleKernelCandidate]）：父进程还活着的内核一律不动。
   /// 旧实现无条件 kill 所有匹配进程，多开/双实例时会把**另一个实例正在用的活内核**
@@ -228,7 +233,7 @@ class ProxyCoreCli extends ProxyCore {
   static Future<void> _reapStaleKernelsWindows(int? livePid, String tag) async {
     // 原始字符串 + 运行期替换 tag：`$($_.ParentProcessId)`、`$p`、`$_` 必须原样
     // 交给 PowerShell，绝不能被 Dart 插值（`$p` 会被当成 Dart 变量直接编译报错）。
-    final script = r'''Get-CimInstance Win32_Process | Where-Object { $_.Name -match 'mihomo' -and $_.CommandLine -match '__MF_TAG__' } | ForEach-Object { $p = Get-CimInstance Win32_Process -Filter "ProcessId = $($_.ParentProcessId)" -ErrorAction SilentlyContinue; "$($_.ProcessId)|$($_.ParentProcessId)|$($p.Name)" }'''
+    final script = r'''Get-CimInstance Win32_Process | Where-Object { $_.Name -match 'sing-box' -and $_.CommandLine -match '__MF_TAG__' } | ForEach-Object { $p = Get-CimInstance Win32_Process -Filter "ProcessId = $($_.ParentProcessId)" -ErrorAction SilentlyContinue; "$($_.ProcessId)|$($_.ParentProcessId)|$($p.Name)" }'''
         .replaceAll('__MF_TAG__', tag);
     final r = await Process.run('powershell', [
       '-NoProfile',
@@ -257,7 +262,7 @@ class ProxyCoreCli extends ProxyCore {
         }
         continue;
       }
-      AppLog.kernel('kill stale mihomo pid=$pid (parent ${ppid ?? '?'} gone)');
+      AppLog.kernel('kill stale sing-box pid=$pid (parent ${ppid ?? '?'} gone)');
       // `$pid` 由 Dart 插值成真实 pid（PowerShell 侧不再有变量）；沿用
       // Stop-Process -Force（其终止码为 -1，与日志里「被自己人收掉」的现场
       // 特征一致，便于事后区分外部强杀）
@@ -286,7 +291,8 @@ class ProxyCoreCli extends ProxyCore {
       if (pid == null || ppid == null) continue;
       final cmd = m.group(3) ?? '';
       cmdByPid[pid] = cmd;
-      if (cmd.contains('mihomo') && cmd.contains(tag)) {
+      if ((cmd.contains('sing-box') || cmd.contains('mihomo')) &&
+          cmd.contains(tag)) {
         candidates.add((pid: pid, ppid: ppid));
       }
     }
@@ -306,7 +312,7 @@ class ProxyCoreCli extends ProxyCore {
         continue;
       }
       AppLog.kernel(
-          'kill stale mihomo pid=${c.pid}: ${cmdByPid[c.pid]?.trim()}');
+          'kill stale sing-box pid=${c.pid}: ${cmdByPid[c.pid]?.trim()}');
       await Process.run('kill', ['-9', '${c.pid}']);
     }
   }
@@ -337,8 +343,12 @@ class ProxyCoreCli extends ProxyCore {
     // 把内核日志落盘路径写进 app_log：用户导出 app_log 时能顺着找到完整内核输出
     KernelLog.announcePaths();
 
-    // 从配置同步当前模式（rule=智能 / global=全局），热切节点时选对组
-    _smartMode = config['mode']?.toString() != 'global';
+    // 从配置同步当前模式（Rule=智能 / Global=全局）。sing-box 没有顶层 mode
+    // 字段，模式在 experimental.clash_api.default_mode 里。
+    final exp = config['experimental'];
+    final apiCfg = exp is Map ? exp['clash_api'] : null;
+    final startMode = apiCfg is Map ? apiCfg['default_mode']?.toString() : null;
+    _smartMode = startMode != 'Global';
     // tunMode='force' 时无 mixed 端口，不管理系统代理
     _tunForceMode = config.remove('_tunMode') == 'force';
     // 本机监听端口（设置页自定义，默认 2080）
@@ -355,30 +365,45 @@ class ProxyCoreCli extends ProxyCore {
     final binary = await resolveBinary();
     final dir = Directory(workDir);
     if (!dir.existsSync()) dir.createSync(recursive: true);
-    _configPath = '${dir.path}/config.yaml';
+    _configPath = '${dir.path}/config.json';
 
     // 确保离线 geo 数据就位（connect 路径会提前落盘；集成测试/外部直接调
     // start 时自保。幂等：文件已存在且非空则跳过）。
-    // 失败时移除配置中的 GEOSITE/GEOIP 规则：mihomo 一旦引用 geo 规则而文件
-    // 缺失，会在启动时联网下载（默认 GitHub 源，国内常被墙 → 卡 90s/失败），
-    // 内置 assets 理应就位，缺失属异常 → 宁可降级全代理也绝不联网下载。
+    // 失败时移除配置里的 rule_set 声明与引用它的规则：sing-box 一旦引用
+    // 本地规则集而文件缺失，**启动直接失败**（parse rule-set: open ...），
+    // 内置 assets 理应就位，缺失属异常 → 宁可降级全代理也要让内核起来。
     final geoOk = await GeoAssets.materialize(preferDir: workDir);
     if (!geoOk) {
-      final rules = config['rules'];
-      if (rules is List) {
-        config['rules'] = rules.where((r) {
-          final s = r.toString();
-          return !(s.startsWith('GEOSITE,') || s.startsWith('GEOIP,'));
-        }).toList();
+      final route = config['route'];
+      if (route is Map) {
+        final sets = route['rule_set'];
+        final tags = <String>{};
+        if (sets is List) {
+          for (final rs in sets) {
+            if (rs is Map && rs['tag'] != null) tags.add(rs['tag'].toString());
+          }
+        }
+        route.remove('rule_set');
+        final rules = route['rules'];
+        if (rules is List) {
+          route['rules'] = rules.where((r) {
+            if (r is! Map) return true;
+            final ref = r['rule_set'];
+            if (ref is List) {
+              return !ref.any((t) => tags.contains(t.toString()));
+            }
+            return true;
+          }).toList();
+        }
       }
     }
 
-    // mihomo 原生读 Clash YAML，配置用 MihomoConfigBuilder.encode 序列化
-    await File(_configPath!).writeAsString(MihomoConfigBuilder.encode(config), flush: true);
+    // sing-box 读 JSON：SingBoxConfigBuilder.encode 会剥离 `_` 前缀元数据键
+    await File(_configPath!).writeAsString(SingBoxConfigBuilder.encode(config), flush: true);
 
     _proc = await Process.start(
       binary,
-      ['-d', dir.path],
+      ['run', '-c', _configPath!, '-D', dir.path],
       environment: {'PATH': Platform.environment['PATH'] ?? ''},
     );
 
@@ -541,35 +566,25 @@ class ProxyCoreCli extends ProxyCore {
   @override
   Future<void> switchMode(bool smart) async {
     _smartMode = smart;
-    // mihomo: rule=智能(规则分流) / global=全局(全部走 GLOBAL 组)。
-    // 热切换 PATCH /configs 即可，内核不重启不断网。
-    await _clash('PATCH', '/configs', {'mode': smart ? 'rule' : 'global'});
-    if (!smart) {
-      // 全局模式下流量走内置 GLOBAL 组：把 GLOBAL 指向当前节点，
-      // 否则会回落到内核默认第一节点，线路跳变
-      final tag = _lastNodeTag;
-      if (tag != null) {
-        try {
-          await _clash('PUT', '/proxies/GLOBAL', {'name': tag});
-        } catch (_) {
-          // GLOBAL 组缺失/不可用时忽略（内核内置组通常总是存在）
-        }
-      }
-    }
+    // sing-box: Rule=智能(规则分流) / Global=全局。
+    // 配置里两套规则都用 clash_mode 前缀区分，PATCH /configs 热切换即可，
+    // 内核不重启、不断网（实测 204）。
+    await _clash('PATCH', '/configs', {'mode': smart ? 'Rule' : 'Global'});
   }
 
   @override
   Future<void> switchNode(String tag) async {
     _lastNodeTag = tag;
-    // 智能模式切 select 组；全局模式切内置 GLOBAL 组
-    final group = _smartMode ? 'select' : 'GLOBAL';
-    await _clash('PUT', '/proxies/$group', {'name': tag});
+    // sing-box 没有内置 GLOBAL 组：两种模式的路由终点都是 select 选择器
+    // （Global 模式由 `clash_mode: Global` 规则把流量指到 select）
+    await _clash('PUT', '/proxies/select', {'name': tag});
   }
 
   @override
   Future<void> setKernelLogLevel(String level) async {
-    // mihomo PATCH /configs 支持 log-level 热更（debug/info/warning/error/silent）
-    await _clash('PATCH', '/configs', {'log-level': level});
+    // sing-box 的 clash API 不支持热改日志级别（PATCH /configs 只认
+    // mode / 端口等少数字段），级别由启动时的配置文件决定 → 这里保持 no-op，
+    // 用户改了级别在下次连接生效。
   }
 
   @override
@@ -603,7 +618,12 @@ class ProxyCoreCli extends ProxyCore {
             method: method, validateStatus: (s) => s != null && s >= 200 && s < 300));
   }
 
-  void _onLog(String line) {
+  /// sing-box 的日志带 ANSI 颜色码（`\x1b[36mINFO\x1b[0m`），
+  /// 直接展示/落盘会一堆转义字符，TUN 关键字匹配也会被切断。
+  static final _ansi = RegExp(r'\x1B\[[0-9;]*[A-Za-z]');
+
+  void _onLog(String rawLine) {
+    final line = rawLine.replaceAll(_ansi, '');
     _logTail.add(line);
     if (_logTail.length > _logKeep) _logTail.removeAt(0);
     _lastCoreLogs.add(line);

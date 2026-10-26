@@ -90,7 +90,7 @@ class VpnCorePlugin {
     private static func handleStart(_ call: FlutterMethodCall,
                                     _ result: @escaping FlutterResult) {
         let args = call.arguments as? [String: Any] ?? [:]
-        guard let yaml = args["configYaml"] as? String, !yaml.isEmpty else {
+        guard let json = args["configJson"] as? String, !json.isEmpty else {
             reply(result, FlutterError(code: "no_config", message: "缺少内核配置", details: nil))
             return
         }
@@ -109,11 +109,11 @@ class VpnCorePlugin {
         var wroteFile = false
         let groupPath = FileManager.default
             .containerURL(forSecurityApplicationGroupIdentifier: appGroupId)?.path
-        note("startVpn: 配置 \(yaml.utf8.count)B, App Group=\(groupPath ?? "<不可用>")")
+        note("startVpn: 配置 \(json.utf8.count)B, App Group=\(groupPath ?? "<不可用>")")
         if let groupPath {
-            let url = URL(fileURLWithPath: groupPath).appendingPathComponent("config.yaml")
+            let url = URL(fileURLWithPath: groupPath).appendingPathComponent("config.json")
             do {
-                try yaml.write(to: url, atomically: true, encoding: .utf8)
+                try json.write(to: url, atomically: true, encoding: .utf8)
                 providerConf["configPath"] = url.path
                 wroteFile = true
                 note("已写入共享配置 \(url.path)")
@@ -127,9 +127,9 @@ class VpnCorePlugin {
         // 2) 内联兜底：App Group 不可用时这是唯一通路。上限 1MB ——
         //    providerConfiguration 会存进系统 VPN 偏好，过大不合适；
         //    正常订阅配置（几百 KB 以内）都能带上。
-        if !wroteFile || yaml.utf8.count < 1024 * 1024 {
-            providerConf["configInline"] = yaml
-            note("已附带内联配置 \(yaml.utf8.count)B（不依赖 App Group）")
+        if !wroteFile || json.utf8.count < 1024 * 1024 {
+            providerConf["configInline"] = json
+            note("已附带内联配置 \(json.utf8.count)B（不依赖 App Group）")
         }
 
         let proto = NETunnelProviderProtocol()

@@ -5,7 +5,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:moneyfly/core/proxy/mihomo_config.dart';
+import 'package:moneyfly/core/proxy/singbox_config.dart';
 import 'package:moneyfly/core/services/subscription_service.dart';
 
 /// 订阅解析回归测试。
@@ -27,10 +27,10 @@ void main() {
   // 这里曾是**真实机场订阅**的原文，公开仓库等于泄露凭据；
   // 回归防线见 test/no_test_node_data_test.dart —— 别再改回真实节点。
   //
-  // pbk 为什么是「一串真随机数」而不是 EXAMPLE：内核（mihomo）会**校验**
-  // reality 公钥是否为合法 X25519 点，纯文本占位符会让「配置能被内核加载」
-  // 那条用例直接失败（invalid REALITY public key）。所以这里用一次性生成的
-  // 公钥：格式合法、能让内核加载通过，但**不对应任何真实节点**（私钥已丢弃）。
+  // pbk 为什么是「一串真随机数」而不是 EXAMPLE：内核**会校验** reality 公钥
+  // 是否为合法 X25519 点，纯文本占位符会让「配置能被内核加载」那条用例直接失败
+  // （invalid REALITY public key）。所以这里用一次性生成的公钥：格式合法、
+  // 能让内核加载通过，但**不对应任何真实节点**（私钥已丢弃）。
   const kFakeRealityPbk = 'HQ_-6oB8xn2u6GDOAerqTuysOQFAvpA1FpiXG5H-ySI';
   const hy2 =
       'hy2://11111111-2222-3333-4444-777777777777@198.51.100.10:35000'
@@ -120,7 +120,7 @@ void main() {
   test('UDP+TLS 协议默认放宽证书校验，可关闭，且不影响 TCP 协议', () {
     final nodes = SubscriptionService.parseBase64Nodes(b64(plain));
     Map<String, dynamic> cfgFor({required bool relax}) =>
-        MihomoConfigBuilder.build(
+        SingBoxConfigBuilder.build(
           nodes: nodes,
           selectedTag: nodes.first.tag,
           smartMode: true,
@@ -129,35 +129,41 @@ void main() {
           geoReady: false,
           udpSkipCertVerify: relax,
         );
-    List<Map<String, dynamic>> proxiesOf(Map<String, dynamic> cfg, String type) =>
-        (cfg['proxies'] as List)
+    // sing-box 的节点出站都在 outbounds 里（selector/direct/block 之外）
+    List<Map<String, dynamic>> outboundsOf(Map<String, dynamic> cfg, String type) =>
+        (cfg['outbounds'] as List)
             .cast<Map<String, dynamic>>()
-            .where((p) => p['type'] == type)
+            .where((o) => o['type'] == type)
             .toList();
+    // sing-box 把 mihomo 的 skip-cert-verify 映射到 tls.insecure
+    bool insecure(Map<String, dynamic> outbound) {
+      final tls = outbound['tls'];
+      return tls is Map && tls['insecure'] == true;
+    }
 
     final on = cfgFor(relax: true);
-    final hy2All = proxiesOf(on, 'hysteria2');
+    final hy2All = outboundsOf(on, 'hysteria2');
     expect(hy2All, hasLength(2));
-    expect(hy2All.every((p) => p['skip-cert-verify'] == true), true,
+    expect(hy2All.every(insecure), isTrue,
         reason: 'hy2:// 与 hysteria2:// 都要放宽（伪装 SNI 证书不可能匹配）');
-    expect(hy2All.map((p) => p['server']).toSet(),
+    expect(hy2All.map((o) => o['server']).toSet(),
         {'198.51.100.10', '198.51.100.30'});
-    expect(proxiesOf(on, 'vless').every((p) => p['skip-cert-verify'] != true),
-        true, reason: 'TCP+TLS 协议证书校验照旧，不得被顺手放宽');
+    expect(outboundsOf(on, 'vless').every((o) => !insecure(o)), isTrue,
+        reason: 'TCP+TLS 协议证书校验照旧，不得被顺手放宽');
 
     final off = cfgFor(relax: false);
-    expect(proxiesOf(off, 'hysteria2').every((p) => p['skip-cert-verify'] != true),
-        true);
+    expect(outboundsOf(off, 'hysteria2').every((o) => !insecure(o)), isTrue);
   });
 
   test('生成的配置能被内核加载（有本地内核时）', () {
-    final mihomo = _localMihomo();
-    if (mihomo == null) {
-      markTestSkipped('未提供本地 mihomo 内核（MONEYFLY_MIHOMO / mihomo-bin/）');
+    final singbox = _findSingBox();
+    if (singbox == null) {
+      markTestSkipped(
+          '未提供本地 sing-box 内核（MONEYFLY_SINGBOX / 仓库 .core_dl / PATH）');
       return;
     }
     final nodes = SubscriptionService.parseBase64Nodes('${b64(plain)}\n');
-    final cfg = MihomoConfigBuilder.build(
+    final cfg = SingBoxConfigBuilder.build(
       nodes: nodes,
       selectedTag: nodes.first.tag,
       smartMode: true,
@@ -167,25 +173,61 @@ void main() {
       clashApiSecret: 'secret',
       geoReady: false,
     );
-    expect(cfg['proxies'], hasLength(4));
+    // 4 个节点各自有了 outbound（selector/direct/block 之外）
+    final nodeOutbounds = (cfg['outbounds'] as List)
+        .cast<Map<String, dynamic>>()
+        .where((o) => !const {'selector', 'direct', 'block'}.contains(o['type']))
+        .toList();
+    expect(nodeOutbounds, hasLength(4));
     final tmp = Directory.systemTemp.createTempSync('mf_b64_');
-    File('${tmp.path}/config.yaml')
-        .writeAsStringSync(MihomoConfigBuilder.encode(cfg));
-    final r = Process.runSync(mihomo, ['-d', tmp.path, '-t']);
-    expect(r.exitCode, 0, reason: '内核必须接受配置: ${r.stdout}\n${r.stderr}');
-    tmp.deleteSync(recursive: true);
+    try {
+      // sing-box 只认 JSON，且必须用 -c 显式指定（不会「静默用默认配置」）
+      final configPath = '${tmp.path}/config.json';
+      File(configPath).writeAsStringSync(SingBoxConfigBuilder.encode(cfg));
+      // `check` = 解析 + 校验 + 初始化 router/outbound，等价于 mihomo -t
+      final r = Process.runSync(singbox, ['check', '-c', configPath]);
+      expect(r.exitCode, 0,
+          reason: '内核必须接受配置: ${r.stdout}\n${r.stderr}');
+    } finally {
+      tmp.deleteSync(recursive: true);
+    }
   });
 }
 
-String? _localMihomo() {
-  final env = Platform.environment['MONEYFLY_MIHOMO'];
-  if (env != null && env.isNotEmpty && File(env).existsSync()) return env;
-  for (final p in [
-    'mihomo-bin/mihomo-darwin-arm64',
-    'mihomo-bin/mihomo',
-    'build/mihomo/mihomo',
-  ]) {
-    if (File(p).existsSync()) return p;
+/// 定位本地 sing-box 内核（MONEYFLY_SINGBOX / 旧变量 MONEYFLY_MIHOMO /
+/// 仓库自带 .core_dl / build/sing-box / PATH）。
+String? _findSingBox() {
+  for (final key in ['MONEYFLY_SINGBOX', 'MONEYFLY_MIHOMO']) {
+    final v = Platform.environment[key];
+    if (v != null && v.isNotEmpty && File(v).existsSync()) return v;
   }
+  final exe = Platform.isWindows ? 'sing-box.exe' : 'sing-box';
+  final candidates = <String>[];
+  for (final dir in [
+    '${Directory.current.path}/.core_dl',
+    '${Directory.current.path}/sing-box-bin',
+    '${Directory.current.path}/build/sing-box',
+  ]) {
+    final d = Directory(dir);
+    if (!d.existsSync()) continue;
+    candidates.add('$dir/$exe');
+    for (final sub in d.listSync().whereType<Directory>()) {
+      candidates.add('${sub.path}/$exe');
+    }
+  }
+  candidates.sort((a, b) {
+    final am = a.contains(Platform.operatingSystem) ? 0 : 1;
+    final bm = b.contains(Platform.operatingSystem) ? 0 : 1;
+    return am != bm ? am - bm : a.compareTo(b);
+  });
+  for (final c in candidates) {
+    if (File(c).existsSync()) return c;
+  }
+  try {
+    final r = Process.runSync('which', [exe],
+        environment: {'PATH': Platform.environment['PATH'] ?? ''});
+    final out = '${r.stdout}'.trim();
+    if (r.exitCode == 0 && out.isNotEmpty && File(out).existsSync()) return out;
+  } catch (_) {}
   return null;
 }

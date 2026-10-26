@@ -8,8 +8,8 @@ import '../api/api_client.dart';
 import '../api/gh_mirror.dart';
 import '../proxy/geo_assets.dart';
 
-/// 分流数据(Geo)手动更新服务：在「设置 → 更新分流数据」中由用户主动触发，
-/// 从官方源(MetaCubeX/meta-rules-dat latest)下载最新 geosite.dat/country.mmdb
+/// 分流规则手动更新服务：在「设置 → 更新分流数据」中由用户主动触发，
+/// 从官方源下载最新 geosite-cn.srs / geoip-cn.srs（sing-box binary rule-set）
 /// 到本地可写副本目录，随后 [GeoAssets] 落盘内核目录时优先使用副本。
 ///
 /// 设计要点（对应「构建自带 + 设置手动更新 + 启动零联网」）：
@@ -22,13 +22,19 @@ class GeoUpdateService {
   GeoUpdateService._();
   static final GeoUpdateService instance = GeoUpdateService._();
 
-  /// 更新来源：MetaCubeX/meta-rules-dat 最新 release（与 CI 构建下载同源）
-  static const _repo = 'MetaCubeX/meta-rules-dat';
-  static const _baseUrl =
-      'https://github.com/$_repo/releases/latest/download';
+  /// 更新来源：SagerNet 官方规则集仓库（与 CI 构建下载同源）
+  ///   geosite-cn.srs ← SagerNet/sing-geosite
+  ///   geoip-cn.srs   ← SagerNet/sing-geoip
+  static const _urls = {
+    'geosite-cn.srs':
+        'https://github.com/SagerNet/sing-geosite/releases/latest/download/geosite-cn.srs',
+    'geoip-cn.srs':
+        'https://github.com/SagerNet/sing-geoip/releases/latest/download/geoip-cn.srs',
+  };
 
-  /// 每个文件最小合理体积（字节）：mmdb ~7MB / dat ~4MB，小于 1MB 视为坏包
-  static const _minSize = 1 << 20;
+  /// 每个文件最小合理体积（字节）：.srs 二进制规则集约 0.4–2MB，
+  /// 小于 32KB 视为坏包/错误页
+  static const _minSize = 32 << 10;
 
   /// 下载客户端：裸 GitHub（不经 ApiClient，避免注入登录 token 导致 401）
   static final Dio _dio = Dio(BaseOptions(
@@ -39,7 +45,7 @@ class GeoUpdateService {
     headers: {'User-Agent': ApiClient.userAgent},
   ));
 
-  static const files = ['geosite.dat', 'country.mmdb'];
+  static const files = ['geosite-cn.srs', 'geoip-cn.srs'];
 
   /// 是否已存在手动更新副本
   static Future<bool> hasManualCopy(String file) async {
@@ -79,8 +85,8 @@ class GeoUpdateService {
     }
     // 只要有文件更新成功就记录时间（旧实现要求 ok == files.length）。
     // GeoAssets 依据这个时间戳决定是否把「手动副本」强制覆盖到内核目录；
-    // 若部分成功（如 country.mmdb 失败）就不记，则已下载成功的新
-    // geosite.dat 永远不会同步到内核目录 —— 用户看到「更新失败」，磁盘上
+    // 若部分成功（如 geoip-cn.srs 失败）就不记，则已下载成功的新
+    // geosite-cn.srs 永远不会同步到内核目录 —— 用户看到「更新失败」，磁盘上
     // 却躺着一个永不生效的新副本。
     if (ok > 0) {
       await GeoAssets.markUpdatedAt(DateTime.now());
@@ -101,7 +107,7 @@ class GeoUpdateService {
   Future<void> _downloadOne(String dir, String file) async {
     final tmp = File('$dir/.$file.part');
     final target = File('$dir/$file');
-    final candidates = GhMirror.candidates('$_baseUrl/$file');
+    final candidates = GhMirror.candidates(_urls[file] ?? '');
     final failures = <String>[];
 
     for (final url in candidates) {

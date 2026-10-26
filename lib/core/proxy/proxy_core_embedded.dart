@@ -8,7 +8,7 @@ import 'package:flutter/services.dart';
 import '../../l10n/app_strings.dart';
 import '../services/app_log.dart';
 import '../services/permission_service.dart';
-import 'mihomo_config.dart';
+import 'singbox_config.dart';
 import 'kernel_delay_api.dart';
 import 'native_start_failure.dart';
 import 'proxy_core.dart';
@@ -43,7 +43,7 @@ WatchdogAction decideWatchdog({
 }
 
 /// 嵌入式内核（Android + iOS 共用）：内核以 gomobile 静态库跑在「系统提供的
-/// 隧道」里，由原生侧拿到 tun fd 后调 libmihomo.Start(homeDir, yaml, fd)。
+/// 隧道」里，由原生侧拿到 tun fd 后调 libbox 启动内核（配置为 sing-box JSON）。
 ///
 /// - Android：VpnService（原生 Kotlin）建立 TUN，内核在 **App 进程内**；
 /// - iOS：NetworkExtension PacketTunnel 扩展建立 TUN，内核在 **扩展进程内**
@@ -65,9 +65,11 @@ class ProxyCoreEmbedded extends ProxyCore {
   ));
 
   /// 当前智能(rule)/全局(global)状态 —— 决定热切节点时打 select 组还是 GLOBAL 组
+  // ignore: unused_field
   bool _smartMode = true;
 
   /// 最近一次切换的节点 tag（切全局模式时把 GLOBAL 组指过来）
+  // ignore: unused_field
   String? _lastNodeTag;
 
   bool _running = false;
@@ -101,9 +103,13 @@ class ProxyCoreEmbedded extends ProxyCore {
   Future<void> start(Map<String, dynamic> config) async {
     if (_running) throw StateError('already running');
     _lastError = null;
-    // 从配置同步模式（rule=智能 / global=全局）
-    _smartMode = config['mode']?.toString() != 'global';
-    // 剥离 app 侧元数据（系统代理端口/模式/TUN 开关），不写入 YAML
+    // 从配置同步模式（Rule=智能 / Global=全局）：sing-box 的模式在
+    // experimental.clash_api.default_mode 里
+    final exp = config['experimental'];
+    final apiCfg = exp is Map ? exp['clash_api'] : null;
+    final startMode = apiCfg is Map ? apiCfg['default_mode']?.toString() : null;
+    _smartMode = startMode != 'Global';
+    // 剥离 app 侧元数据（系统代理端口/模式/TUN 开关），不写入配置文件
     final tunMode = config.remove('_tunMode')?.toString() ?? 'auto';
     final clashPort =
         (config.remove('_clashApiPort') as num?)?.toInt() ?? 9090;
@@ -113,8 +119,8 @@ class ProxyCoreEmbedded extends ProxyCore {
     if (clashSecret.isNotEmpty) {
       _api.options.headers['Authorization'] = 'Bearer $clashSecret';
     }
-    // 序列化为 mihomo YAML（原生 libmihomo 只吃 Clash YAML）
-    final configYaml = MihomoConfigBuilder.encode(config);
+    // 序列化为 sing-box JSON（原生 libbox 只吃 JSON 配置）
+    final configJson = SingBoxConfigBuilder.encode(config);
     final needTun = tunMode != 'off';
     // 前置检查：VPN 授权缺失/被撤销（重装、清数据、系统里关闭授权）时，
     // 直接在 Dart 侧给出类型化失败，避免走 15s 轮询超时才知道失败
@@ -124,7 +130,7 @@ class ProxyCoreEmbedded extends ProxyCore {
     }
     try {
       await _channel.invokeMethod('startVpn', {
-        'configYaml': configYaml,
+        'configJson': configJson,
         'needTun': needTun,
         // ⚠️ iOS 侧（VpnCorePlugin/PacketTunnelProvider）必须拿到这三项：
         //   · clashSecret：扩展在**网络切换**时要 PATCH /configs 把新接口绑上去，
@@ -132,7 +138,7 @@ class ProxyCoreEmbedded extends ProxyCore {
         //     「热切换失败 / 经常自动断开」，扩展日志里那行
         //     `API 自检(扩展内) HTTP 401` 就是它）；
         //   · apiPort / localPort：端口被用户改过时，扩展要跟 App 用同一套端口。
-        // 旧实现只传了 configYaml/needTun → 扩展拿到空 secret → 401 循环。
+        // 旧实现只传了配置/needTun → 扩展拿到空 secret → 401 循环。
         'apiPort': clashPort,
         'localPort': localPort,
         'clashSecret': clashSecret,
@@ -391,31 +397,21 @@ class ProxyCoreEmbedded extends ProxyCore {
   @override
   Future<void> switchMode(bool smart) async {
     _smartMode = smart;
-    // mihomo: rule=智能 / global=全局，热切换不断网
-    await _clash('PATCH', '/configs', {'mode': smart ? 'rule' : 'global'});
-    if (!smart) {
-      // 全局模式流量走内置 GLOBAL 组：把 GLOBAL 指向当前节点，避免线路跳变
-      final tag = _lastNodeTag;
-      if (tag != null) {
-        try {
-          await _clash('PUT', '/proxies/GLOBAL', {'name': tag});
-        } catch (_) {}
-      }
-    }
+    // sing-box: Rule=智能 / Global=全局，两套规则用 clash_mode 前缀区分，
+    // PATCH /configs 热切换即可，不断网
+    await _clash('PATCH', '/configs', {'mode': smart ? 'Rule' : 'Global'});
   }
 
   @override
   Future<void> switchNode(String tag) async {
     _lastNodeTag = tag;
-    // 智能模式切 select 组；全局模式切内置 GLOBAL 组
-    final group = _smartMode ? 'select' : 'GLOBAL';
-    await _clash('PUT', '/proxies/$group', {'name': tag});
+    // sing-box 没有内置 GLOBAL 组：两种模式的路由终点都是 select 选择器
+    await _clash('PUT', '/proxies/select', {'name': tag});
   }
 
   @override
   Future<void> setKernelLogLevel(String level) async {
-    // mihomo PATCH /configs 支持 log-level 热更
-    await _clash('PATCH', '/configs', {'log-level': level});
+    // sing-box 的 clash API 不支持热改日志级别（由启动配置决定）→ no-op
   }
 
   @override

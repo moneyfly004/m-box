@@ -75,20 +75,20 @@ class MainActivity : FlutterActivity() {
                 }
             }
 
-        // 核心控制通道：启动/停止 VPN（mihomo 内核由 VpnService 托管）
+        // 核心控制通道：启动/停止 VPN（sing-box 内核由 VpnService 托管）
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CORE_CHANNEL)
             .setMethodCallHandler { call, result ->
                 when (call.method) {
                     "startVpn" -> {
-                        val configYaml = call.argument<String>("configYaml")
+                        val configJson = call.argument<String>("configJson")
                         val needTun = call.argument<Boolean>("needTun") ?: true
-                        if (configYaml.isNullOrEmpty()) {
+                        if (configJson.isNullOrEmpty()) {
                             result.error("no_config", "缺少配置", null)
                             return@setMethodCallHandler
                         }
                         val intent = Intent(this, MoneyFlyVpnService::class.java).apply {
                             action = MoneyFlyVpnService.ACTION_START
-                            putExtra(MoneyFlyVpnService.EXTRA_CONFIG, configYaml)
+                            putExtra(MoneyFlyVpnService.EXTRA_CONFIG, configJson)
                             putExtra(MoneyFlyVpnService.EXTRA_NEED_TUN, needTun)
                         }
                         try {

@@ -258,7 +258,7 @@ class AppStrings {
     'log_center_desc': '内核引擎与 App 运行日志',
     'log_clear_confirm': '清空全部运行日志？',
     'kernel_log_clear_confirm': '清空全部内核日志？（清空后无法恢复，建议先「复制」留档）',
-    // 内核管理（mihomo）
+    // 内核管理（sing-box）
     'settings_kernel': '内核管理',
     'settings_geo_data': '更新分流数据',
     'settings_geo_data_desc': '国家 IP 库 / 分流规则（内置，可手动更新）',
@@ -313,7 +313,7 @@ class AppStrings {
     'kernel_running': '运行中',
     'kernel_stopped': '未连接',
     'kernel_latest': '官方最新',
-    'kernel_source': '内核来源：MetaCubeX/mihomo（官方原版，非 fork）',
+    'kernel_source': '内核来源：SagerNet/sing-box（官方原版，非 fork）',
     'kernel_variant_title': '内核变体',
     'kernel_variant_desc': '下拉切换构建类型；同版本已下载过的不再重复下载',
     'kernel_variant_compatible': '兼容版',
@@ -1010,7 +1010,7 @@ class AppStrings {
     'log_center_desc': 'Kernel engine & app runtime logs',
     'log_clear_confirm': 'Clear all runtime logs?',
     'kernel_log_clear_confirm': 'Clear all kernel logs? (cannot be undone — copy them first if needed)',
-    // Kernel management (mihomo)
+    // Kernel management (sing-box)
     'settings_kernel': 'Kernel',
     'settings_geo_data': 'Geo Data',
     'settings_geo_data_desc': 'Country IP DB & routing rules (bundled, updatable)',
@@ -1065,7 +1065,7 @@ class AppStrings {
     'kernel_running': 'Running',
     'kernel_stopped': 'Disconnected',
     'kernel_latest': 'Latest upstream',
-    'kernel_source': 'Kernel: MetaCubeX/mihomo (official, not a fork)',
+    'kernel_source': 'Kernel: SagerNet/sing-box (official, not a fork)',
     'kernel_variant_title': 'Kernel Variant',
     'kernel_variant_desc': 'Switch build via dropdown; same version cached locally is not re-downloaded',
     'kernel_variant_compatible': 'Compatible',

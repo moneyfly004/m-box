@@ -8,7 +8,7 @@ on:
 
 env:
   FLUTTER_VERSION: '3.44.4'
-  MIHOMO_VERSION: '1.19.30'
+  SINGBOX_VERSION: '1.14.4'
 
 jobs:
   ci:
@@ -31,35 +31,29 @@ jobs:
       - name: 依赖
         run: flutter pub get
 
-      - name: 下载 mihomo 离线分流数据（assets 声明依赖，缺失会导致 test/构建失败）
+      - name: 下载 sing-box 离线分流规则（assets 声明依赖，缺失会导致 test/构建失败）
         run: |
-          mkdir -p assets/rules
-          curl -fL --retry 5 --retry-delay 3 --retry-all-errors --max-time 300 -o assets/rules/geosite.dat \
-            "https://github.com/MetaCubeX/meta-rules-dat/releases/latest/download/geosite.dat"
-          curl -fL --retry 5 --retry-delay 3 --retry-all-errors --max-time 300 -o assets/rules/country.mmdb \
-            "https://github.com/MetaCubeX/meta-rules-dat/releases/latest/download/country.mmdb"
-          curl -fL --retry 5 --retry-delay 3 --retry-all-errors --max-time 300 -o assets/rules/cn.mrs \
-            "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/cn.mrs"
+          bash tool/fetch_ruleset.sh
           ls -lh assets/rules/
 
-      # 关键：把内核放到 test/gen_mihomo_test.dart 会查找的路径
-      # （mihomo-bin/mihomo）。否则「真实内核 -t 校验」用例永远 skip，
+      # 关键：把内核放到 test/gen_singbox_test.dart 会查找的路径
+      # （singbox-bin/sing-box）。否则「真实内核 -t 校验」用例永远 skip，
       # 生成配置的正确性就没有回归防线（端口/CIDR/stack 之类的错误只能等
       # 用户侧内核启动失败才暴露）。
-      - name: 下载 mihomo 内核（让真实内核 -t 用例真正执行）
+      - name: 下载 sing-box 内核（让真实内核 check 用例真正执行）
         run: |
-          mkdir -p mihomo-bin
+          mkdir -p singbox-bin
           curl -fL --retry 5 --retry-delay 3 --retry-all-errors --max-time 300 \
-            -o /tmp/mihomo.gz \
-            "https://github.com/MetaCubeX/mihomo/releases/download/v${{ env.MIHOMO_VERSION }}/mihomo-linux-amd64-compatible-v${{ env.MIHOMO_VERSION }}.gz"
-          gunzip -f /tmp/mihomo.gz
-          mv /tmp/mihomo mihomo-bin/mihomo
-          chmod +x mihomo-bin/mihomo
-          ./mihomo-bin/mihomo -v
+            -o /tmp/sb.tar.gz \
+            "https://github.com/SagerNet/sing-box/releases/download/v${{ env.SINGBOX_VERSION }}/sing-box-${{ env.SINGBOX_VERSION }}-linux-amd64.tar.gz"
+          tar -xzf /tmp/sb.tar.gz -C /tmp
+          cp "$(find /tmp -maxdepth 2 -type f -name sing-box | head -1)" singbox-bin/sing-box
+          chmod +x singbox-bin/sing-box
+          ./singbox-bin/sing-box version
 
       - name: 校验
         run: |
           flutter analyze
           flutter test
         env:
-          MONEYFLY_MIHOMO: ${{ github.workspace }}/mihomo-bin/mihomo
+          MONEYFLY_SINGBOX: ${{ github.workspace }}/singbox-bin/sing-box

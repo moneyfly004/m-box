@@ -11,7 +11,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:moneyfly/core/models/models.dart';
 import 'package:moneyfly/core/proxy/kernel_delay_api.dart';
-import 'package:moneyfly/core/proxy/mihomo_config.dart';
+import 'package:moneyfly/core/proxy/singbox_config.dart';
 import 'package:moneyfly/core/proxy/proxy_core.dart';
 import 'package:moneyfly/core/proxy/speed_probe_kernel.dart';
 import 'package:moneyfly/core/services/settings_store.dart';
@@ -171,49 +171,76 @@ void main() {
   });
 
   group('测速专用内核配置（buildProbe）', () {
+    /// 节点出站 = outbounds 里 selector/direct/block 之外的项
+    List<Map<String, dynamic>> nodeOutbounds(Map<String, dynamic> cfg) =>
+        (cfg['outbounds'] as List)
+            .cast<Map<String, dynamic>>()
+            .where((o) =>
+                !const {'selector', 'direct', 'block'}.contains(o['type']))
+            .toList();
+
+    Map<String, dynamic> selectorOf(Map<String, dynamic> cfg) =>
+        (cfg['outbounds'] as List)
+            .cast<Map<String, dynamic>>()
+            .firstWhere((o) => o['type'] == 'selector');
+
     test('不含任何入站监听 / TUN，不碰用户端口', () {
-      final cfg = MihomoConfigBuilder.buildProbe(
+      final cfg = SingBoxConfigBuilder.buildProbe(
         nodes: [_node('香港-01')],
         controllerPort: 45678,
       );
-      // 无 mixed-port / port / socks-port → 不可能占用用户的 2080
-      expect(cfg.containsKey('mixed-port'), isFalse);
-      expect(cfg.containsKey('port'), isFalse);
-      expect(cfg.containsKey('socks-port'), isFalse);
+      // 没有 inbounds → 不可能占用用户的 2080（mixed / socks 都不监听）
+      expect(cfg.containsKey('inbounds'), isFalse,
+          reason: '探测内核不得占用任何本地端口');
       // 无 tun → 不建虚拟网卡、不改路由表（无需管理员权限）
       expect(cfg.containsKey('tun'), isFalse);
-      // 不引用 GEOSITE/GEOIP → 无需 geo 数据、不会联网下载
-      expect('${cfg['rules']}', contains('MATCH,DIRECT'));
-      expect('${cfg['rules']}', isNot(contains('GEOSITE')));
-      expect(cfg['geo-auto-update'], false);
-      expect(cfg['external-controller'], '127.0.0.1:45678');
-      expect('${cfg['secret']}'.isNotEmpty, isTrue);
+      // 不引用 rule_set（.srs）→ 无需 geo 数据、启动零网络
+      final route = cfg['route'] as Map;
+      expect(route.containsKey('rule_set'), isFalse);
+      final rules = (route['rules'] as List).cast<Map<String, dynamic>>();
+      expect(rules.any((r) => r.containsKey('rule_set')), isFalse);
+      expect(rules.any((r) => r.containsKey('clash_mode')), isFalse);
+      // 探测流量一律走 select（没有国内直连判定），兜底也是 select
+      expect(rules.last, {'outbound': 'select'});
+      expect(route['final'], 'select');
+      // 不联网更新 geo（sing-box 无 geo-auto-update 字段，连键都不该有）
+      expect(cfg.containsKey('geo-auto-update'), isFalse);
+      final clashApi = (cfg['experimental'] as Map)['clash_api'] as Map;
+      expect(clashApi['external_controller'], '127.0.0.1:45678');
+      expect('${clashApi['secret']}'.isNotEmpty, isTrue);
     });
 
-    test('节点序列化与真实连接完全一致（同一份 buildProxyMaps）', () {
+    test('节点序列化与真实连接完全一致（同一份 buildOutbounds）', () {
       final nodes = [_node('香港-01'), _node('日本 / 02', type: 'hysteria2')];
-      final probe = MihomoConfigBuilder.buildProbe(
+      final probe = SingBoxConfigBuilder.buildProbe(
           nodes: nodes, controllerPort: 1);
-      final real = MihomoConfigBuilder.build(
+      final real = SingBoxConfigBuilder.build(
         nodes: nodes,
         selectedTag: '香港-01',
         smartMode: true,
         geoReady: false,
       );
-      expect(probe['proxies'], real['proxies'],
+      // sing-box：节点就是 outbounds 里的协议出站，必须逐字段相同
+      expect(nodeOutbounds(probe), nodeOutbounds(real),
           reason: '测速内核与连接内核必须用同一份节点定义，否则「测速通过但连不上」');
+      expect(nodeOutbounds(probe).map((o) => o['tag']).toList(),
+          ['香港-01', '日本 / 02']);
+      // select 组可选成员也要一致（测速内核默认选第一个，连接内核选 selectedTag）
+      expect(selectorOf(probe)['outbounds'],
+          ['香港-01', '日本 / 02', 'direct']);
+      expect(selectorOf(real)['outbounds'],
+          ['香港-01', '日本 / 02', 'direct']);
     });
 
     test('onlyTags 只保留被测节点（大批量时把探测内核缩到最小）', () {
-      final cfg = MihomoConfigBuilder.buildProbe(
+      final cfg = SingBoxConfigBuilder.buildProbe(
         nodes: [_node('A'), _node('B'), _node('C')],
         controllerPort: 1,
         onlyTags: {'B'},
       );
-      final names = (cfg['proxies'] as List)
-          .map((e) => (e as Map)['name'])
-          .toList();
-      expect(names, ['B']);
+      expect(nodeOutbounds(cfg).map((o) => o['tag']).toList(), ['B']);
+      // select 组里也不能留下没被探测的节点（否则测速结果对不上 tag）
+      expect(selectorOf(cfg)['outbounds'], ['B', 'direct']);
     });
 
     test('订阅解析阶段就把占位伪节点滤掉 → 探测/连接配置里都不会出现', () {
@@ -227,9 +254,10 @@ proxies:
 ''';
       final nodes = SubscriptionService.parseClashYaml(yaml);
       expect(nodes.map((n) => n.tag).toList(), ['香港-01']);
-      final cfg = MihomoConfigBuilder.buildProbe(
+      final cfg = SingBoxConfigBuilder.buildProbe(
           nodes: nodes, controllerPort: 1);
-      expect((cfg['proxies'] as List).length, 1);
+      expect(nodeOutbounds(cfg), hasLength(1));
+      expect(selectorOf(cfg)['outbounds'], ['香港-01', 'direct']);
     });
   });
 

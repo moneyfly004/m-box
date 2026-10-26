@@ -18,7 +18,7 @@ concurrency:
 
 env:
   FLUTTER_VERSION: '3.44.4'
-  MIHOMO_VERSION: '1.19.30'
+  SINGBOX_VERSION: '1.14.4'
 
 jobs:
   ios:
@@ -38,16 +38,10 @@ jobs:
         run: flutter pub get
       - name: 下载离线分流数据（iOS 随扩展 bundle 分发）
         run: |
-          mkdir -p assets/rules
-          curl -fL --retry 5 --retry-delay 3 --retry-all-errors --max-time 300 -o assets/rules/geosite.dat \
-            "https://github.com/MetaCubeX/meta-rules-dat/releases/latest/download/geosite.dat"
-          curl -fL --retry 5 --retry-delay 3 --retry-all-errors --max-time 300 -o assets/rules/country.mmdb \
-            "https://github.com/MetaCubeX/meta-rules-dat/releases/latest/download/country.mmdb"
-          curl -fL --retry 5 --retry-delay 3 --retry-all-errors --max-time 300 -o assets/rules/cn.mrs \
-            "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/cn.mrs"
+          bash tool/fetch_ruleset.sh
           ls -lh assets/rules/
       - name: 下载 iOS 内核框架（Mihomelib.xcframework）
-        run: bash tool/fetch_mihomo_ios.sh "$MIHOMO_VERSION"
+        run: bash tool/fetch_singbox_ios.sh "$SINGBOX_VERSION"
       - name: 自检扩展 target 已就位
         run: |
           grep -q "PacketTunnel" ios/Runner.xcodeproj/project.pbxproj \

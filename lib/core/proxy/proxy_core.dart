@@ -18,18 +18,18 @@ import 'geo_assets.dart';
 import 'speed_probe_kernel.dart';
 import 'proxy_core_embedded.dart';
 import 'proxy_core_cli.dart';
-import 'mihomo_config.dart';
+import 'singbox_config.dart';
 import 'system_proxy.dart';
 import 'tun_failure.dart';
 import '../../l10n/app_strings.dart';
 import 'conn_error.dart';
 export 'conn_error.dart';
 
-/// 后台 isolate 入口：构建 mihomo YAML 配置。compute 要求顶层/静态函数。
+/// 后台 isolate 入口：构建 sing-box JSON 配置。compute 要求顶层/静态函数。
 Map<String, dynamic> _buildConfigInIsolate(Map<String, dynamic> args) {
   final proxies = (args['proxies'] as List).cast<Map<String, dynamic>>();
   final nodes = proxies.map((m) => ProxyNode.fromClashMap(m)).toList();
-  return MihomoConfigBuilder.build(
+  return SingBoxConfigBuilder.build(
     nodes: nodes,
     selectedTag: args['selectedTag'] as String,
     smartMode: args['smartMode'] as bool,
@@ -43,13 +43,16 @@ Map<String, dynamic> _buildConfigInIsolate(Map<String, dynamic> args) {
     dnsMode: args['dnsMode']?.toString() ?? 'auto',
     tunStack: args['tunStack']?.toString() ?? 'gvisor',
     // 桌面：内核自己建 TUN 接口 + 推路由（无人注入 fd）；Android：路由由
-    // VpnService 全量下发，必须 auto-route:false（见 MihomoConfigBuilder）
+    // VpnService 全量下发，必须 auto-route:false（见 SingBoxConfigBuilder）
     tunAutoRoute: args['tunAutoRoute'] == true,
     // iOS：fd 由 PacketTunnel 扩展注入（socketpair 用户态桥）→ 生成器要关掉
     // Darwin 专属的 recvmsgx，否则内核建 TUN 时 setsockopt 失败、直接起不来
     tunFdInjected: args['tunFdInjected'] == true,
-    // iOS：GEOSITE,cn 的建索引要 ~74MB 堆 → 换 .mrs 规则集（实测 +2MB）
+    // 兼容旧入参（sing-box 一律用 .srs 规则集，该开关不再影响产物）
     useMrsRuleSet: args['useMrsRuleSet'] == true,
+    // .srs 规则集所在目录（Android/桌面 = 内核工作目录的绝对路径；
+    // iOS = 空串，走相对文件名，由 PacketTunnel 扩展的工作目录解析）
+    ruleSetDir: args['ruleSetDir']?.toString(),
     udpSkipCertVerify: args['udpSkipCertVerify'] != false,
     bypassDomains: (args['bypassDomains'] as List?)?.cast<String>() ?? const [],
     // 「必须走代理」名单（内置默认在生成器里，这里只传用户追加的）
@@ -80,8 +83,8 @@ class SpeedSnapshot {
   final double downMbps;
 }
 
-/// 代理核心抽象：各平台实现（macOS/Windows/Linux 走 mihomo CLI 子进程；
-/// Android 走原生 VpnService + libmihomo gomobile 库）
+/// 代理核心抽象：各平台实现（macOS/Windows/Linux 走 sing-box CLI 子进程；
+/// Android 走原生 VpnService + libbox gomobile 库）
 abstract class ProxyCore {
   /// 启动内核并加载配置
   Future<void> start(Map<String, dynamic> config);
@@ -216,7 +219,7 @@ class ConnectionController extends ChangeNotifier {
 
   /// 测试缝：替换内核实现（注入记录型内核桩），并重新挂上回调。
   ///
-  /// 为什么需要：测试环境没有 mihomo 二进制，`connect()` 必然在内核启动处失败，
+  /// 为什么需要：测试环境没有 sing-box 二进制，`connect()` 必然在内核启动处失败，
   /// 「自动连接到底有没有真的发起」就只剩下「有没有留下 error」这种间接且不唯一
   /// 的副作用可判（error 也可能来自订阅/门禁路径）。注入桩后，
   /// 「connect() 是否推进到了启动内核」变成可直接断言的事实。
@@ -627,7 +630,7 @@ class ConnectionController extends ChangeNotifier {
       ) ==
       CrashRecoveryAction.recover;
 
-  /// 各平台内核工作目录（geo 数据与 config 同目录，mihomo 按默认文件名加载）：
+  /// 各平台内核工作目录（规则集与 config 同目录，配置里以绝对路径引用）：
   /// - 桌面：CLI workDir（系统临时目录 moneyfly_core）
   /// - Android/iOS：filesDir/work（MoneyFlyVpnService 同一内核目录）
   Future<String?> _geoWorkDir() async {
@@ -930,7 +933,7 @@ class ConnectionController extends ChangeNotifier {
     try {
       if (epoch != _epoch) return;
       // 离线 Geo 数据落盘（智能模式 CN 分流）：
-      // - 桌面端：落到内核 workDir（mihomo -d 默认文件名加载）
+      // - 桌面端：落到内核 workDir（配置里以绝对路径引用）
       // - Android：落到 filesDir/work（与 VpnService 同一内核目录；原生层的
       //   assets 复制保留为启动兜底，此处 Dart 幂等复制为准，保证就绪状态
       //   真实可判）
@@ -942,9 +945,11 @@ class ConnectionController extends ChangeNotifier {
       // 自己的可写目录（App 写不进扩展容器，扩展也读不到 App 容器）→ 这里不落盘、
       // 直接视为就绪。若因落盘失败置 false，生成配置会降级掉 GEOSITE/GEOIP
       // 规则，智能分流就没了。
+      final geoWorkDir = await _geoWorkDir();
       final geoReady = Platform.isIOS
           ? true
-          : await GeoAssets.materialize(preferDir: await _geoWorkDir());
+          : await GeoAssets.materialize(preferDir: geoWorkDir);
+      final geoDirForRules = geoWorkDir ?? '';
       if (epoch != _epoch) return;
       final cfg = await compute(_buildConfigInIsolate, {
         'proxies': [for (final n in nodes) n.raw],
@@ -963,9 +968,8 @@ class ConnectionController extends ChangeNotifier {
         // iOS 走「扩展注入 fd + socketpair 桥」，必须关 recvmsgx（见生成器注释）；
         // Android 是 Linux 侧 tun 实现、桌面由内核自建接口，都不需要
         'tunFdInjected': Platform.isIOS,
-        // iOS：用 .mrs 规则集替代 GEOSITE,cn —— 后者启动期要 ~74MB 堆，
-        // 超过 iOS 扩展内存上限会被系统直接杀掉（见 useMrsRuleSet 注释）
-        'useMrsRuleSet': Platform.isIOS,
+        // iOS：规则集用相对文件名（扩展启动时把自己的 work 目录设为工作目录）
+        'ruleSetDir': Platform.isIOS ? '' : geoDirForRules,
         'udpSkipCertVerify': settings['udpSkipCertVerify'] != false,
         'bypassDomains': (settings['bypassDomains'] as List?)?.cast<String>() ?? const [],
         'forceProxyDomains': (settings['forceProxyDomains'] as List?)?.cast<String>() ?? const [],

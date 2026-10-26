@@ -7,7 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import '../services/app_log.dart';
 import '../services/update_service.dart';
 
-/// 离线 Geo 数据落盘器（geosite.dat / country.mmdb）。
+/// 离线分流规则落盘器（sing-box binary rule-set：geosite-cn.srs / geoip-cn.srs）。
 ///
 /// 数据来源（全部离线、零网络）：
 /// 1. **手动更新副本**（设置 → 更新分流数据，[GeoAssets.updatedDir]）——
@@ -15,10 +15,10 @@ import '../services/update_service.dart';
 /// 2. **内置 assets**（assets/rules/，CI 构建时下载最新打进安装包）——
 ///    出厂自带，随 App 版本更新。
 ///
-/// mihomo 的智能模式(Rule)用 GEOSITE,cn / GEOIP,CN 规则做国内直连，
-/// 需要 geosite.dat（域名分类）与 country.mmdb（IP 国家库，默认文件名）。
-/// 这些文件必须落到「内核进程可读的绝对路径」——mihomo 从启动目录(homeDir)
-/// 加载默认文件名，否则规则匹配会报 "GEOIP/GEOSITE lookup error"。
+/// sing-box 的智能模式(Rule)用 `rule_set` 做国内直连，
+/// 需要 geosite-cn.srs（域名分类）与 geoip-cn.srs（IP 国家库）。
+/// 这些文件必须落到「内核进程可读的绝对路径」——配置里以绝对 path 引用，
+/// 否则内核启动即报 "parse rule-set: open ...: no such file or directory"。
 ///
 /// - 桌面端(CLI)：落到 ProxyCoreCli.workDir（内核 -d 指向同一目录）
 /// - Android：落到 filesDir/work（MoneyFlyVpnService 同一内核目录；
@@ -31,7 +31,7 @@ class GeoAssets {
   GeoAssets._();
 
   /// assets 中内置文件名（CI 构建时下载；本地开发用 tool/fetch_geodata.sh）
-  static const files = ['geosite.dat', 'country.mmdb'];
+  static const files = ['geosite-cn.srs', 'geoip-cn.srs'];
 
   /// 手动更新副本目录（supportDir/geo，设置页下载的最新版放这里）
   static String? _updatedDirPath;
@@ -162,7 +162,7 @@ class GeoAssets {
         }
         try {
           // 原子替换：先写 .tmp 再 rename。直接覆盖最终文件名时，断电/被强杀
-          // 会留下截断的 geosite.dat / country.mmdb；而跳过判定只看
+          // 会留下截断的 geosite-cn.srs / geoip-cn.srs；而跳过判定只看
           // `length() > 0`，这个坏文件会被之后每次启动「幂等跳过」，
           // materialize 反而返回 true → 不再降级 GEOSITE/GEOIP 规则 → 内核读到
           // 坏 geo 数据、智能分流静默失效（配置里 geo-auto-update:false，

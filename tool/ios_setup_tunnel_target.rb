@@ -7,14 +7,14 @@
 # 可重复执行、可 review、CI 与本地一致（幂等：重复运行会先移除旧 target）。
 #
 # 用法： ruby tool/ios_setup_tunnel_target.rb
-# 前置： ios/Mihomelib.xcframework 已就位（bash tool/fetch_mihomo_ios.sh）
+# 前置： ios/Libbox.xcframework 已就位（bash tool/fetch_singbox_ios.sh）
 require 'xcodeproj'
 
 PROJECT = 'ios/Runner.xcodeproj'
 TARGET_NAME = 'PacketTunnel'
 BUNDLE_ID = 'top.moneyfly.app.tunnel'
 DEPLOYMENT_TARGET = '14.0'
-FRAMEWORK = 'Mihomelib.xcframework'
+FRAMEWORK = 'Libbox.xcframework'
 
 unless File.exist?(PROJECT)
   abort "✗ 未找到 #{PROJECT}（先执行 flutter create --platforms=ios .）"
@@ -52,7 +52,15 @@ group = project.main_group.find_subpath(TARGET_NAME, true)
 group.set_source_tree('<group>')
 group.set_path(TARGET_NAME)
 src = group.new_file('PacketTunnelProvider.swift')
-target.add_file_references([src])
+# sing-box 内核封装（Swift 编排 + ObjC 平台接口）
+engine_src = group.new_file('LibboxEngine.swift')
+platform_h = group.new_file('LibboxPlatform.h')
+platform_m = group.new_file('LibboxPlatform.m')
+bridge_h = group.new_file('PacketTunnel-Bridging-Header.h')
+target.add_file_references([src, engine_src, platform_m])
+target.build_configurations.each do |c|
+  c.build_settings['SWIFT_OBJC_BRIDGING_HEADER'] = "#{TARGET_NAME}/PacketTunnel-Bridging-Header.h"
+end
 
 # ---- 构建配置 ----
 target.build_configurations.each do |config|
@@ -83,27 +91,27 @@ if File.exist?("ios/#{FRAMEWORK}")
   puts "· 已链接 #{FRAMEWORK}"
 else
   warn "⚠ 未找到 ios/#{FRAMEWORK}：扩展会以「未包含内核」的错误路径编译。" \
-       '先运行 bash tool/fetch_mihomo_ios.sh'
+       '先运行 bash tool/fetch_singbox_ios.sh'
 end
 
-# ---- 把 geo 分流数据作为扩展的**资源**打进 appex ----
+# ---- 把 sing-box 分流规则集作为扩展的**资源**打进 appex ----
 # 为什么不用 Run Script：脚本阶段没有输出声明时，Xcode 认为它可能改到产物的
 # 任何地方；而这个 appex 又被 Runner 的 Embed App Extensions 阶段嵌入 →
 # 直接报 "Cycle inside Runner; building could produce unreliable results"。
 # 声明为资源（PBXResourcesBuildPhase）则由 Xcode 正常排序，不会有环。
-# geo 文件由 CI/本地构建前下载（assets/rules/），仓库不提交（见 .gitignore）。
+# 规则集由 CI/本地构建前下载（assets/rules/*.srs），仓库不提交（见 .gitignore）。
 geo_group = project.main_group.find_subpath('GeoData', true)
 geo_group.set_source_tree('<group>')
 geo_group.set_path('../assets/rules')
-GEO_FILES = %w[country.mmdb geosite.dat].freeze
+GEO_FILES = %w[geosite-cn.srs geoip-cn.srs].freeze
 GEO_FILES.each do |name|
   ref = geo_group.files.find { |f| f.path == name } || geo_group.new_file(name)
   unless target.resources_build_phase.files_references.include?(ref)
     target.resources_build_phase.add_file_reference(ref)
-    puts "· geo 资源已加入扩展 bundle: #{name}"
+    puts "· 规则集已加入扩展 bundle: #{name}"
   end
 end
-warn '⚠ 未找到 assets/rules/*（iOS 构建会失败）。先运行 bash tool/fetch_geodata.sh' unless
+warn '⚠ 未找到 assets/rules/*.srs（iOS 构建会失败）。先运行 bash tool/fetch_ruleset.sh' unless
   GEO_FILES.all? { |n| File.exist?("assets/rules/#{n}") }
 
 # ---- Runner 依赖 + 嵌入 PlugIns ----
