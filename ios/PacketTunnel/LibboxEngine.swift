@@ -28,6 +28,35 @@ final class MBoxLibboxEngine {
 
     static func version() -> String { LibboxVersion() }
 
+    /// 给内核 unix socket 用的**短**目录。
+    ///
+    /// 为什么必须短：libbox 的 CommandServer 把监听地址固定写成
+    /// `<basePath>/command.sock`（experimental/libbox/command_server.go），而 Darwin 的
+    /// `sun_path` 只有 104 字节。iOS 扩展的数据容器路径本来就有 ~81 字节
+    /// （`/var/mobile/Containers/Data/PluginKitPlugin/<36 字符 UUID>`），再拼上
+    /// `Library/Application Support/singbox/command.sock`（46 字节）必然超限 ——
+    /// 实测报错：`listen command server: listen unix …: bind: invalid argument`，
+    /// 隧道进程一起来就退出，App 侧只看到「内核启动超时」。
+    ///
+    /// 所以 basePath 取「扩展数据容器根目录」（长度固定 ~81），
+    /// workingPath 仍然是原来的完整工作目录（缓存/数据库/规则集都放那里）。
+    static func shortBasePath(for home: String) -> String {
+        let socketName = "/command.sock"
+        let limit = 103 - socketName.count // sun_path[104] 含结尾 NUL
+        let parts = home.split(separator: "/")
+        if let idx = parts.firstIndex(of: "PluginKitPlugin"), idx + 1 < parts.count {
+            let containerRoot = "/" + parts[0...idx + 1].joined(separator: "/")
+            if containerRoot.count <= limit { return containerRoot }
+        }
+        // 兜底：逐级上溯到足够短（容器布局变化时不至于又 bind 失败）
+        var path = home
+        while path.count > limit {
+            guard let slash = path.range(of: "/", options: .backwards) else { break }
+            path = String(path[..<slash.lowerBound])
+        }
+        return path.isEmpty ? "/tmp" : path
+    }
+
     /// 启动内核：configContent 是 sing-box JSON，home 是扩展可写目录。
     func start(home: String, configContent: String) throws {
         platform.logger = { TunnelDiag.log($0) }
@@ -37,7 +66,9 @@ final class MBoxLibboxEngine {
         clientHandler.onLogLines = { TunnelDiag.appendKernel($0) }
 
         let options = LibboxSetupOptions()
-        options.basePath = home
+        // basePath 只决定 unix socket 落点（libbox 固定拼 <basePath>/command.sock），
+        // 必须足够短，见 shortBasePath(for:) 的注释。
+        options.basePath = Self.shortBasePath(for: home)
         options.workingPath = home
         options.tempPath = NSTemporaryDirectory()
         let ver = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? ""

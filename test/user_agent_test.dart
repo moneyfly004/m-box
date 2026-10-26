@@ -86,5 +86,20 @@ void main() {
         'Pixel 8',
       );
     });
+
+    test('iOS 机型串不重复加 iPhone 前缀（utsname.machine 本身已带）', () {
+      expect(UserAgent.iosSection('iPhone14,3', '16.6.1'),
+          'iPhone14,3; iOS 16.6.1');
+      expect(UserAgent.iosSection('iPad8,1', '17.0'), 'iPad8,1; iOS 17.0');
+      // 兜底：机型串没有前缀时补上，后端正则仍能解析出机型
+      expect(UserAgent.iosSection('14,3', '16.6.1'), 'iPhone14,3; iOS 16.6.1');
+    });
+
+    test('UA 前缀是品牌 MBox（后端 software_name 靠它识别；可用 dart-define 覆盖）', () {
+      expect(UserAgent.brand, 'MBox');
+      expect(UserAgent.build(version: '0.0.1'), 'MBox/0.0.1');
+      expect(UserAgent.build(version: '0.0.1', osSection: 'Windows NT 10.0'),
+          'MBox/0.0.1 (Windows NT 10.0)');
+    });
   });
 }

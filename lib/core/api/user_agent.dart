@@ -10,8 +10,22 @@ import '../services/local_paths.dart';
 ///
 /// 额外通过 X-MF-* 自定义头向后端传递设备详情（型号/品牌/OS/类型），
 /// 即使 UA 被截断或解析不全，后端也能准确识别设备。
+///
+/// **客户端身份**：后端是从 UA 前缀反查「软件名称」的（`software_name` 字段），
+/// 不认识的前缀会记成 `Unknown`。换成 MBox 之后如果后台仍显示 Unknown，
+/// 说明后端那份软件名映射表还没加 MBox —— 两种办法任选其一：
+///   1) 推荐：后端把 `MBox` 加进映射表（一行配置，之后所有平台都对）；
+///   2) 临时：构建时 `--dart-define=MBOX_UA_PREFIX=MoneyFly`，UA 就退回旧前缀，
+///      后台立刻认得（品牌名只影响 UA 这一处，界面仍是 MBox）。
 class UserAgent {
   UserAgent._();
+
+  /// UA 前缀（品牌）。默认 MBox；可用 --dart-define=MBOX_UA_PREFIX=... 覆盖，
+  /// 用于「后端软件名映射表还没更新」的临时兼容。
+  static const String brand = String.fromEnvironment(
+    'MBOX_UA_PREFIX',
+    defaultValue: 'MBox',
+  );
 
   /// 设备详情头（resolve 后填充），由 ApiClient 拦截器注入每个请求
   static Map<String, String> deviceHeaders = {};
@@ -19,8 +33,8 @@ class UserAgent {
   static String build({required String version, String? osSection}) {
     final v = version.trim();
     final os = osSection?.trim() ?? '';
-    if (os.isEmpty) return 'MBox/$v';
-    return 'MBox/$v ($os)';
+    if (os.isEmpty) return '$brand/$v';
+    return '$brand/$v ($os)';
   }
 
   // ---------- 各平台特征串 ----------
@@ -39,8 +53,20 @@ class UserAgent {
   static String macosSection(int major, int minor) =>
       'Macintosh; Mac OS X ${major}_$minor';
 
-  static String iosSection(String machine, String systemVersion) =>
-      'iPhone$machine; iOS $systemVersion';
+  /// iOS 特征串。
+  ///
+  /// `utsname.machine` 本身就以 iPhone/iPad/iPod 开头（如 `iPhone14,3`），
+  /// 早期实现又拼了一个 `iPhone` 前缀 → UA 里出现 `iPhoneiPhone14,3`，
+  /// 后端按 UA 解析机型时会得到错误的型号串。
+  static String iosSection(String machine, String systemVersion) {
+    final m = machine.trim();
+    final prefix = (m.startsWith('iPhone') ||
+            m.startsWith('iPad') ||
+            m.startsWith('iPod'))
+        ? ''
+        : 'iPhone';
+    return '$prefix$m; iOS $systemVersion';
+  }
 
   // ---------- 运行时解析 ----------
 
@@ -152,6 +178,10 @@ class UserAgent {
   static Future<String> resolve({required String version}) async {
     final os = await resolveOsSection();
     await _collectDeviceHeaders();
+    // 客户端身份头：后端可以直接用它判断「这是哪个软件、哪个版本」，
+    // 不必再去正则解析 UA 前缀（换品牌名时就不会出现 software_name=Unknown）。
+    deviceHeaders['X-MF-Client-Name'] = brand;
+    deviceHeaders['X-MF-Client-Version'] = version.trim();
     return build(version: version, osSection: os);
   }
 }
