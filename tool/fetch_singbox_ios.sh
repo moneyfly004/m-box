@@ -37,14 +37,19 @@ if [ -n "${SINGBOX_IOS_ZIP:-}" ]; then
 fi
 
 echo "== gomobile 编译 sing-box v$VERSION 的 Libbox.xcframework =="
-command -v go >/dev/null || { echo "缺少 go"; exit 1; }
-command -v gomobile >/dev/null || {
-  echo "安装 gomobile ..."
+command -v go >/dev/null || {
+  echo "缺少 go（CI 上由 actions/setup-go 提供；本机用 brew install go）"; exit 1;
+}
+# GOPATH/bin 不一定在 PATH 里（CI runner 就是这种情况），先补进 PATH 再判断，
+# 否则会出现「刚装完 gomobile 又找不到」的循环安装。
+export PATH="$PATH:$(go env GOPATH)/bin"
+if ! command -v gomobile >/dev/null || ! command -v gobind >/dev/null; then
+  echo "安装 gomobile / gobind ..."
   go install golang.org/x/mobile/cmd/gomobile@latest
   go install golang.org/x/mobile/cmd/gobind@latest
-  export PATH="$PATH:$(go env GOPATH)/bin"
+  command -v gomobile >/dev/null || { echo "gomobile 安装失败"; exit 1; }
   gomobile init
-}
+fi
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
 git clone --depth 1 --branch "v$VERSION" https://github.com/SagerNet/sing-box "$TMP/sing-box"
 cd "$TMP/sing-box"

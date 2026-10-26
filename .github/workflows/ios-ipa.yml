@@ -40,7 +40,20 @@ jobs:
         run: |
           bash tool/fetch_ruleset.sh
           ls -lh assets/rules/
-      - name: 下载 iOS 内核框架（Mihomelib.xcframework）
+      # gomobile 编 Libbox.xcframework 需要 Go（sing-box 1.14.4 的 go.mod 要求 1.25+）
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache: false
+      # 内核框架编译一次要 8~15 分钟：按内核版本缓存，命中就直接复用
+      - name: 缓存 Libbox.xcframework
+        id: libbox-cache
+        uses: actions/cache@v4
+        with:
+          path: ios/Libbox.xcframework
+          key: libbox-${{ runner.os }}-${{ env.SINGBOX_VERSION }}-${{ hashFiles('tool/fetch_singbox_ios.sh') }}
+      - name: 下载/编译 iOS 内核框架（Libbox.xcframework，随包内置）
+        # 缓存命中时脚本会直接跳过 gomobile 编译（见下面的 if 判断）
         run: bash tool/fetch_singbox_ios.sh "$SINGBOX_VERSION"
       - name: 自检扩展 target 已就位
         run: |
