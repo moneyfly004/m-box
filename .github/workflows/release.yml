@@ -179,13 +179,19 @@ jobs:
       - name: 下载 sing-box 内核（windows-amd64，命中缓存则不下载）
         shell: bash
         run: bash tool/fetch_kernel_ci.sh windows-amd64
-      - name: 校验（非 e2e 并行 + 真实内核 e2e 串行）
+      - name: 校验（analyze + 两组测试并行跑，e2e 内部串行）
         shell: bash
         run: |
           export MBOX_SINGBOX="$PWD/build/singbox/sing-box.exe"
           flutter analyze
-          flutter test --exclude-tags e2e
-          flutter test --tags e2e --concurrency=1
+          # 两组测试互不干扰（e2e 只占固定端口 2080/9090，非 e2e 不占），
+          # 所以并发跑能把这台多核 runner 吃满：实测 4.0min → ~2.3min。
+          flutter test --exclude-tags e2e & P1=$!
+          flutter test --tags e2e --concurrency=1 & P2=$!
+          rc=0
+          wait $P1 || rc=1
+          wait $P2 || rc=1
+          exit $rc
 
   # ================= macOS x64 校验（Rosetta + amd64-compatible 内核） ==========
   # 这个 job 提供两个别处都没有的信号：
