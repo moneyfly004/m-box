@@ -13,7 +13,14 @@
 # 产物落到 android/app/libs/libmbox.aar（gradle 直接引用该文件名）。
 set -euo pipefail
 
-VERSION="${1:-1.14.0}"
+VERSION="${1:-1.14.4}"
+
+# 构建标签必须带官方那一套（release/DEFAULT_BUILD_TAGS）：
+# 少了 with_utls → reality 节点直接报
+# 「uTLS, which is required by reality is not included in this build」，
+# 整份配置起不来；少了 with_clash_api → 控制面全废；少了 with_gvisor → iOS
+# 的 gvisor 栈不可用。默认值取自 sing-box 仓库，可用 SINGBOX_TAGS 覆盖。
+SINGBOX_TAGS="${SINGBOX_TAGS:-with_gvisor,with_quic,with_dhcp,with_wireguard,with_utls,with_acme,with_clash_api,with_tailscale,with_ccm,with_ocm,with_cloudflared,with_naive_outbound,with_usbip,with_openvpn,with_openconnect,badlinkname,tfogo_checklinkname0}"
 REPO="${SINGBOX_LIB_REPO:-moneyfly004/sing-box-lib}"   # 自建 AAR 发布仓
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DEST="$ROOT/android/app/libs"
@@ -46,9 +53,11 @@ if [ "${FORCE_BUILD:-0}" = "1" ]; then
   #    Go 1.23+ 默认校验 linkname 目标 → 报
   #    「invalid reference to os.checkPidfdOnce」，c-shared 直接构建失败。
   #    官方发布包也是靠关掉这项校验构建的。
+  echo "构建标签: $SINGBOX_TAGS"
   gomobile bind -target android -androidapi 21 \
     -javapkg top.moneyfly \
-    -ldflags "-checklinkname=0 -X github.com/sagernet/sing-box/constant.Version=$VERSION" \
+    -tags "$SINGBOX_TAGS" \
+    -ldflags "-checklinkname=0 -s -w -X github.com/sagernet/sing-box/constant.Version=$VERSION" \
     -o "$DEST/libmbox.aar" ./experimental/libbox
   echo "已生成 $DEST/libmbox.aar"
 else
@@ -63,6 +72,9 @@ fi
 # 完整性快检：必须是 zip（aar），且含内核 native 库。
 # 自己 gomobile 编出来的叫 libgojni.so；sing-box-lib 发布的预编译包叫
 # libmoneyfly.so —— 两种都算正常（Java 侧按 gojni 名加载）。
-unzip -l "$DEST/libmbox.aar" | grep -qE "lib(gojni|moneyfly)\.so" \
-  || { echo "错误: AAR 内容异常（没有内核 native 库）"; exit 1; }
+LISTING="$(unzip -l "$DEST/libmbox.aar")"
+case "$LISTING" in
+  *libgojni.so*|*libmoneyfly.so*) echo "✓ AAR 内含内核 native 库" ;;
+  *) echo "错误: AAR 内容异常（没有内核 native 库）"; exit 1 ;;
+esac
 echo "OK"
