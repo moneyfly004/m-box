@@ -46,7 +46,11 @@ class AutostartService {
   AutostartService._();
 
   /// 注册名（Windows 是注册表值名，Linux 是 .desktop 文件名的一部分）
-  static const appName = 'MoneyFly';
+  ///
+  /// 注意：品牌改为 MBox 后这里是新注册名。老版本（MoneyFly）留下的自启动项
+  /// 不会自动清理 —— 升级用户若之前开着自启动，需要在系统里手动删掉旧项
+  /// （Windows：任务管理器→启动；macOS：系统设置→通用→登录项）。
+  static const appName = 'MBox';
 
   @visibleForTesting
   static AutostartBackend? debugBackend;

@@ -14,7 +14,7 @@
 // ---- 启动诊断日志 ----
 // 为什么需要：Windows 客户报「装完打不开、没有窗口」时，进程往往还在任务管理器里，
 // 而 Flutter 的 Dart 日志要等引擎起来才会写 —— 恰恰是引擎/首帧没起来时最需要日志。
-// 这里在原生入口记几条关键事实，客服拿到 %LOCALAPPDATA%\MoneyFly\boot.log 就能定性：
+// 这里在原生入口记几条关键事实，客服拿到 %LOCALAPPDATA%\MBox\boot.log 就能定性：
 //   mutex-exists / window-created / frame-first / fallback-shown / create-failed
 static void BootLog(const wchar_t* msg) {
   wchar_t dir[MAX_PATH] = {0};
@@ -22,8 +22,8 @@ static void BootLog(const wchar_t* msg) {
   if (n == 0 || n >= MAX_PATH) {
     ::GetTempPathW(MAX_PATH, dir);
   } else {
-    ::CreateDirectoryW((std::wstring(dir) + L"\\MoneyFly").c_str(), nullptr);
-    wcscat_s(dir, L"\\MoneyFly");
+    ::CreateDirectoryW((std::wstring(dir) + L"\\MBox").c_str(), nullptr);
+    wcscat_s(dir, L"\\MBox");
   }
   std::wstring path = std::wstring(dir) + L"\\boot.log";
   HANDLE f = ::CreateFileW(path.c_str(), FILE_APPEND_DATA, FILE_SHARE_READ,
@@ -124,25 +124,25 @@ static bool EnsureWindowOnScreen(HWND hwnd) {
   return true;
 }
 
-// 在当前会话里按标题**包含** "moneyfly" 查找主窗口（隐藏窗口也能枚举到）。
+// 在当前会话里按标题**包含** "mbox" 查找主窗口（隐藏窗口也能枚举到）。
 // 为什么不用 FindWindowW：它按精确标题匹配且只找当前桌面，标题带后缀 /
 // 虚拟桌面切换时会漏掉，表现为"再点一次图标没反应"。
-static BOOL CALLBACK FindMoneyFlyWindowProc(HWND hwnd, LPARAM lparam) {
+static BOOL CALLBACK FindMBoxWindowProc(HWND hwnd, LPARAM lparam) {
   wchar_t title[256] = {0};
   ::GetWindowTextW(hwnd, title, 256);
   if (title[0] == 0) return TRUE;
   std::wstring t(title);
   for (size_t i = 0; i < t.size(); ++i) t[i] = (wchar_t)towlower(t[i]);
-  if (t.find(L"moneyfly") == std::wstring::npos) return TRUE;
+  if (t.find(L"mbox") == std::wstring::npos) return TRUE;
   *reinterpret_cast<HWND*>(lparam) = hwnd;
   return FALSE;  // 找到即停
 }
 
 static HWND FindExistingMainWindow() {
-  HWND exact = ::FindWindowW(nullptr, L"MoneyFly");
+  HWND exact = ::FindWindowW(nullptr, L"MBox");
   if (exact != nullptr) return exact;
   HWND found = nullptr;
-  ::EnumWindows(FindMoneyFlyWindowProc, reinterpret_cast<LPARAM>(&found));
+  ::EnumWindows(FindMBoxWindowProc, reinterpret_cast<LPARAM>(&found));
   return found;
 }
 
@@ -154,7 +154,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   // 已有一个实例 → 唤醒它的窗口（可能最小化到托盘），本进程立即退出。
   {
     HANDLE mutex =
-        ::CreateMutexW(nullptr, FALSE, L"Local\\MoneyFly_SingleInstance");
+        ::CreateMutexW(nullptr, FALSE, L"Local\\MBox_SingleInstance");
     if (mutex != nullptr && ::GetLastError() == ERROR_ALREADY_EXISTS) {
       // 已有实例：唤醒它的窗口（可能被最小化到托盘或被我方 hide() 隐藏）。
       // 旧实现只 FindWindow 一次就退出：若那一刻对方窗口还没创建出来（开机自启
@@ -180,11 +180,11 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
       } else {
         BootLog(L"second-instance: mutex held but window not found");
         ::MessageBoxW(nullptr,
-                      L"MoneyFly 已在运行，但没能把它的窗口调到前台。\n\n"
+                      L"MBox 已在运行，但没能把它的窗口调到前台。\n\n"
                       L"请检查任务栏右下角的托盘区（可能在「隐藏的图标」里），"
-                      L"双击 MoneyFly 图标即可显示窗口；若托盘里也没有，"
-                      L"请在任务管理器结束 moneyfly.exe 后重新打开。",
-                      L"MoneyFly", MB_OK | MB_ICONINFORMATION);
+                      L"双击 MBox 图标即可显示窗口；若托盘里也没有，"
+                      L"请在任务管理器结束 mbox.exe 后重新打开。",
+                      L"MBox", MB_OK | MB_ICONINFORMATION);
       }
       return 0;
     }
@@ -221,13 +221,13 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   }
   Win32Window::Size size(geo.w, geo.h);
   Win32Window::Point origin(geo.x, geo.y);
-  if (!window.Create(L"MoneyFly", origin, size)) {
+  if (!window.Create(L"MBox", origin, size)) {
     BootLog(L"window create failed");
     ::MessageBoxW(nullptr,
-                  L"MoneyFly 启动失败：无法创建窗口。\n\n"
+                  L"MBox 启动失败：无法创建窗口。\n\n"
                   L"常见原因：显卡驱动异常 / 远程桌面会话 / 安全软件拦截。\n"
-                  L"诊断日志：%LOCALAPPDATA%\\MoneyFly\\boot.log",
-                  L"MoneyFly", MB_OK | MB_ICONERROR);
+                  L"诊断日志：%LOCALAPPDATA%\\MBox\\boot.log",
+                  L"MBox", MB_OK | MB_ICONERROR);
     return EXIT_FAILURE;
   }
   window.SetQuitOnClose(true);

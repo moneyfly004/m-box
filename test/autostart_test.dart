@@ -80,7 +80,7 @@ void main() {
 
       expect(await AutostartService.enable(), isTrue);
       expect(fake.setupCalls, 1, reason: '未 setup 就会退化成 Noop → 注册静默失效');
-      expect(fake.lastAppName, 'MoneyFly');
+      expect(fake.lastAppName, 'MBox');
       expect(fake.lastAppPath, isNotEmpty);
     });
 
