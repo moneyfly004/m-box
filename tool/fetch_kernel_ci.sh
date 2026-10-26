@@ -15,7 +15,10 @@ ARCH="${1:?用法: fetch_kernel_ci.sh <darwin-arm64|darwin-amd64|windows-amd64>}
 VERSION="${SINGBOX_VERSION:?需要设置 SINGBOX_VERSION（如 1.14.4）}"
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-DEST="$ROOT/build/singbox"
+# 落盘目录**按架构分开**：多个架构共用一个 build/singbox 时，缓存命中判断只看
+# 版本，会把 arm64 的内核当成 amd64 复用，最后 lipo 合并报
+# 「have the same architectures (arm64)」——universal 构建就是这样挂的。
+DEST="$ROOT/build/singbox-$ARCH"
 mkdir -p "$DEST"
 
 case "$ARCH" in
@@ -24,13 +27,34 @@ case "$ARCH" in
 esac
 TARGET="$DEST/$EXE"
 
+# 期望的 Mach-O 架构（Windows 不做架构校验：arm64 Windows 上 x64 可跑）
+case "$ARCH" in
+  darwin-arm64) WANT_ARCH="arm64" ;;
+  darwin-amd64) WANT_ARCH="x86_64" ;;
+  *)            WANT_ARCH="" ;;
+esac
+
+archs_of() {
+  [ -f "$1" ] || return 0
+  if command -v lipo >/dev/null 2>&1; then
+    lipo -info "$1" 2>/dev/null | sed 's/.*: //'
+  else
+    file -b "$1" 2>/dev/null
+  fi
+}
+
+arch_ok() {
+  [ -z "$WANT_ARCH" ] && return 0
+  archs_of "$1" | grep -qw "$WANT_ARCH"
+}
+
 # ---- 1. 缓存命中判断：文件在 + 版本对得上 ----
 if [ -f "$TARGET" ]; then
-  if "$TARGET" version 2>/dev/null | grep -q "version $VERSION"; then
+  if "$TARGET" version 2>/dev/null | grep -q "version $VERSION" && arch_ok "$TARGET"; then
     echo "✓ 复用已缓存的内核：${TARGET}（$("${TARGET}" version 2>/dev/null | head -1)）"
     exit 0
   fi
-  echo "缓存的内核版本不符，重新下载"
+  echo "缓存命中但不可用（版本或架构不符：期望 ${VERSION}/${WANT_ARCH:-any}，实际 $("$TARGET" version 2>/dev/null | head -1)/$(archs_of "$TARGET")），重新下载"
   rm -f "$TARGET"
 fi
 
@@ -66,5 +90,10 @@ FOUND="$(find "$TMP/x" -maxdepth 3 -type f -name "$EXE" | head -1)"
 [ -n "$FOUND" ] || { echo "错误: 解包后未找到 ${EXE}"; exit 1; }
 cp "$FOUND" "$TARGET"
 chmod +x "$TARGET" 2>/dev/null || true
+if ! arch_ok "$TARGET"; then
+  echo "错误: 内核架构不符（期望 ${WANT_ARCH}，实际 $(archs_of "$TARGET")）"
+  rm -f "$TARGET"
+  exit 1
+fi
 "$TARGET" version
 echo "✓ 已就位 ${TARGET}"

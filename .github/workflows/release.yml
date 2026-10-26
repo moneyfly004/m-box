@@ -139,13 +139,13 @@ jobs:
       - name: 缓存 sing-box 内核（按版本；省掉每次 30~90MB 下载）
         uses: actions/cache@v4
         with:
-          path: build/singbox
+          path: build/singbox-*
           key: singbox-${{ runner.os }}-${{ github.job }}-${{ env.SINGBOX_VERSION }}
       - name: 下载 sing-box 内核（darwin-arm64，命中缓存则不下载）
         run: bash tool/fetch_kernel_ci.sh darwin-arm64
       - name: 校验
         run: |
-          export MBOX_SINGBOX="$PWD/build/singbox/sing-box"
+          export MBOX_SINGBOX="$PWD/build/singbox-darwin-arm64/sing-box"
           flutter analyze
           flutter test --concurrency=1
 
@@ -174,7 +174,7 @@ jobs:
       - name: 缓存 sing-box 内核（按版本；省掉每次 30~90MB 下载）
         uses: actions/cache@v4
         with:
-          path: build/singbox
+          path: build/singbox-*
           key: singbox-${{ runner.os }}-${{ github.job }}-${{ env.SINGBOX_VERSION }}
       - name: 下载 sing-box 内核（windows-amd64，命中缓存则不下载）
         shell: bash
@@ -182,7 +182,7 @@ jobs:
       - name: 校验（analyze + 两组测试并行跑，e2e 内部串行）
         shell: bash
         run: |
-          export MBOX_SINGBOX="$PWD/build/singbox/sing-box.exe"
+          export MBOX_SINGBOX="$PWD/build/singbox-windows-amd64/sing-box.exe"
           flutter analyze
           # 两组测试互不干扰（e2e 只占固定端口 2080/9090，非 e2e 不占），
           # 所以并发跑能把这台多核 runner 吃满：实测 4.0min → ~2.3min。
@@ -224,13 +224,13 @@ jobs:
       - name: 缓存 sing-box 内核（按版本；省掉每次 30~90MB 下载）
         uses: actions/cache@v4
         with:
-          path: build/singbox
+          path: build/singbox-*
           key: singbox-${{ runner.os }}-${{ github.job }}-${{ env.SINGBOX_VERSION }}
       - name: 下载 sing-box 内核（darwin-amd64，命中缓存则不下载）
         run: bash tool/fetch_kernel_ci.sh darwin-amd64
       - name: 校验（真实内核 e2e，串行）
         run: |
-          export MBOX_SINGBOX="$PWD/build/singbox/sing-box"
+          export MBOX_SINGBOX="$PWD/build/singbox-darwin-amd64/sing-box"
           flutter analyze
           flutter test --tags e2e --concurrency=1
 
@@ -380,7 +380,7 @@ jobs:
       - name: 缓存 sing-box 内核（按版本；省掉每次 30~90MB 下载）
         uses: actions/cache@v4
         with:
-          path: build/singbox
+          path: build/singbox-*
           key: singbox-${{ runner.os }}-${{ github.job }}-${{ env.SINGBOX_VERSION }}
       - name: 下载 sing-box 内核（windows-amd64，命中缓存则不下载）
         run: bash tool/fetch_kernel_ci.sh windows-amd64
@@ -392,7 +392,7 @@ jobs:
         shell: bash
         run: |
           RELEASE_DIR="build/windows/x64/runner/Release"
-          cp build/singbox/sing-box.exe "$RELEASE_DIR/sing-box.exe"
+          cp build/singbox-windows-amd64/sing-box.exe "$RELEASE_DIR/sing-box.exe"
           ls -la "$RELEASE_DIR/sing-box.exe"
 
       - name: 安装 Inno Setup
@@ -484,7 +484,7 @@ jobs:
       - name: 缓存 sing-box 内核（按版本；省掉每次 30~90MB 下载）
         uses: actions/cache@v4
         with:
-          path: build/singbox
+          path: build/singbox-*
           key: singbox-${{ runner.os }}-${{ github.job }}-${{ env.SINGBOX_VERSION }}
       - name: 下载 sing-box 内核（darwin-arm64，命中缓存则不下载）
         run: bash tool/fetch_kernel_ci.sh darwin-arm64
@@ -495,7 +495,7 @@ jobs:
       - name: 内置 sing-box 内核（复用上面已下载的 arm64 内核，不再重复下载）
         run: |
           APP="build/macos/Build/Products/Release/MBox.app"
-          cp build/singbox/sing-box "$APP/Contents/MacOS/sing-box"
+          cp build/singbox-darwin-arm64/sing-box "$APP/Contents/MacOS/sing-box"
           chmod +x "$APP/Contents/MacOS/sing-box"
           lipo "$APP/Contents/MacOS/sing-box" -verify_arch arm64
       - name: 打包 arm64 DMG
@@ -550,7 +550,7 @@ jobs:
       - name: 缓存 sing-box 内核（按版本；省掉每次 30~90MB 下载）
         uses: actions/cache@v4
         with:
-          path: build/singbox
+          path: build/singbox-*
           key: singbox-${{ runner.os }}-${{ github.job }}-${{ env.SINGBOX_VERSION }}
       - name: 下载 sing-box 内核（darwin-amd64，命中缓存则不下载）
         run: bash tool/fetch_kernel_ci.sh darwin-amd64
@@ -561,7 +561,7 @@ jobs:
       - name: 内置 sing-box 内核（复用上面已下载的内核，不再重复下载）
         run: |
           APP="build/macos/Build/Products/Release/MBox.app"
-          cp build/singbox/sing-box "$APP/Contents/MacOS/sing-box"
+          cp build/singbox-darwin-amd64/sing-box "$APP/Contents/MacOS/sing-box"
           chmod +x "$APP/Contents/MacOS/sing-box"
           lipo "$APP/Contents/MacOS/sing-box" -verify_arch x86_64
       - name: 打包 x64 DMG
@@ -611,13 +611,13 @@ jobs:
       - name: 缓存 sing-box 内核（按版本；省掉每次 30~90MB 下载）
         uses: actions/cache@v4
         with:
-          path: build/singbox
+          path: build/singbox-*
           key: singbox-${{ runner.os }}-${{ github.job }}-${{ env.SINGBOX_VERSION }}
       - name: 下载 sing-box 内核（darwin-arm64，命中缓存则不下载）
         run: bash tool/fetch_kernel_ci.sh darwin-arm64
       - name: 测试（仅真实内核 e2e，串行）
         run: |
-          export MBOX_SINGBOX="$PWD/build/singbox/sing-box"
+          export MBOX_SINGBOX="$PWD/build/singbox-darwin-arm64/sing-box"
           flutter analyze
           flutter test --tags e2e --concurrency=1
       # Flutter 在 macOS release 直接产出 universal（arm64+x86_64 双架构），
@@ -630,22 +630,23 @@ jobs:
         run: |
           APP="build/macos/Build/Products/Release/MBox.app"
           OUT="$APP/Contents/MacOS/sing-box"
-          CACHED="build/singbox/sing-box-universal"
+          CACHED="build/singbox-universal/sing-box"
           # 缓存里已有合并好的双架构内核 → 直接复制，两边都不用下
           if [ -f "$CACHED" ] && lipo "$CACHED" -verify_arch arm64 x86_64 2>/dev/null; then
             echo "✓ 复用缓存的双架构内核"
             cp "$CACHED" "$OUT" && chmod +x "$OUT"
             exit 0
           fi
-          # 两个架构各下一次（走同一个缓存/重试脚本，落 build/singbox-<arch>）
+          # 两个架构各下一次（脚本按架构落不同目录，绝不会互相覆盖）
           SINGBOX_VERSION="$SINGBOX_VERSION" bash tool/fetch_kernel_ci.sh darwin-arm64
-          cp build/singbox/sing-box "$RUNNER_TEMP/sing-box-arm64"
           SINGBOX_VERSION="$SINGBOX_VERSION" bash tool/fetch_kernel_ci.sh darwin-amd64
-          cp build/singbox/sing-box "$RUNNER_TEMP/sing-box-x64"
+          mkdir -p build/singbox-universal
+          cp build/singbox-darwin-arm64/sing-box "$RUNNER_TEMP/sing-box-arm64"
+          cp build/singbox-darwin-amd64/sing-box "$RUNNER_TEMP/sing-box-x64"
           lipo -create "$RUNNER_TEMP/sing-box-arm64" "$RUNNER_TEMP/sing-box-x64" -output "$OUT"
           chmod +x "$OUT"
           lipo "$OUT" -verify_arch arm64 x86_64
-          cp "$OUT" "$CACHED"   # 存进缓存目录，下次直接复用
+          cp "$OUT" "$CACHED"   # 存进缓存目录，下次直接复用（双架构）
       - name: 打包 universal DMG
         run: |
           V="${INPUT_VERSION:-$GITHUB_REF_NAME}"; V="${V#v}"
