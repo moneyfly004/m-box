@@ -757,6 +757,101 @@ void main() {
     }
   }, timeout: const Timeout(Duration(seconds: 60)));
 
+  // ---- iOS 关键回归：规则集相对路径 + 扩展侧绝对化 ----
+  //
+  // 背景（真机踩过）：iOS 扩展给内核的可能是一份 `path: "geosite-cn.srs"` 的相对
+  // 路径配置，而 sing-box 用**进程 CWD** 解析它；NetworkExtension 的 CWD 是 `/`，
+  // 于是内核起来就 FATAL，App 只看到「内核启动超时」。
+  // 扩展侧（PacketTunnelProvider.absolutizeRuleSetPaths）会把路径换成绝对路径、
+  // 并把缺失的规则集连同引用它的规则一起摘掉。这里用真实内核验证这两条：
+  //   ① 相对路径原样交给内核 → check 必须失败（证明这一步不能省）；
+  //   ② 绝对化之后 → check 必须通过；
+  //   ③ 规则集全丢时的降级配置 → check 仍通过（可用性优先）。
+  test('真实内核 check: iOS 相对规则集路径必须绝对化（否则内核 FATAL）',
+      skip: skipMsg, () {
+    final tmp = Directory.systemTemp.createTempSync('mf_ios_rules');
+    try {
+      final seeded = _seedRuleSets(tmp.path);
+      if (seeded.length < 2) {
+        markTestSkipped('assets/rules/*.srs 缺失（先跑 tool/fetch_ruleset.sh）');
+        return;
+      }
+      final cfg = SingBoxConfigBuilder.build(
+        nodes: allProtocolNodes(),
+        selectedTag: 'trojan-1',
+        smartMode: true,
+        tunMode: 'auto',
+        tunAutoRoute: true,
+        ruleSetDir: '', // iOS：扩展侧落盘，配置里是裸文件名
+      );
+
+      // ① 裸文件名（相对路径）
+      final sets = ((cfg['route'] as Map)['rule_set'] as List).cast<Map>();
+      expect(sets, isNotEmpty);
+      for (final rs in sets) {
+        final path = rs['path'] as String;
+        expect(path.contains('/'), isFalse, reason: 'iOS 配置应当是裸文件名: $path');
+      }
+      File('${tmp.path}/config.json')
+          .writeAsStringSync(SingBoxConfigBuilder.encode(cfg));
+      // ①-a 换个 CWD 跑：相对路径解析不到 → 内核必须报错（真机就是这个状态）
+      final wrongCwd = Process.runSync(
+          singbox!, ['check', '-c', '${tmp.path}/config.json'],
+          workingDirectory: Directory.systemTemp.path,
+          environment: {'PATH': Platform.environment['PATH'] ?? ''});
+      expect(wrongCwd.exitCode, isNot(0),
+          reason: 'CWD 不含规则集时相对路径必须失败 —— 这正是 iOS 上'
+              '「内核一起来就退出」的原因，扩展侧绝对化不能省');
+
+      // ①-b 在规则集所在目录跑：相对路径能解析，check 通过
+      final relCwd = Process.runSync(
+          singbox, ['check', '-c', '${tmp.path}/config.json'],
+          workingDirectory: tmp.path,
+          environment: {'PATH': Platform.environment['PATH'] ?? ''});
+      expect(relCwd.exitCode, 0,
+          reason: '在正确 CWD 下相对路径是可用的: ${relCwd.stderr}');
+
+      // ② 模拟扩展侧绝对化：路径补全成临时目录下的绝对路径
+      final absCfg = Map<String, dynamic>.from(cfg);
+      final absRoute = Map<String, dynamic>.from(absCfg['route'] as Map);
+      absRoute['rule_set'] = [
+        for (final rs in sets)
+          {
+            ...Map<String, dynamic>.from(rs),
+            'path': '${tmp.path}/${rs['path']}',
+          }
+      ];
+      absCfg['route'] = absRoute;
+      File('${tmp.path}/config.absolute.json')
+          .writeAsStringSync(SingBoxConfigBuilder.encode(absCfg));
+      final absRun = Process.runSync(
+          singbox, ['check', '-c', '${tmp.path}/config.absolute.json'],
+          workingDirectory: Directory.systemTemp.path, // 故意不在规则集目录
+          environment: {'PATH': Platform.environment['PATH'] ?? ''});
+      expect(absRun.exitCode, 0,
+          reason: '绝对化后的配置必须被内核接受（扩展就是这么做的）: ${absRun.stderr}');
+
+      // ③ 规则集缺失时的降级：摘掉 rule_set 与引用它的规则，内核仍能起
+      final degraded = Map<String, dynamic>.from(cfg);
+      final degRoute = Map<String, dynamic>.from(degraded['route'] as Map);
+      degRoute.remove('rule_set');
+      degRoute['rules'] = [
+        for (final r in (degRoute['rules'] as List).cast<Map>())
+          if (r['rule_set'] == null) Map<String, dynamic>.from(r)
+      ];
+      degraded['route'] = degRoute;
+      File('${tmp.path}/config.degraded.json')
+          .writeAsStringSync(SingBoxConfigBuilder.encode(degraded));
+      final degRun = Process.runSync(
+          singbox, ['check', '-c', '${tmp.path}/config.degraded.json'],
+          environment: {'PATH': Platform.environment['PATH'] ?? ''});
+      expect(degRun.exitCode, 0,
+          reason: '降级配置必须被内核接受（规则集丢了也不能连不上）: ${degRun.stderr}');
+    } finally {
+      tmp.deleteSync(recursive: true);
+    }
+  }, timeout: const Timeout(Duration(seconds: 60)));
+
   test('真实内核 Clash API: mode 热切换 + 切节点（无内置 GLOBAL 组）', skip: skipMsg,
       () async {
     final nodes = [mkNode('vless', tag: 'n1'), mkNode('ss', tag: 'n2')];

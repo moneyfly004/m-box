@@ -407,12 +407,15 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             TunnelDiag.log("⚠ 取不到物理接口名（defaultPath.availableInterfaces 为空）"
                 + " → 内核出站不绑定接口，存在自环风险")
         }
-        TunnelDiag.log("内核关键配置: \(Self.summarizeConfig(effectiveConfig))")
-
         // 工作目录（可写）：扩展自己的 Application Support。
         let home = ensureHomeDir()
         TunnelDiag.log("homeDir=\(home)")
         seedGeoFiles(into: home)
+
+        // 规则集路径绝对化（关键：见 absolutizeRuleSetPaths 注释），
+        // 同时把内核日志落到工作目录，启动 FATAL 才有据可查。
+        effectiveConfig = Self.absolutizeRuleSetPaths(effectiveConfig, home: home)
+        TunnelDiag.log("内核关键配置: \(Self.summarizeConfig(effectiveConfig))")
 
         // 下发 tunnel 网络参数。
         // IPv4 用 fake-ip 网段 198.18.0.0/16（与生成配置里的
@@ -460,6 +463,14 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
                     // 先起日志抽取：内核的 Logs() 用的是独立锁，
                     // Start 卡住/失败期间也能读到启动日志（含它卡在哪一步）
                     self.startLogPump()
+                    // 兜底：内核里任何相对路径都按工作目录解析（配置里已绝对化，
+                    // 这条是给 cache.db 之类内部相对路径用的）
+                    if !FileManager.default.changeCurrentDirectoryPath(home) {
+                        TunnelDiag.log("⚠ 切换工作目录失败：\(home)（相对路径可能解析错）")
+                    }
+                    // kernel.log 每次启动清空：只保留本次启动的内核自述
+                    let kernelLog = (home as NSString).appendingPathComponent("kernel.log")
+                    try? "".write(toFile: kernelLog, atomically: false, encoding: .utf8)
                     TunnelDiag.log("调用内核前 RSS=\(Self.rssText())")
                     let t0 = Date()
                     try self.startEngine(home: home, json: effectiveConfig, fd: fd)
@@ -1104,6 +1115,73 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     /// 的内存上限只有几十 MB —— 真机表现就是内核刚起 200ms 就被系统杀掉，且日志一
     /// 行都没有。.mrs 是 zstd+可直接查表的格式（实测规则数 111021、堆 +2MB），
     /// 用 RULE-SET,cn 替代 GEOSITE,cn 后启动从 146ms/167MB 降到 15ms/50MB。
+    /// 把配置里的规则集路径改成**绝对路径**（指向扩展自己的工作目录），
+    /// 并把内核日志落到 `home/kernel.log`。
+    ///
+    /// 为什么必须绝对化：App 生成 iOS 配置时传的是相对文件名（`geosite-cn.srs`），
+    /// 而 sing-box 打开 rule-set 用的是**进程当前工作目录** —— NetworkExtension
+    /// 进程的 CWD 一般是 `/`，不是我们的工作目录。结果内核启动直接 FATAL
+    /// （`open geosite-cn.srs: no such file or directory`），真机表现就是
+    /// 「隧道一起来内核立刻退出、App 只看到内核启动超时」。
+    ///
+    /// 缺失的规则集不是让整份配置崩掉，而是**连同引用它的规则一起摘掉**：
+    /// 分流退化成全代理，但连接能起来（可用性优先）。
+    private static func absolutizeRuleSetPaths(_ json: String, home: String) -> String {
+        guard var root = (try? JSONSerialization.jsonObject(with: Data(json.utf8))) as? [String: Any],
+              var route = root["route"] as? [String: Any] else {
+            TunnelDiag.log("⚠ 配置解析失败，跳过规则集路径绝对化")
+            return json
+        }
+
+        var droppedTags = Set<String>()
+        if var sets = route["rule_set"] as? [[String: Any]] {
+            for i in sets.indices {
+                guard let tag = sets[i]["tag"] as? String,
+                      var path = sets[i]["path"] as? String, !path.isEmpty else { continue }
+                if !path.hasPrefix("/") {
+                    path = (home as NSString).appendingPathComponent(path)
+                }
+                let exists = FileManager.default.fileExists(atPath: path)
+                sets[i]["path"] = path
+                if !exists {
+                    droppedTags.insert(tag)
+                    TunnelDiag.log("⚠ rule-set 不存在，摘掉: \(path)")
+                } else {
+                    TunnelDiag.log("rule-set 绝对路径: \(path)")
+                }
+            }
+            if !droppedTags.isEmpty {
+                sets.removeAll { droppedTags.contains(($0["tag"] as? String) ?? "") }
+            }
+            route["rule_set"] = sets
+        }
+
+        if !droppedTags.isEmpty, var rules = route["rules"] as? [[String: Any]] {
+            let before = rules.count
+            rules.removeAll { rule in
+                guard let tags = rule["rule_set"] as? [String] else { return false }
+                return tags.contains(where: droppedTags.contains)
+            }
+            route["rules"] = rules
+            TunnelDiag.log("摘掉 \(before - rules.count) 条依赖缺失规则集的规则"
+                + "（分流降级为全代理，但内核能起来）")
+        }
+        root["route"] = route
+
+        // 内核自身的日志也落文件：libbox 的 CommandClient 日志通道在启动失败时
+        // 往往还没建立，只有文件里能看到内核报的错。
+        var logCfg = (root["log"] as? [String: Any]) ?? [:]
+        logCfg["output"] = (home as NSString).appendingPathComponent("kernel.log")
+        root["log"] = logCfg
+
+        guard let data = try? JSONSerialization.data(withJSONObject: root),
+              let text = String(data: data, encoding: .utf8) else {
+            TunnelDiag.log("⚠ 配置重新序列化失败，沿用原配置")
+            return json
+        }
+        return text
+    }
+
     private func seedGeoFiles(into home: String) {
         let fm = FileManager.default
         for name in ["geosite-cn.srs", "geoip-cn.srs"] {
