@@ -407,7 +407,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             TunnelDiag.log("⚠ 取不到物理接口名（defaultPath.availableInterfaces 为空）"
                 + " → 内核出站不绑定接口，存在自环风险")
         }
-        TunnelDiag.log("内核关键配置: \(Self.summarizeConfig(effectiveYaml))")
+        TunnelDiag.log("内核关键配置: \(Self.summarizeConfig(effectiveConfig))")
 
         // 工作目录（可写）：扩展自己的 Application Support。
         let home = ensureHomeDir()
