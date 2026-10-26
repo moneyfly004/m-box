@@ -296,17 +296,53 @@ class UpdateService {
     final assetName = (data['asset_name'] ?? '').toString().trim();
     if (version.isEmpty || assetName.isEmpty) return null;
     final size = (data['size_bytes'] as num?)?.toInt() ?? 0;
-    final url = (data['download_url'] ?? '').toString().trim();
-    if (url.isEmpty) return null; // 拿不到下载地址就没法更新，不如如实返回 null
+    final rawUrl = (data['download_url'] ?? '').toString().trim();
+    if (rawUrl.isEmpty) return null; // 拿不到下载地址就没法更新，不如如实返回 null
+    // 面板可能还配着**旧仓库/旧产物名**的地址（moneyfly004/moneyfly、MoneyFly-*）。
+    // 这里统一归一化到新仓库，避免把用户带回老 release。
+    final url = normalizeReleaseUrl(rawUrl);
+    final normalizedAsset = normalizeAssetName(assetName);
 
     return UpdateInfo(
       latestVersion: version,
       downloadUrl: url,
       sizeText: _sizeText(size),
-      assetName: assetName,
+      assetName: normalizedAsset,
       sha256: (data['sha256'] ?? '').toString().trim(),
       sizeBytes: size,
     );
+  }
+
+  /// 旧仓库 → 新仓库（moneyfly004/moneyfly → moneyfly004/m-box）
+  static const String legacyRepo = 'moneyfly004/moneyfly';
+
+  /// 把任意 release 地址归一化到当前仓库与产物命名。
+  ///
+  /// 为什么需要：面板（后端「软件下载配置」）里可能仍写着旧仓库地址或旧产物名
+  /// （MoneyFly-setup-x.y.z.exe / MoneyFly-macos-arm64-*.dmg）。不归一化的话，
+  /// 应用内「检查更新 → 下载」会把用户带到**老 release**（甚至 404）。
+  /// 只做纯字符串改写，非 GitHub 地址原样返回。
+  static String normalizeReleaseUrl(String url) {
+    var u = url.trim();
+    if (u.isEmpty) return u;
+    if (u.contains(legacyRepo)) {
+      u = u.replaceAll(legacyRepo, githubRepo);
+    }
+    // 旧产物名 → 新产物名（只改**文件名主体**，不动路径）
+    final slash = u.lastIndexOf('/');
+    if (slash >= 0) {
+      final head = u.substring(0, slash + 1);
+      final name = u.substring(slash + 1);
+      u = head + normalizeAssetName(name);
+    }
+    return u;
+  }
+
+  /// 旧产物名 → 新产物名（MoneyFly-* → MBox-*）
+  static String normalizeAssetName(String name) {
+    final n = name.trim();
+    if (n.startsWith('MoneyFly-')) return 'MBox-${n.substring('MoneyFly-'.length)}';
+    return n;
   }
 
   /// 本平台在面板「软件下载配置」里的键名（与后端同步目录的 ConfigKey 一致）
