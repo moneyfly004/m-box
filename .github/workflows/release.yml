@@ -499,7 +499,7 @@ jobs:
           # Gatekeeper 拦截，双击这个脚本即可清掉隔离属性
           cp scripts/fix_quarantine_macos.command "$STAGE/修复已损坏.command" && chmod +x "$STAGE/修复已损坏.command"
           codesign --force --deep -s - --entitlements macos/Runner/Release.entitlements "$STAGE/MBox.app"
-          hdiutil create -volname MBox -srcfolder "$STAGE" -ov -format UDZO "dist/MBox-macos-arm64-$V.dmg"
+          bash scripts/make_macos_dmg.sh "$STAGE" "dist/MBox-macos-arm64-$V.dmg"
           cd dist && shasum -a 256 MBox-macos-arm64-$V.dmg > SHA256SUMS-macos-arm64.txt
         env:
           INPUT_VERSION: ${{ github.event.inputs.version }}
@@ -566,7 +566,7 @@ jobs:
           # Gatekeeper 拦截，双击这个脚本即可清掉隔离属性
           cp scripts/fix_quarantine_macos.command "$STAGE/修复已损坏.command" && chmod +x "$STAGE/修复已损坏.command"
           codesign --force --deep -s - --entitlements macos/Runner/Release.entitlements "$STAGE/MBox.app"
-          hdiutil create -volname MBox -srcfolder "$STAGE" -ov -format UDZO "dist/MBox-macos-x64-$V.dmg"
+          bash scripts/make_macos_dmg.sh "$STAGE" "dist/MBox-macos-x64-$V.dmg"
           cd dist && shasum -a 256 MBox-macos-x64-$V.dmg > SHA256SUMS-macos-x64.txt
         env:
           INPUT_VERSION: ${{ github.event.inputs.version }}
@@ -646,7 +646,7 @@ jobs:
           # Gatekeeper 拦截，双击这个脚本即可清掉隔离属性
           cp scripts/fix_quarantine_macos.command "$STAGE/修复已损坏.command" && chmod +x "$STAGE/修复已损坏.command"
           codesign --force --deep -s - --entitlements macos/Runner/Release.entitlements "$STAGE/MBox.app"
-          hdiutil create -volname MBox -srcfolder "$STAGE" -ov -format UDZO "dist/MBox-macos-universal-$V.dmg"
+          bash scripts/make_macos_dmg.sh "$STAGE" "dist/MBox-macos-universal-$V.dmg"
           cd dist && shasum -a 256 MBox-macos-universal-$V.dmg > SHA256SUMS-macos-universal.txt
         env:
           INPUT_VERSION: ${{ github.event.inputs.version }}

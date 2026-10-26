@@ -9,18 +9,41 @@ plugins {
 
 // ---- 发布签名（CI / GitHub Actions） ----
 // 环境变量：KEYSTORE_BASE64（keystore 文件 base64）、KEYSTORE_PASSWORD、
-// KEY_ALIAS、KEY_PASSWORD。任一缺失则回退 debug 签名（仅限本地开发）。
+// KEY_ALIAS、KEY_PASSWORD。任一缺失**或为空**则回退 debug 签名（仅限本地开发）。
+//
+// 为什么必须判空而不是判 null：GitHub Actions 里未配置的 secret 注入进来是
+// **空字符串**，`System.getenv(...) != null` 依然成立 → 以前会把空 base64 解成
+// 0 字节写成 release.keystore → 内核签 APK 时报
+// 「Failed to read key from store: Tag number over 30 is not supported」，
+// 整个 assembleRelease / bundleRelease 直接失败。
+fun envOrNull(name: String): String? =
+    System.getenv(name)?.trim()?.takeIf { it.isNotEmpty() }
+
 val keystoreDir = file("keystore")
 val keystoreFile = file("keystore/release.keystore")
-val hasReleaseSigning = System.getenv("KEYSTORE_BASE64") != null &&
-    System.getenv("KEYSTORE_PASSWORD") != null &&
-    System.getenv("KEY_ALIAS") != null &&
-    System.getenv("KEY_PASSWORD") != null
+val releaseKeystoreBytes: ByteArray? = envOrNull("KEYSTORE_BASE64")?.let { b64 ->
+    try {
+        Base64.getDecoder().decode(b64)
+    } catch (e: IllegalArgumentException) {
+        println("KEYSTORE_BASE64 不是合法 base64（${e.message}），忽略发布签名")
+        null
+    }
+}
+val hasReleaseSigning = (releaseKeystoreBytes?.size ?: 0) > 1024 &&
+    envOrNull("KEYSTORE_PASSWORD") != null &&
+    envOrNull("KEY_ALIAS") != null &&
+    envOrNull("KEY_PASSWORD") != null
 if (hasReleaseSigning) {
     if (!keystoreFile.exists()) {
         keystoreDir.mkdirs()
-        keystoreFile.writeBytes(Base64.getDecoder().decode(System.getenv("KEYSTORE_BASE64")))
+        keystoreFile.writeBytes(releaseKeystoreBytes!!)
     }
+} else {
+    println(
+        "⚠️ 未提供有效的发布签名密钥（KEYSTORE_BASE64/KEYSTORE_PASSWORD/" +
+            "KEY_ALIAS/KEY_PASSWORD），本次构建回退 debug 签名 —— " +
+            "能装能测，但不能用于正式分发（用户无法覆盖升级）。"
+    )
 }
 
 android {
@@ -54,9 +77,9 @@ android {
         if (hasReleaseSigning) {
             create("release") {
                 storeFile = keystoreFile
-                storePassword = System.getenv("KEYSTORE_PASSWORD")
-                keyAlias = System.getenv("KEY_ALIAS")
-                keyPassword = System.getenv("KEY_PASSWORD")
+                storePassword = envOrNull("KEYSTORE_PASSWORD")
+                keyAlias = envOrNull("KEY_ALIAS")
+                keyPassword = envOrNull("KEY_PASSWORD")
             }
         }
     }
