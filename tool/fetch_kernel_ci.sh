@@ -27,7 +27,7 @@ TARGET="$DEST/$EXE"
 # ---- 1. 缓存命中判断：文件在 + 版本对得上 ----
 if [ -f "$TARGET" ]; then
   if "$TARGET" version 2>/dev/null | grep -q "version $VERSION"; then
-    echo "✓ 复用已缓存的内核：$TARGET（$("$TARGET" version 2>/dev/null | head -1)）"
+    echo "✓ 复用已缓存的内核：${TARGET}（$("${TARGET}" version 2>/dev/null | head -1)）"
     exit 0
   fi
   echo "缓存的内核版本不符，重新下载"
@@ -44,7 +44,7 @@ case "$ARCH" in
 esac
 URL="https://github.com/SagerNet/sing-box/releases/download/v$VERSION/$ASSET"
 
-echo "下载 $URL"
+echo "下载 ${URL}"
 ok=0
 for i in 1 2 3 4; do
   if curl -fL --retry 3 --retry-delay 3 --retry-all-errors --max-time 600 \
@@ -63,8 +63,8 @@ case "$ASSET" in
   *.tar.gz) mkdir -p "$TMP/x" && tar -xzf "$TMP/$ASSET" -C "$TMP/x" ;;
 esac
 FOUND="$(find "$TMP/x" -maxdepth 3 -type f -name "$EXE" | head -1)"
-[ -n "$FOUND" ] || { echo "错误: 解包后未找到 $EXE"; exit 1; }
+[ -n "$FOUND" ] || { echo "错误: 解包后未找到 ${EXE}"; exit 1; }
 cp "$FOUND" "$TARGET"
 chmod +x "$TARGET" 2>/dev/null || true
 "$TARGET" version
-echo "✓ 已就位 $TARGET"
+echo "✓ 已就位 ${TARGET}"
