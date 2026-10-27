@@ -444,17 +444,33 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         // fake-ip-range 198.18.0.1/16 一致）；DNS 指向 198.18.0.2，
         // 内核用 dns-hijack any:53 接管。
         let settings = NEPacketTunnelNetworkSettings(tunnelRemoteAddress: "127.0.0.1")
-        let ipv4 = NEIPv4Settings(addresses: ["198.18.0.1"], subnetMasks: ["255.255.0.0"])
+        // 接口地址/MTU **取自配置里的 tun inbound**，不能手写常量。
+        //
+        // 为什么（参考 Hiddify 的 ExtensionPlatformInterface.openTun）：它直接用
+        // libbox 给的 TunOptions（getInet4Address/getInet6Address/getMTU）去建
+        // NEPacketTunnelNetworkSettings。如果这里写死 198.18.0.1/16、而配置里
+        // tun.address 是 172.19.0.1/30，那么系统给应用分配的源地址与内核 gvisor
+        // 栈自认的地址就不一致 —— 内核起来了也转发不通（包被当成「非本机」丢掉）。
+        let tunSpec = Self.parseTunSpec(from: effectiveConfig)
+        TunnelDiag.log("tun 规格: v4=\(tunSpec.ipv4) v6=\(tunSpec.ipv6) mtu=\(tunSpec.mtu)")
+        let ipv4 = NEIPv4Settings(addresses: [tunSpec.ipv4Address],
+                                  subnetMasks: [tunSpec.ipv4Mask])
         ipv4.includedRoutes = [NEIPv4Route.default()]
         ipv4.excludedRoutes = Self.localExcludedRoutes
         settings.ipv4Settings = ipv4
+        if tunSpec.ipv6Address != nil, let prefix = tunSpec.ipv6Prefix {
+            let ipv6 = NEIPv6Settings(addresses: [tunSpec.ipv6Address!],
+                                      networkPrefixLengths: [NSNumber(value: prefix)])
+            ipv6.includedRoutes = [NEIPv6Route.default()]
+            settings.ipv6Settings = ipv6
+        }
         // matchDomains=[""] + noSearch：让**所有** DNS 查询都进隧道（否则系统可能
         // 走自己的解析器，fake-ip 就失效了）。参考 Hiddify 的 ExtensionProvider 设置。
         let dns = NEDNSSettings(servers: ["198.18.0.2"])
         dns.matchDomains = [""]
         dns.matchDomainsNoSearch = true
         settings.dnsSettings = dns
-        settings.mtu = 1500
+        settings.mtu = NSNumber(value: tunSpec.mtu)
 
         TunnelDiag.log("调用 setTunnelNetworkSettings …")
         setTunnelNetworkSettings(settings) { [weak self] error in
@@ -852,6 +868,61 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
                 TunnelDiag.log("△ 隧道自测无响应")
             }
         }.resume()
+    }
+
+    /// 从生成好的 sing-box 配置里取出 tun inbound 的地址与 MTU。
+    ///
+    /// 与 Hiddify 用 libbox 的 `TunOptions` 取值是同一个目的：让「系统侧接口参数」
+    /// 与「内核 gvisor 栈自认的参数」完全一致。缺省回退到 172.19.0.1/30（生成器
+    /// 的默认值），保证解析失败也不会让隧道起不来。
+    private struct TunSpec {
+        var ipv4Address: String
+        var ipv4Mask: String
+        var ipv4: String
+        var ipv6Address: String?
+        var ipv6Prefix: Int?
+        var ipv6: String
+        var mtu: Int
+    }
+
+    private static func parseTunSpec(from json: String) -> TunSpec {
+        var spec = TunSpec(ipv4Address: "172.19.0.1", ipv4Mask: "255.255.255.252",
+                           ipv4: "172.19.0.1/30", ipv6Address: nil, ipv6Prefix: nil,
+                           ipv6: "无", mtu: 1500)
+        guard let data = json.data(using: .utf8),
+              let root = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+              let inbounds = root["inbounds"] as? [[String: Any]] else { return spec }
+        guard let tun = inbounds.first(where: { ($0["type"] as? String) == "tun" }) else {
+            return spec
+        }
+        if let mtu = tun["mtu"] as? Int, mtu > 0 { spec.mtu = mtu }
+        let addrs = (tun["address"] as? [String]) ?? []
+        for addr in addrs {
+            let parts = addr.split(separator: "/")
+            guard parts.count == 2, let prefix = Int(parts[1]) else { continue }
+            let ip = String(parts[0])
+            if ip.contains(":") {
+                spec.ipv6Address = ip
+                spec.ipv6Prefix = prefix
+                spec.ipv6 = addr
+            } else if spec.ipv4 == "172.19.0.1/30" {   // 只取第一个 IPv4
+                spec.ipv4 = addr
+                spec.ipv4Address = ip
+                spec.ipv4Mask = Self.maskString(prefix: prefix)
+            }
+        }
+        return spec
+    }
+
+    private static func maskString(prefix: Int) -> String {
+        guard prefix > 0, prefix <= 32 else { return "0.0.0.0" }
+        var mask: UInt32 = prefix == 32 ? 0xFFFF_FFFF : (~UInt32(0) << (32 - UInt32(prefix)))
+        var octets: [String] = []
+        for _ in 0..<4 {
+            octets.append(String(mask >> 24))
+            mask = (mask << 8) & 0xFFFF_FFFF
+        }
+        return octets.joined(separator: ".")
     }
 
     /// 打印 fd 的 socket 类型（SOCK_DGRAM / SOCK_STREAM / 非 socket）。

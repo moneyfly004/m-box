@@ -1,1 +1,1 @@
-3aa3b99ea930ed4fa0ffdb605fe52f58cbd375acd59bb5b32668007b3957b073  MBox-ios-0.0.1.ipa
+8cebaeef9afab33c7830f64344d0e299a6990c2d8dbf1f9105341f82904e9dbe  MBox-ios-0.0.1.ipa

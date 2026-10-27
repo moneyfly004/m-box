@@ -15,6 +15,19 @@
 set -euo pipefail
 
 VERSION="${1:-1.14.4}"
+
+# 构建标签**必须**带官方那一套（release/DEFAULT_BUILD_TAGS）：
+# 少了 with_utls → 真机上 reality 节点直接报
+#   `initialize outbound[1]: uTLS, which is required by reality is not included
+#    in this build, rebuild with -tags with_utls`
+# 少了 with_gvisor → tun.stack=gvisor 不可用；少了 with_quic → hysteria2/tuic 不可用；
+# 少了 with_clash_api → 控制面（/version、切节点、测速）全废。
+# 注意：iOS 侧不能照搬 Android 的完整标签 ——
+#   with_naive_outbound → 依赖 sagernet/cronet-go，iOS 切片没有对应 cgo 库，
+#   实测编译直接失败（build constraints exclude all Go files in cronet-go/all）。
+# 这里只保留 MBox 真正用到、且纯 Go / 有 iOS 支持的能力。
+SINGBOX_TAGS="${SINGBOX_TAGS:-with_gvisor,with_quic,with_dhcp,with_wireguard,with_utls,with_acme,with_clash_api,with_ccm,with_ocm,with_openvpn,badlinkname,tfogo_checklinkname0}"
+
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DEST="$ROOT/ios"
 
@@ -50,13 +63,25 @@ if ! command -v gomobile >/dev/null || ! command -v gobind >/dev/null; then
   command -v gomobile >/dev/null || { echo "gomobile 安装失败"; exit 1; }
   gomobile init
 fi
-TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
-git clone --depth 1 --branch "v$VERSION" https://github.com/SagerNet/sing-box "$TMP/sing-box"
-cd "$TMP/sing-box"
+if [ -n "${SINGBOX_SRC:-}" ]; then
+  echo "使用本地源码: $SINGBOX_SRC"
+  cd "$SINGBOX_SRC"
+else
+  TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
+  git clone --depth 1 --branch "v$VERSION" https://github.com/SagerNet/sing-box "$TMP/sing-box"
+  cd "$TMP/sing-box"
+fi
 # Go 1.24+ 起 gomobile bind 要求 x/mobile 进入模块依赖图（tool 指令）
 go get -tool golang.org/x/mobile/cmd/gobind || go get golang.org/x/mobile/cmd/gomobile
 # -target=ios 产出 Libbox.xcframework（arm64 device + simulator 切片）
-gomobile bind -target=ios -o "$TMP/Libbox.xcframework" ./experimental/libbox
+# 版本号必须注入：不注入的话 LibboxVersion() 返回 unknown（日志里一直是「内核版本 unknown」）
+OUT_DIR="$(mktemp -d)"
+echo "构建标签: $SINGBOX_TAGS"
+gomobile bind -target=ios \
+  -tags "$SINGBOX_TAGS" \
+  -ldflags "-checklinkname=0 -X github.com/sagernet/sing-box/constant.Version=$VERSION" \
+  -o "$OUT_DIR/Libbox.xcframework" ./experimental/libbox
 rm -rf "$DEST/Libbox.xcframework"
-cp -R "$TMP/Libbox.xcframework" "$DEST/Libbox.xcframework"
+cp -R "$OUT_DIR/Libbox.xcframework" "$DEST/Libbox.xcframework"
+rm -rf "$OUT_DIR"
 echo "✓ 已生成 $DEST/Libbox.xcframework（$(du -sh "$DEST/Libbox.xcframework" | cut -f1)）"
