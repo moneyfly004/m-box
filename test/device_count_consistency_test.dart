@@ -43,6 +43,24 @@ Future<void> _pump(WidgetTester tester, Widget page) async {
   await tester.pump();
 }
 
+/// 等到某个文本出现（最多 5s）。
+///
+/// 为什么需要：页面是「挂载 → 异步强刷两个接口 → 重建」，固定 150ms 在高负载
+/// runner 上不够（CI 上两个测试组并行跑时实测偶发拿不到 `7/8`，本地必过）。
+/// 改成「轮询直到出现」，与机器快慢无关。
+Future<bool> _pumpUntil(WidgetTester tester, Finder finder,
+    {Duration timeout = const Duration(seconds: 5)}) async {
+  final deadline = DateTime.now().add(timeout);
+  while (DateTime.now().isBefore(deadline)) {
+    if (finder.evaluate().isNotEmpty) return true;
+    await tester.runAsync(() async {
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    });
+    await tester.pump();
+  }
+  return finder.evaluate().isNotEmpty;
+}
+
 Widget _wrap(Widget child) => MaterialApp(
       theme: buildMBoxTheme(),
       home: MultiProvider(
@@ -94,8 +112,8 @@ void main() {
     // 异步区，网络调用会永久挂住。页面自身在 _load 里就会强刷两个接口，
     // 由 _pump 的 runAsync 真实异步区完成。
     await _pump(tester, _wrap(const ProfilePage()));
-    expect(find.text('7/8'), findsWidgets,
-        reason: '我的页必须与首页显示同一组数字 7/8');
+    final appeared = await _pumpUntil(tester, find.text('7/8'));
+    expect(appeared, isTrue, reason: '我的页必须与首页显示同一组数字 7/8');
     expect(find.text('6/8'), findsNothing,
         reason: 'dashboard 的滞后数字不得展示（否则首页 7、我的 6）');
   });
