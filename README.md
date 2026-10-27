@@ -62,7 +62,7 @@ python3 tool/gen_app_icons_white.py     # 画稿 → 各平台图标 + assets/mb
 | `lib/core/services/kernel_manager.dart` | 内核版本检测 / 官方更新 / 热替换 / 回滚 |
 | `lib/core/proxy/geo_assets.dart` + `geo_update_service.dart` | `.srs` 规则集落盘与手动更新 |
 | `android/.../vpn/MBoxVpnService.kt` | Android `VpnService` + libbox（`PlatformInterface` / `CommandServer`） |
-| `ios/PacketTunnel/LibboxEngine.swift` | iOS `PlatformInterface` + 日志订阅 |
+| `ios/PacketTunnel/LibboxEngine.swift` | iOS 内核启动（6 段式：Setup → CommandServer → Start → API 自查 → 日志通道）+ 平台接口 |
 | `tool/fetch_singbox.sh` / `build_singbox_aar.sh` / `fetch_singbox_ios.sh` / `fetch_ruleset.sh` | 内核与规则集获取 |
 
 内核接入细节见 [`docs/kernel-singbox.md`](docs/kernel-singbox.md)。

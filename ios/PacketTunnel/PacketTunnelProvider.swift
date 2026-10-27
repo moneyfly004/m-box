@@ -481,7 +481,8 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
                     let fd = acquired.fd
                     self.bridge = acquired.bridge
                     TunnelDiag.log("取得隧道 fd=\(fd)"
-                        + (acquired.bridge == nil ? "（直连）" : "（用户态桥）"))
+                        + (acquired.bridge == nil ? "（直连）" : "（用户态桥）")
+                        + " 类型=\(Self.socketTypeDescription(fd))")
                     // 先起日志抽取：内核的 Logs() 用的是独立锁，
                     // Start 卡住/失败期间也能读到启动日志（含它卡在哪一步）
                     self.startLogPump()
@@ -495,11 +496,16 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
                     try? "".write(toFile: kernelLog, atomically: false, encoding: .utf8)
                     TunnelDiag.log("调用内核前 RSS=\(Self.rssText())")
                     let t0 = Date()
-                    try self.startEngine(home: home, json: effectiveConfig, fd: fd)
+                    try self.startEngine(home: home, json: effectiveConfig, fd: fd,
+                                         apiPort: apiPortValue)
                     TunnelDiag.log("✓ 内核启动完成（耗时 "
                         + "\(Int(Date().timeIntervalSince(t0) * 1000))ms）RSS=\(Self.rssText())")
                     // 内核已按配置起好（出站绑定已在解析阶段生效）→ 放行数据包
                     self.bridge?.openGate()
+                    // 放行后做一次真实 HTTPS 自测：这条请求会走系统默认路由
+                    // → 进我们自己的 TUN → 由内核出站到代理节点。成功即证明
+                    // 「TUN + 路由 + 出站」整条链路在转发（不只是进程活着）。
+                    self.probeThroughTunnel()
                     self.probeApi(port: apiPortValue)
                     self.startPathWatch()
                 } catch {
@@ -803,9 +809,52 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
 
     override func wake() {}
 
+    /// 端到端自测：隧道放行后从扩展里发一个真实 HTTPS 请求。
+    ///
+    /// 为什么放在扩展里：App 侧的就绪判定只看 Clash API（内核活着）。
+    /// 但真机上出现过「内核活着、API 正常、却因为 TUN/路由问题转发不通」——
+    /// 那条路径 App 侧表现为「连上了但没网」。这里直接打一次外网，
+    /// 把结论写进诊断轨迹（失败不致命，只做记录）。
+    private func probeThroughTunnel() {
+        guard let url = URL(string: "https://www.gstatic.com/generate_204") else { return }
+        var req = URLRequest(url: url)
+        req.timeoutInterval = 8
+        req.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+        URLSession.shared.dataTask(with: req) { _, resp, err in
+            if let e = err {
+                TunnelDiag.log("△ 隧道自测失败（不影响内核运行）: \(e.localizedDescription)")
+                return
+            }
+            if let http = resp as? HTTPURLResponse {
+                TunnelDiag.log("✓ 隧道自测通过（HTTP \(http.statusCode)）—— TUN 与出站都在转发")
+            } else {
+                TunnelDiag.log("△ 隧道自测无响应")
+            }
+        }.resume()
+    }
+
+    /// 打印 fd 的 socket 类型（SOCK_DGRAM / SOCK_STREAM / 非 socket）。
+    ///
+    /// 为什么要打：gVisor 的 fdbased 端点要求 fd 是**数据报**语义（一个 recvmsg
+    /// 一个包）。真机排查「内核起来了但流量不通」时，这条信息能立刻排除
+    /// 「fd 类型不对」这一类原因。
+    private static func socketTypeDescription(_ fd: Int32) -> String {
+        guard fd >= 0 else { return "fd<0" }
+        var type: Int32 = 0
+        var len = socklen_t(MemoryLayout<Int32>.size)
+        let rc = getsockopt(fd, SOL_SOCKET, SO_TYPE, &type, &len)
+        guard rc == 0 else { return "非 socket（getsockopt errno=\(errno)）" }
+        switch type {
+        case SOCK_DGRAM: return "SOCK_DGRAM"
+        case SOCK_STREAM: return "SOCK_STREAM"
+        case SOCK_RAW: return "SOCK_RAW"
+        default: return "type=\(type)"
+        }
+    }
+
     // MARK: - 内核
 
-    private func startEngine(home: String, json: String, fd: Int32) throws {
+    private func startEngine(home: String, json: String, fd: Int32, apiPort: Int) throws {
         #if canImport(Libbox)
         let engine = MBoxLibboxEngine()
         engine.setTunnelFd(fd)
@@ -815,7 +864,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         TunnelDiag.log("调用 libbox 启动内核（内核版本 \(MBoxLibboxEngine.version())）…")
         let began = Date()
         do {
-            try engine.start(home: home, configContent: json)
+            try engine.start(home: home, configContent: json, apiPort: apiPort)
         } catch {
             let cost = Int(Date().timeIntervalSince(began) * 1000)
             TunnelDiag.log("✗ libbox 启动失败（\(cost)ms）: \(error.localizedDescription)")

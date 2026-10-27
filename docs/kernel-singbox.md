@@ -76,7 +76,16 @@ Dart 侧控制面（`proxy_core.dart`）因此只做两件事：模式值用 `Ru
 - 启动失败分类（跨用户 / VPN 未授权 / 应用缺失）保持不变
 
 **iOS（`PacketTunnel` 扩展）**
-- 内核走 libbox：`LibboxSetup` → `CommandServer` → `startOrReloadService(config)`
+- 内核走 libbox，启动顺序固定为 6 段（每段都有日志，失败即止损）：
+  1. `LibboxSetup`（`basePath` 取扩展容器根；命令服务优先 **TCP 127.0.0.1 随机端口**，
+     失败才退回 unix socket —— unix 路径受 Darwin `sun_path` 104B 限制）
+  2. `NewCommandServer`
+  3. `server.start()`（命令服务监听）
+  4. `startOrReloadService(config)`（**先起服务再连日志客户端**：反了会得到
+     `get default log level: rpc error ... invalid argument`）
+  5. 扩展内自查 `127.0.0.1:<apiPort>/version`（拿到任何 HTTP 响应即核心已起）
+  6. 连 `CommandClient` 取日志；放行 TUN 数据后打一次真实 HTTPS 自测
+     （验证「TUN + 路由 + 出站」整条链路在转发）
 - TUN 是「socketpair 用户态桥 + `stack: gvisor`」（iOS 16.4+ 拿不到 utun fd）
 - 防自环：`route.auto_detect_interface=false` + `route.default_interface=<物理网卡>`
 - 规则集随 appex bundle 分发，扩展启动时复制进自己的工作目录

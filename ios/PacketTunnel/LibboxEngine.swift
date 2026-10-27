@@ -87,7 +87,7 @@ final class MBoxLibboxEngine {
     }
 
     /// 启动内核：configContent 是 sing-box JSON，home 是扩展可写目录。
-    func start(home: String, configContent: String) throws {
+    func start(home: String, configContent: String, apiPort: Int = 0) throws {
         platform.logger = { TunnelDiag.log($0) }
         serverHandler.logger = { TunnelDiag.log("[app] \($0)") }
         serverHandler.onStop = { TunnelDiag.log("[app] 内核请求停止服务") }
@@ -116,17 +116,18 @@ final class MBoxLibboxEngine {
             throw err ?? NSError(domain: "mbox", code: -2,
                                  userInfo: [NSLocalizedDescriptionKey: "LibboxSetup 失败"])
         }
-        TunnelDiag.log("LibboxSetup ok（内核 \(MBoxLibboxEngine.version())）")
+        TunnelDiag.log("✓ [1/6] LibboxSetup ok（内核 \(MBoxLibboxEngine.version())）")
 
         guard let server = LibboxNewCommandServer(serverHandler, platform, &err) else {
             throw err ?? NSError(domain: "mbox", code: -3,
                                  userInfo: [NSLocalizedDescriptionKey: "CommandServer 创建失败"])
         }
         self.server = server
+        TunnelDiag.log("✓ [2/6] CommandServer 已创建（传输=\(cmdPort == 0 ? "unix" : "tcp")）")
         let tServer = Date()
         do {
             try server.start()
-            TunnelDiag.log("✓ 命令服务已启动（\(Int(Date().timeIntervalSince(tServer) * 1000))ms）")
+            TunnelDiag.log("✓ [3/6] 命令服务已启动（\(Int(Date().timeIntervalSince(tServer) * 1000))ms）")
         } catch {
             let firstError = error
             TunnelDiag.log("✗ 命令服务启动失败: \(error.localizedDescription)")
@@ -143,24 +144,15 @@ final class MBoxLibboxEngine {
             }
             self.server = server2
             try server2.start()
-            TunnelDiag.log("✓ 命令服务已启动（unix socket 兜底）")
+            TunnelDiag.log("✓ [3/6] 命令服务已启动（unix socket 兜底）")
         }
 
-        // 日志通道：CommandClient + CommandLog（失败不影响内核运行）
-        let clientOptions = LibboxCommandClientOptions()
-        clientOptions.addCommand(LibboxCommandLog)
-        if let client = LibboxNewCommandClient(clientHandler, clientOptions) {
-            do {
-                try client.connect()
-                self.client = client
-            } catch {
-                TunnelDiag.log("日志通道连接失败: \(error.localizedDescription)")
-            }
-        }
-
-        // 阻塞直到配置解析完成/失败。这里必须带看门狗：
-        // 真机上出现过「内核 Start 一直不返回 → App 侧只看到内核启动超时」，
-        // 没有返回就等于没有任何线索。10s 不返回就主动取证并失败。
+        // ---- [4/6] 真正启动内核（先服务、后日志客户端，顺序不能颠倒）----
+        //
+        // 踩过的坑：以前是「先连 CommandClient、再 startOrReloadService」，
+        // 真机日志里就出现 `get default log level: rpc error: code = Unknown
+        // desc = invalid argument` —— 服务还没起来，客户端就去查默认日志级别。
+        // 官方用法（SFI）也是先起服务再连客户端，这里按同样顺序。
         let tStart = Date()
         var startError: Error?
         let done = DispatchSemaphore(value: 0)
@@ -172,23 +164,88 @@ final class MBoxLibboxEngine {
             }
             done.signal()
         }
-        let waited = done.wait(timeout: .now() + .seconds(10))
+        let waited = done.wait(timeout: .now() + .seconds(15))
         let elapsed = Int(Date().timeIntervalSince(tStart) * 1000)
         if waited == .timedOut {
-            TunnelDiag.log("✗ 内核 Start 10s 未返回（卡在启动阶段）")
+            TunnelDiag.log("✗ [4/6] 内核 Start 15s 未返回（卡在启动阶段）")
             TunnelDiag.dumpKernelLogTail(home: home)
+            stop()
             throw NSError(domain: "mbox", code: -5, userInfo: [
                 NSLocalizedDescriptionKey:
-                    "内核启动超时（Start 10s 未返回）。诊断：\(TunnelDiag.kernelLogTail(home: home))"
+                    "内核启动超时（Start 15s 未返回）。诊断：\(TunnelDiag.kernelLogTail(home: home))"
             ])
         }
         if let startError {
-            TunnelDiag.log("✗ startOrReloadService 抛错（\(elapsed)ms）: "
+            TunnelDiag.log("✗ [4/6] startOrReloadService 抛错（\(elapsed)ms）: "
                 + "\(startError.localizedDescription)")
             TunnelDiag.dumpKernelLogTail(home: home)
+            stop()
             throw startError
         }
-        TunnelDiag.log("✓ startOrReloadService 返回（\(elapsed)ms），内核已启动")
+        TunnelDiag.log("✓ [4/6] startOrReloadService 返回（\(elapsed)ms）")
+
+        // ---- [5/6] 自查内核是否**真的在监听** Clash API ----
+        //
+        // 「Start 返回了」不等于「内核能转发」：真机上出现过 Start 正常返回、
+        // 但 tun/dns 初始化有问题导致 API 一直不可用，最后 App 侧只看到
+        // 「内核启动超时」。这里在扩展内自己探一次 /version（回环，不需要
+        // 隧道），给出一条明确结论。
+        let (coreUp, coreDetail) = probeCoreAPI(port: apiPort)
+        if coreUp {
+            TunnelDiag.log("✓ [5/6] 内核 API 就绪（\(coreDetail)）")
+        } else {
+            TunnelDiag.log("✗ [5/6] 内核 API 不可用（\(coreDetail)）—— 内核可能已起但监听失败")
+            TunnelDiag.dumpKernelLogTail(home: home)
+        }
+
+        // ---- [6/6] 日志通道（放到最后：服务起来之后才连得上）----
+        let clientOptions = LibboxCommandClientOptions()
+        clientOptions.addCommand(LibboxCommandLog)
+        if let client = LibboxNewCommandClient(clientHandler, clientOptions) {
+            do {
+                try client.connect()
+                self.client = client
+                TunnelDiag.log("✓ [6/6] 日志通道已连接")
+            } catch {
+                // 日志通道失败不影响内核运行（诊断仍能从 kernel.log 拿到）
+                TunnelDiag.log("日志通道连接失败: \(error.localizedDescription)")
+            }
+        }
+
+        guard coreUp else {
+            stop()
+            throw NSError(domain: "mbox", code: -6, userInfo: [
+                NSLocalizedDescriptionKey:
+                    "内核已启动但 API 不可用（\(coreDetail)）。诊断：\(TunnelDiag.kernelLogTail(home: home))"
+            ])
+        }
+    }
+
+    /// 扩展内自查内核 Clash API（127.0.0.1:<port>/version）。
+    ///
+    /// 判定：拿到 HTTP 响应（含 401/403 —— secret 不一致只影响热切换/测速）
+    /// 就算内核活着；连不上/超时才算失败。
+    private func probeCoreAPI(port: Int, timeout: TimeInterval = 6) -> (Bool, String) {
+        guard port > 0, let url = URL(string: "http://127.0.0.1:\(port)/version") else {
+            return (false, "apiPort=\(port) 无效")
+        }
+        let sem = DispatchSemaphore(value: 0)
+        var code = 0
+        var note = "无响应"
+        var req = URLRequest(url: url)
+        req.timeoutInterval = timeout
+        URLSession.shared.dataTask(with: req) { _, resp, error in
+            if let e = error { note = e.localizedDescription }
+            if let http = resp as? HTTPURLResponse {
+                code = http.statusCode
+                note = "HTTP \(code)"
+            }
+            sem.signal()
+        }.resume()
+        if sem.wait(timeout: .now() + timeout + 1) == .timedOut {
+            return (false, "自查超时（\(Int(timeout))s）")
+        }
+        return (code > 0 && code < 500, note)
     }
 
     func reload(configContent: String) throws {
