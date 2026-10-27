@@ -639,13 +639,76 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
 
     /// 内核出站要绑定的**物理**接口名（en0 / pdp_ip0 …）。
     /// 先看 Network.framework 当前路径，再用 getifaddrs 兜底。
-    static func pickPhysicalInterface() -> String? {
+    /// 挑「真正在用的物理出口」接口名（内核出站绑这个，防自环）。
+    ///
+    /// 旧实现直接读 `NWPathMonitor().currentPath.availableInterfaces.first`：
+    /// 那个 monitor 刚创建、还没收到第一次 path update，`currentPath` 往往是
+    /// 初始值（在双卡 + Wi-Fi 的机器上常见是 `pdp_ip0` 排在第一位）。真机日志里就是
+    /// `物理出口接口=pdp_ip0` —— 而当时设备走的是 Wi-Fi（en0）。内核出站被绑到
+    /// 蜂窝口后，所有出站连接都没有可用路由 → **连上了但一条流量都没有**。
+    ///
+    /// 现在：等 path 变成 satisfied，再按「path 声称在用的类型」挑同名接口。
+    static func pickPhysicalInterface(timeout: TimeInterval = 1.5) -> String? {
         let monitor = NWPathMonitor()
-        let fromPath = monitor.currentPath.availableInterfaces
-            .map(\.name)
-            .first { !isVirtualInterface($0) }
-        monitor.cancel()
-        return fromPath ?? interfaceCandidates().first
+        let queue = DispatchQueue(label: "top.mbox.path.pick")
+        monitor.start(queue: queue)
+        defer { monitor.cancel() }
+
+        let deadline = Date().addingTimeInterval(timeout)
+        var result: String?
+        while Date() < deadline {
+            let path = monitor.currentPath
+            if path.status == .satisfied {
+                let candidates = path.availableInterfaces.filter { !isVirtualInterface($0.name) }
+                let wanted: NWInterface.InterfaceType? =
+                    path.usesInterfaceType(.wifi) ? .wifi
+                    : path.usesInterfaceType(.cellular) ? .cellular
+                    : path.usesInterfaceType(.wiredEthernet) ? .wiredEthernet
+                    : nil
+                if let wanted, let hit = candidates.first(where: { $0.type == wanted }) {
+                    result = hit.name
+                    break
+                }
+                if let first = candidates.first {
+                    result = first.name
+                    break
+                }
+            }
+            Thread.sleep(forTimeInterval: 0.05)
+        }
+
+        // NWPath.status / NWInterface.InterfaceType 都没有 rawValue：
+        // 用独立变量拼日志，避免编译器在长表达式上超时。
+        let path = monitor.currentPath
+        let statusText: String
+        switch path.status {
+        case .satisfied:     statusText = "satisfied"
+        case .unsatisfied:   statusText = "unsatisfied"
+        case .requiresConnection: statusText = "requiresConnection"
+        @unknown default:    statusText = "unknown"
+        }
+        let typeText: (NWInterface) -> String = { iface in
+            switch iface.type {
+            case .wifi:           return "\(iface.name):wifi"
+            case .cellular:       return "\(iface.name):cellular"
+            case .wiredEthernet:  return "\(iface.name):wired"
+            case .loopback:       return "\(iface.name):loopback"
+            case .other:          return "\(iface.name):other"
+            @unknown default:     return iface.name
+            }
+        }
+        let names = path.availableInterfaces.map(typeText).joined(separator: ",")
+        let onWifi = path.usesInterfaceType(.wifi)
+        let onCell = path.usesInterfaceType(.cellular)
+        TunnelDiag.log("物理路径: status=\(statusText) wifi=\(onWifi) cellular=\(onCell)"
+            + " 候选=[\(names)] → 选中=\(result ?? "无")")
+
+        if let result { return result }
+        let fallback = interfaceCandidates().first
+        if fallback != nil {
+            TunnelDiag.log("⚠ 没等到 satisfied path，退回候选表第一个: \(fallback!)")
+        }
+        return fallback
     }
 
     /// 把内核出站钉在物理接口上（sing-box JSON 版）。
