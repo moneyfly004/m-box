@@ -466,7 +466,9 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         }
         // matchDomains=[""] + noSearch：让**所有** DNS 查询都进隧道（否则系统可能
         // 走自己的解析器，fake-ip 就失效了）。参考 Hiddify 的 ExtensionProvider 设置。
-        let dns = NEDNSSettings(servers: ["198.18.0.2"])
+        // 服务器地址**不能用 fake-ip 段内的地址**（见 parseTunSpec 里的排查记录）。
+        TunnelDiag.log("系统 DNS 下发: \(tunSpec.dnsServers.joined(separator: ","))")
+        let dns = NEDNSSettings(servers: tunSpec.dnsServers)
         dns.matchDomains = [""]
         dns.matchDomainsNoSearch = true
         settings.dnsSettings = dns
@@ -946,12 +948,14 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         var ipv6Prefix: Int?
         var ipv6: String
         var mtu: Int
+        /// 下发给系统的 DNS 服务器地址（**必须落在 fake-ip 段之外**）
+        var dnsServers: [String]
     }
 
     private static func parseTunSpec(from json: String) -> TunSpec {
         var spec = TunSpec(ipv4Address: "172.19.0.1", ipv4Mask: "255.255.255.252",
                            ipv4: "172.19.0.1/30", ipv6Address: nil, ipv6Prefix: nil,
-                           ipv6: "无", mtu: 1500)
+                           ipv6: "无", mtu: 1500, dnsServers: ["223.5.5.5"])
         guard let data = json.data(using: .utf8),
               let root = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
               let inbounds = root["inbounds"] as? [[String: Any]] else { return spec }
@@ -959,6 +963,26 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             return spec
         }
         if let mtu = tun["mtu"] as? Int, mtu > 0 { spec.mtu = mtu }
+        // 系统 DNS 用配置里**真实的上游解析器**（跳过 fakeip / local）：
+        // 排查记录 —— 之前下发 198.18.0.2，而 fake-ip 段是 198.18.0.0/15，
+        // 内核把「发往 198.18.0.2:53 的 DNS 包」当成 fake-ip 目标去查映射，
+        // 查到没有就报 `router: missing fakeip record, try enable
+        // experimental.cache_file`，DNS 永远解析不成功 → 连上但打不开网页。
+        if let dns = root["dns"] as? [String: Any],
+           let dnsServers = dns["servers"] as? [[String: Any]] {
+            var real: [String] = []
+            for srv in dnsServers {
+                let type = (srv["type"] as? String) ?? "udp"
+                if type == "fakeip" || type == "local" { continue }
+                guard let host = srv["server"] as? String, !host.isEmpty else { continue }
+                // 只要 IP 字面量（域名型 DoH 不能当系统 DNS 用）
+                let ip = host.split(separator: ":").first.map(String.init) ?? host
+                let isIP = ip.contains(".") ? ip.split(separator: ".").count == 4 : ip.contains(":")
+                if isIP { real.append(ip) }
+            }
+            if !real.isEmpty { spec.dnsServers = real }
+        }
+
         let addrs = (tun["address"] as? [String]) ?? []
         for addr in addrs {
             let parts = addr.split(separator: "/")
