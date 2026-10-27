@@ -161,10 +161,19 @@ final class MBoxLibboxEngine {
         // 官方用法（SFI）也是先起服务再连客户端，这里按同样顺序。
         let tStart = Date()
         var startError: Error?
+        // ⚠️ options 绝对不能传 nil：sing-box 1.14.4 的
+        // libbox.CommandServer.StartOrReloadService 第一行就无条件解引用
+        // options.AutoRedirect / options.IncludePackage（command_server.go:203），
+        // 传 nil 直接空指针崩溃 —— 真机日志就是
+        // `SIGSEGV ... libbox.(*CommandServer).StartOrReloadService ... command_server.go:204`，
+        // 扩展瞬间被杀，App 只看到「内核启动超时」。默认值（不重定向、不按应用分流）
+        // 正好就是我们要的语义。
+        let overrideOptions = LibboxOverrideOptions()
+        overrideOptions.autoRedirect = false
         let done = DispatchSemaphore(value: 0)
         DispatchQueue.global(qos: .userInitiated).async {
             do {
-                try server.startOrReloadService(configContent, options: nil)
+                try server.startOrReloadService(configContent, options: overrideOptions)
             } catch {
                 startError = error
             }
@@ -255,7 +264,9 @@ final class MBoxLibboxEngine {
     }
 
     func reload(configContent: String) throws {
-        try server?.startOrReloadService(configContent, options: nil)
+        let overrideOptions = LibboxOverrideOptions()
+        overrideOptions.autoRedirect = false
+        try server?.startOrReloadService(configContent, options: overrideOptions)
     }
 
     func stop() {
