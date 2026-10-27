@@ -18,8 +18,18 @@ NS_ASSUME_NONNULL_BEGIN
 /// 平台接口实现：内核要建 TUN 时把 `tunnelFd` 交回去。
 @interface MBoxPlatformImpl : NSObject <LibboxPlatformInterface>
 
-/// 隧道 fd（socketpair 用户态桥的一端），由扩展在启动前设置。
+/// 启动前准备好的隧道 fd（socketpair 用户态桥的一端）。
 @property (nonatomic, assign) int32_t tunnelFd;
+
+/// 「此刻」再取一次真实 utun fd 的钩子（返回 <=2 表示拿不到）。
+///
+/// 为什么要在 openTun 这一刻再取：`packetFlow` 的内部 socket 只有在
+/// `setTunnelNetworkSettings` 生效之后才存在，启动前那次探测往往拿不到。
+/// 参考 Hiddify / SFI 的实现，它们也是在 openTun 里先试
+/// `packetFlow.value(forKeyPath: "socket.fileDescriptor")`、再退
+/// `LibboxGetTunnelFileDescriptor()`。拿到真实 utun fd 比用户态桥少一次拷贝、
+/// 也不用自己维护双向泵，稳定性更好。
+@property (nonatomic, copy, nullable) int32_t (^fdResolver)(void);
 
 /// 诊断日志回调（由扩展注入，避免 ObjC 侧直接依赖 Swift 的 TunnelDiag）。
 @property (nonatomic, copy, nullable) void (^logger)(NSString *message);

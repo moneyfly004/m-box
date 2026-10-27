@@ -7,17 +7,46 @@ static NSError *MBoxError(NSString *message) {
 
 @implementation MBoxPlatformImpl
 
+// libbox 里维护的 tunnel fd（Hiddify / SFI 同款兜底路径）
+extern int32_t LibboxGetTunnelFileDescriptor(void);
+
 - (BOOL)openTun:(id<LibboxTunOptions>)options
          ret0_:(int32_t *)ret0_
           error:(NSError **)error {
-    if (self.tunnelFd < 0) {
-        if (error) *error = MBoxError(@"openTun: 还没有隧道 fd");
+    // 取 fd 的优先级（越靠前越「真」）：
+    //   1) libbox 自己记录的 tunnel fd
+    //   2) 扩展在**这一刻**再 KVC 一次 packetFlow.socket.fileDescriptor
+    //      （设置已下发，此时才存在）
+    //   3) 启动前准备好的 fd（socketpair 用户态桥）
+    int32_t fd = -1;
+    NSString *source = nil;
+
+    int32_t fromLibbox = LibboxGetTunnelFileDescriptor();
+    if (fromLibbox > 2) {
+        fd = fromLibbox;
+        source = @"libbox";
+    }
+    if (fd <= 2 && self.fdResolver) {
+        int32_t kvc = self.fdResolver();
+        if (kvc > 2) {
+            fd = kvc;
+            source = @"kvc@openTun";
+        }
+    }
+    if (fd <= 2) {
+        fd = self.tunnelFd;
+        source = @"用户态桥";
+    }
+    if (fd <= 2) {
+        if (error) *error = MBoxError(@"openTun: 拿不到可用的隧道 fd");
         return NO;
     }
-    if (ret0_) *ret0_ = self.tunnelFd;
+
+    if (ret0_) *ret0_ = fd;
     if (self.logger) {
-        self.logger([NSString stringWithFormat:@"openTun: 交出 fd=%d mtu=%d autoRoute=%d",
-                     self.tunnelFd, [options getMTU], [options getAutoRoute] ? 1 : 0]);
+        self.logger([NSString stringWithFormat:
+            @"openTun: 交出 fd=%d（来源=%@）mtu=%d autoRoute=%d",
+            fd, source, [options getMTU], [options getAutoRoute] ? 1 : 0]);
     }
     return YES;
 }

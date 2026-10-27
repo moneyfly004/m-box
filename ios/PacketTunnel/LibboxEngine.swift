@@ -22,6 +22,12 @@ final class MBoxLibboxEngine {
     func setTunnelFd(_ fd: Int32) { platform.tunnelFd = fd }
 
     /// 物理出口接口（仅用于日志；防自环靠配置里的 route.default_interface）
+    /// 注入「openTun 时刻再取一次真实 utun fd」的钩子（返回 <=2 表示拿不到）。
+    /// 实现由扩展提供（它能访问 packetFlow / 用户态桥）。
+    func setFdResolver(_ resolver: @escaping () -> Int32) {
+        platform.fdResolver = resolver
+    }
+
     func setPhysicalInterface(_ name: String?) {
         if let name { TunnelDiag.log("物理出口接口=\(name)") }
     }

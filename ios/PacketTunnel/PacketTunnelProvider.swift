@@ -448,7 +448,12 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         ipv4.includedRoutes = [NEIPv4Route.default()]
         ipv4.excludedRoutes = Self.localExcludedRoutes
         settings.ipv4Settings = ipv4
-        settings.dnsSettings = NEDNSSettings(servers: ["198.18.0.2"])
+        // matchDomains=[""] + noSearch：让**所有** DNS 查询都进隧道（否则系统可能
+        // 走自己的解析器，fake-ip 就失效了）。参考 Hiddify 的 ExtensionProvider 设置。
+        let dns = NEDNSSettings(servers: ["198.18.0.2"])
+        dns.matchDomains = [""]
+        dns.matchDomainsNoSearch = true
+        settings.dnsSettings = dns
         settings.mtu = 1500
 
         TunnelDiag.log("调用 setTunnelNetworkSettings …")
@@ -809,6 +814,22 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
 
     override func wake() {}
 
+    /// openTun 时刻再取一次「真实 utun fd」。
+    ///
+    /// 返回 >2 表示拿到了：此时内核直接读写系统 utun，用户态桥立刻停掉
+    /// （否则两个 reader 抢同一个 packetFlow，包会丢）。
+    /// 返回 -1 表示拿不到，让平台接口继续用启动前准备好的桥 fd。
+    private func resolveRealTunnelFdNow() -> Int32 {
+        guard let hit = probeTunnelFd() else {
+            TunnelDiag.log("openTun 时刻仍取不到真实 utun fd（来源探测全部为空）")
+            return -1
+        }
+        TunnelDiag.log("✓ openTun 时刻拿到真实 utun fd=\(hit.fd)（来源=\(hit.source)）→ 停用用户态桥")
+        bridge?.stop()
+        bridge = nil
+        return hit.fd
+    }
+
     /// 端到端自测：隧道放行后从扩展里发一个真实 HTTPS 请求。
     ///
     /// 为什么放在扩展里：App 侧的就绪判定只看 Clash API（内核活着）。
@@ -858,6 +879,9 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         #if canImport(Libbox)
         let engine = MBoxLibboxEngine()
         engine.setTunnelFd(fd)
+        // openTun 那一刻再试一次真实 utun fd：拿到就用它、并停掉用户态桥
+        // （两个 reader 同时读 packetFlow 会互相抢包）。
+        engine.setFdResolver { [weak self] in self?.resolveRealTunnelFdNow() ?? -1 }
         engine.setPhysicalInterface(boundInterface)
         self.engine = engine
         self.tunnelFd = fd
