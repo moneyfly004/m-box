@@ -7,6 +7,7 @@ import '../../core/api/api_client.dart';
 import '../../core/api/server_pool.dart';
 import '../../core/proxy/proxy_core.dart';
 import '../../core/services/account_service.dart';
+import '../../core/platform/elevation.dart';
 import '../../core/services/app_log.dart';
 import '../../core/services/autostart.dart';
 import '../../core/services/crash_logger.dart';
@@ -18,6 +19,7 @@ import '../../l10n/app_strings.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/theme_controller.dart';
 import '../../widgets/mf_input.dart';
+import '../../widgets/tun_elevation_dialog.dart';
 import '../../widgets/mf_row.dart';
 import '../auth/change_password_page.dart';
 import '../devices/devices_page.dart';
@@ -1288,6 +1290,24 @@ class _SettingsPageState extends State<SettingsPage> {
     );
     if (v != null) {
       final mode = v == AppStrings.t('tun_force') ? 'force' : (v == AppStrings.t('tun_off') ? 'off' : 'auto');
+      // 「强制 TUN」在桌面端要管理员/root；未提权就落盘会让用户下一次连接直接
+      // 撞上「内核立即退出（Access is denied / operation not permitted）」。
+      if (mode == 'force' &&
+          (Platform.isWindows || Platform.isMacOS) &&
+          !Elevation.isElevated) {
+        if (!mounted) return;
+        final outcome = await requestTunElevation(context);
+        if (outcome == TunElevationOutcome.cancelled) {
+          _toast(AppStrings.t('tun_admin_cancelled', {'mode': _tunModeValue()}));
+          return;
+        }
+        if (outcome == TunElevationOutcome.relaunching) {
+          await _set('tunMode', mode);
+          await Future<void>.delayed(const Duration(milliseconds: 300));
+          exit(0);
+        }
+        // macOS：授权完成，继续落盘（内核启动时会用 sudo -n）
+      }
       await _set('tunMode', mode);
       // TUN 是**建连期参数**：内核只在启动时读它。旧实现只落盘、不重连也不提示，
       // 用户切到 TUN 后当前连接其实还是系统代理（或反之），界面却毫无反馈。

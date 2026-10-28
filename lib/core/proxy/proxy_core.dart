@@ -15,6 +15,8 @@ import '../services/subscription_service.dart';
 import '../services/speed_test_mode.dart';
 import '../services/speed_tester.dart';
 import 'geo_assets.dart';
+import '../platform/elevation.dart';
+import '../platform/mac_tun_helper.dart';
 import 'port_guard.dart';
 import 'speed_probe_kernel.dart';
 import 'proxy_core_embedded.dart';
@@ -25,6 +27,12 @@ import 'tun_failure.dart';
 import '../../l10n/app_strings.dart';
 import 'conn_error.dart';
 export 'conn_error.dart';
+
+/// 首页三种模式：智能 / 全局 / TUN。
+///
+/// TUN 与「智能/全局」作为互斥入口并列（桌面端）：选 TUN 就是
+/// `tunMode = 'force'`，与设置页的「强制」读写同一个设置键。
+enum HomeMode { smart, global, tun }
 
 /// 后台 isolate 入口：构建 sing-box JSON 配置。compute 要求顶层/静态函数。
 Map<String, dynamic> _buildConfigInIsolate(Map<String, dynamic> args) {
@@ -273,6 +281,29 @@ class ConnectionController extends ChangeNotifier {
   String? speedTestError;
 
   bool smartMode = true;
+
+  /// 桌面端当前 TUN 策略：'off'（仅系统代理）/ 'auto' / 'force'。
+  /// 移动端恒为 'auto' —— VpnService / PacketTunnel 本身就是 TUN。
+  String tunMode = 'off';
+
+  /// 该平台是否有「TUN 模式」入口（桌面才有；移动端 TUN 是必需的）。
+  bool get supportsTun => Platform.isWindows || Platform.isMacOS;
+
+  /// TUN 是否正在承担全部流量（首页第三个按钮高亮用）。
+  bool get tunActive => supportsTun && tunMode == 'force';
+
+  /// 首页三态之一。TUN 优先。
+  HomeMode get homeMode {
+    if (tunActive) return HomeMode.tun;
+    return smartMode ? HomeMode.smart : HomeMode.global;
+  }
+
+  /// 启动时是否已经把「上次残留的强制 TUN」归一化过一次（默认智能）。
+  bool _tunStartupNormalized = false;
+
+  /// 测试钩子：复位启动归一化标记
+  @visibleForTesting
+  void debugResetTunStartupNormalized() => _tunStartupNormalized = false;
 
   /// Android 模式切换中（自动断开重连期间）：UI 显示「正在切换模式…」
   /// 并禁用模式/连接按钮，避免用户误以为没反应再点触发竞态
@@ -553,6 +584,23 @@ class ConnectionController extends ChangeNotifier {
         AppLog.log('SPEED', '测速方式切换为 ${speedTestModeKey(mode)}，已清空旧延迟');
       }
     }
+    // TUN 策略：桌面读设置；移动端恒为 auto。
+    // 启动第一次：除非是提权重启后的续连（pendingTunConnect），否则把残留的
+    // force 归一化成 off —— 打开软件默认停在「智能模式」。
+    final pendingTun = s['pendingTunConnect'] == true;
+    final rawTun = (Platform.isAndroid || Platform.isIOS)
+        ? 'auto'
+        : (s['tunMode']?.toString() ?? 'off');
+    var tunFromSettings = rawTun;
+    if (!_tunStartupNormalized) {
+      _tunStartupNormalized = true;
+      if (rawTun == 'force' && !pendingTun) {
+        tunFromSettings = 'off';
+        unawaited(_enqueueSettingsWrite((m) => m['tunMode'] = 'off'));
+        AppLog.log('APP', '启动归一化：上次的强制 TUN 已重置为智能模式');
+      }
+    }
+    if (tunFromSettings != tunMode) tunMode = tunFromSettings;
     // 仅在用户未手动切过模式时应用 defaultMode，避免首页选择被设置页静默重置
     if (!_modeUserSet) {
       if (s['defaultMode'] == 'global') {
@@ -584,6 +632,10 @@ class ConnectionController extends ChangeNotifier {
   /// 「没有可用线路」会把它退回 false（等线路到位再补一次）。
   /// [resetForLogout] 会复位（换账号后重新给一次机会）。
   bool _autoConnectTried = false;
+
+  /// 测试钩子：复位「启动自动连接」的一次性门闩（生产代码不需要）
+  @visibleForTesting
+  void debugResetAutoConnectLatch() => _autoConnectTried = false;
 
   /// 自动重连次数上限（来自设置 `reconnectTimes`，1~10，默认 3）。
   /// 旧实现硬编码 3，用户改了设置也不生效。
@@ -758,8 +810,15 @@ class ConnectionController extends ChangeNotifier {
     }
     _autoConnectTried = true; // 占位（下面有 await，必须先占）
     final s = await SettingsStore.instance.load();
-    if (s['autoConnect'] != true) {
-      // 开关关：绝不连接，且本次启动不用再看第二次
+    // 「以管理员身份重启」之后的一次性标记：用户点 TUN 时已经表达过连接意图，
+    // 重启后的新实例不该等他再点一次连接（Clash Party 用命令行参数做同一件事）。
+    final pendingTun = s['pendingTunConnect'] == true;
+    if (pendingTun) {
+      // 必须 await：不落盘就会每次启动重复消费
+      await _enqueueSettingsWrite((m) => m.remove('pendingTunConnect'));
+    }
+    if (s['autoConnect'] != true && !pendingTun) {
+      // 开关关且不是提权重启后的续连：绝不连接，本次启动不用再看第二次
       return AutoConnectOutcome.disabled;
     }
     // 账号门禁：到期 / 设备满 / 被禁用 / 未开通 —— 与手动连接同一道拦截。
@@ -1613,6 +1672,55 @@ class ConnectionController extends ChangeNotifier {
   }
 
   /// 切换模式（智能/全局）
+  /// 首页三态切换：智能 / 全局 / TUN。
+  ///
+  /// - 智能 ↔ 全局：走 [toggleMode] 的热切换；
+  /// - 涉及 TUN 的变化：TUN 是建连期参数，必须断开重连才生效。
+  ///
+  /// 提权校验在 UI 层（未提权先引导）；这里只兜底拒绝。
+  Future<void> switchHomeMode(HomeMode target) async {
+    if (!supportsTun && target == HomeMode.tun) return;
+    if (target == homeMode) return;
+    if (target == HomeMode.tun && !Elevation.isElevated) {
+      // macOS 不走整 App 提权，而是装一条只针对内核的 sudoers 免密规则；
+      // 已授权时必须放行（否则用户刚授权完又被拒绝）。
+      var granted = false;
+      if (Platform.isMacOS) {
+        String core = '';
+        try {
+          core = await ProxyCoreCli.resolveKernelBinary();
+        } catch (_) {}
+        granted = await MacTunHelper.isGranted(core);
+      }
+      if (!granted) throw StateError('tun_needs_admin');
+    }
+    _modeUserSet = true;
+    final wasConnected = status == ConnStatus.connected && _core.isRunning;
+    final tunChanged = (target == HomeMode.tun) != tunActive;
+    if (target == HomeMode.tun) {
+      tunMode = 'force';
+    } else {
+      tunMode = 'off';
+      smartMode = target == HomeMode.smart;
+    }
+    notifyListeners();
+    await _enqueueSettingsWrite((s) {
+      s['tunMode'] = tunMode;
+      s['defaultMode'] = smartMode ? 'smart' : 'global';
+    });
+    if (!wasConnected) return;
+    if (tunChanged) {
+      try {
+        await disconnect();
+        await connect();
+      } catch (e) {
+        AppLog.error('切换 TUN 模式失败: $e');
+      }
+      return;
+    }
+    await toggleMode(smartMode);
+  }
+
   Future<void> toggleMode(bool smart) async {
     _modeUserSet = true;
     smartMode = smart;

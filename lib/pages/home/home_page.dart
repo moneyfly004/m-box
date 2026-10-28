@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -16,6 +17,8 @@ import '../../widgets/subscribe_issue.dart';
 import '../../widgets/update_prompt.dart';
 import '../../core/api/api_client.dart';
 import '../../core/services/app_log.dart';
+import '../../core/platform/elevation.dart';
+import '../../widgets/tun_elevation_dialog.dart';
 import '../../core/services/country_slots.dart';
 import '../../widgets/traffic_chart.dart';
 import '../../l10n/app_strings.dart';
@@ -625,8 +628,8 @@ class _HomePageState extends State<HomePage>
               // 触发本卡重建，「真实出口」就停留在旧显示，直到别的字段变化才被动刷新。
               // sy（订阅同步中）必须进 selector：否则同步状态单独变化时
               // 连接卡不会重建 —— 会出现「同步中」文案一直挂着不消失
-              Selector<ConnectionController, ({ConnStatus s, String? tag, String? err, bool st, bool sm, String? rc, bool rcf, bool sy})>(
-                selector: (_, c) => (s: c.status, tag: c.current?.tag, err: c.error, st: c.speedTesting, sm: c.smartMode, rc: c.realCountry, rcf: c.realCountryFailed, sy: c.syncingSubscription),
+              Selector<ConnectionController, ({ConnStatus s, String? tag, String? err, bool st, bool sm, String tm, String? rc, bool rcf, bool sy})>(
+                selector: (_, c) => (s: c.status, tag: c.current?.tag, err: c.error, st: c.speedTesting, sm: c.smartMode, tm: c.tunMode, rc: c.realCountry, rcf: c.realCountryFailed, sy: c.syncingSubscription),
                 builder: (ctx, v, child) {
                   final conn = ctx.read<ConnectionController>();
                   final connected = conn.status == ConnStatus.connected;
@@ -1292,29 +1295,103 @@ class _HomePageState extends State<HomePage>
   }
 
   Widget _buildModeSwitch(ConnectionController conn) {
+    // 桌面端三态：智能 / 全局 / TUN；移动端只有两态 —— VpnService /
+    // PacketTunnel 本身就是 TUN，没有「不开 TUN」这个选项。
+    final modes = <(HomeMode, String, IconData)>[
+      (HomeMode.smart, AppStrings.t('smart_mode'), Icons.gps_fixed),
+      (HomeMode.global, AppStrings.t('global_mode'), Icons.travel_explore),
+      if (conn.supportsTun)
+        (HomeMode.tun, AppStrings.t('home_mode_tun'), Icons.vpn_lock),
+    ];
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
           color: MBColors.card, borderRadius: BorderRadius.circular(14),
           border: Border.all(color: MBColors.line)),
-      child: Row(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          _ModeOption(
-            label: AppStrings.t('smart_mode'),
-            icon: Icons.gps_fixed,
-            selected: conn.smartMode,
-            onTap: conn.switchingMode ? null : () => conn.toggleMode(true),
+          Row(
+            children: [
+              for (final (mode, label, icon) in modes)
+                _ModeOption(
+                  label: label,
+                  icon: icon,
+                  selected: conn.homeMode == mode,
+                  onTap: conn.switchingMode ? null : () => _selectMode(mode),
+                ),
+            ],
           ),
-          _ModeOption(
-            label: AppStrings.t('global_mode'),
-            icon: Icons.travel_explore,
-            selected: !conn.smartMode,
-            onTap: conn.switchingMode ? null : () => conn.toggleMode(false),
-          ),
+          // TUN 与「智能/全局」是两个维度：TUN 只管接管全部流量，分流规则仍按
+          // 上次选的方式走。不写这行，用户会以为进 TUN 后智能分流失效了。
+          if (conn.tunActive)
+            Padding(
+              padding: const EdgeInsets.only(top: 6, bottom: 2),
+              child: Text(
+                AppStrings.t('tun_caption', {
+                  'mode': conn.smartMode
+                      ? AppStrings.t('smart_mode')
+                      : AppStrings.t('global_mode'),
+                }),
+                style: TextStyle(fontSize: 10.5, color: MBColors.txt3),
+              ),
+            ),
         ],
       ),
     );
   }
+
+  /// 首页模式点按：TUN 需要管理员权限，未提权时先引导（Windows 重启 /
+  /// macOS 一次性授权内核）。
+  Future<void> _selectMode(HomeMode mode) async {
+    final conn = ConnectionController.instance;
+    // 已是该模式通常直接忽略；但 TUN 例外：设置里可能早就是 force 而当前实例
+    // 没有权限，点它必须能弹出提权引导，否则点了没反应。
+    if (conn.homeMode == mode && !(mode == HomeMode.tun && !Elevation.isElevated)) {
+      return;
+    }
+    if (mode == HomeMode.tun && !Elevation.isElevated) {
+      final outcome = await requestTunElevation(context);
+      if (!mounted) return;
+      if (outcome == TunElevationOutcome.relaunching) {
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+        exit(0);
+      }
+      if (outcome == TunElevationOutcome.cancelled) {
+        if (Platform.isWindows) {
+          _toast(AppStrings.t('tun_admin_cancelled',
+              {'mode': _homeModeLabel(conn.homeMode)}));
+        }
+        return;
+      }
+      // macOS：刚完成一次性授权 → 继续切 TUN
+    }
+    try {
+      // 不 await：TUN 与系统代理互切要重连内核（秒级），阻塞会让按钮像卡死。
+      unawaited(conn.switchHomeMode(mode));
+    } on StateError catch (e) {
+      if (e.message == 'tun_needs_admin') {
+        if (!mounted) return;
+        final outcome = await requestTunElevation(context);
+        if (!mounted) return;
+        if (outcome == TunElevationOutcome.relaunching) {
+          await Future<void>.delayed(const Duration(milliseconds: 300));
+          exit(0);
+        } else if (outcome == TunElevationOutcome.granted) {
+          await conn.switchHomeMode(mode);
+        }
+      }
+    } catch (e) {
+      _toast(AppStrings.t('mode_switch_fail', {'err': '$e'}));
+    }
+  }
+
+  /// 首页三态的名字（提示文案复用）
+  String _homeModeLabel(HomeMode m) => switch (m) {
+        HomeMode.smart => AppStrings.t('smart_mode'),
+        HomeMode.global => AppStrings.t('global_mode'),
+        HomeMode.tun => AppStrings.t('home_mode_tun'),
+      };
 
   Widget _buildStats(ConnectionController conn, bool compact) {
     return ValueListenableBuilder<SpeedSnapshot>(
@@ -1794,14 +1871,20 @@ class _ModeOption extends StatelessWidget {
                   color: selected
                       ? Colors.white
                       : (enabled ? MBColors.txt2 : MBColors.txt3)),
-              const SizedBox(width: 7),
-              Text(label,
-                  style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: selected
-                          ? Colors.white
-                          : (enabled ? MBColors.txt2 : MBColors.txt3))),
+              const SizedBox(width: 5),
+              // 三段式在 380 最小窗口下总宽会超出：标签必须可压缩 + 省略号
+              Flexible(
+                child: Text(label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                        color: selected
+                            ? Colors.white
+                            : (enabled ? MBColors.txt2 : MBColors.txt3))),
+              ),
               if (!enabled) ...[
                 const SizedBox(width: 6),
                 SizedBox(
