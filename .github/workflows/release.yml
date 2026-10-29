@@ -81,6 +81,12 @@ concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: true
 
+# 自动补跑（rerun-failed-jobs）需要 actions:write；发布资产需要 contents:write。
+# 不写这段时 GITHUB_TOKEN 默认只读 → auto-retry 会 403（实测）。
+permissions:
+  contents: write
+  actions: write
+
 env:
   FLUTTER_VERSION: '3.44.4' # 与开发机一致，保证构建可复现
   SINGBOX_VERSION: '1.14.4' # sing-box 官方内核版本（桌面二进制 + iOS 框架）
