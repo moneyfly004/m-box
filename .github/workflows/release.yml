@@ -743,3 +743,29 @@ jobs:
           make_latest: true
           generate_release_notes: false
           fail_on_unmatched_files: true
+
+  # ---- 自动补跑：GitHub 偶发把 macOS universal 之类的 job 直接 cancel ----
+  # 之前每次碰到都要人工 gh run rerun --failed，现在由流水线自己补 2 次。
+  # run_attempt 在每次重跑后 +1，所以最多重试 2 次（避免死循环）。
+  auto-retry:
+    name: 自动补跑失败/取消的 job（最多 2 次）
+    if: always() && github.run_attempt < 3
+    needs: [android, android-aab, windows, macos-arm64, macos-x64, macos-universal, ios, release]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: 检查并触发重试
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          RID="${{ github.run_id }}"
+          bad=$(gh api "repos/${{ github.repository }}/actions/runs/$RID/jobs" \
+                -q '[.jobs[] | select(.conclusion == "failure" or .conclusion == "cancelled" or .conclusion == "timed_out")] | length')
+          echo "失败/取消的 job 数：$bad（run_attempt=${{ github.run_attempt }}）"
+          if [ "$bad" = "0" ]; then
+            echo "全部成功，无需重试"
+            exit 0
+          fi
+          echo "触发 rerun-failed-jobs"
+          gh api -X POST "repos/${{ github.repository }}/actions/runs/$RID/rerun-failed-jobs"

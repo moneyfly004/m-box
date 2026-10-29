@@ -271,9 +271,25 @@ class _MBoxAppState extends State<MBoxApp> with WidgetsBindingObserver, WindowLi
     _session.addListener(_onSessionChanged);
     _session.restore();
     // 启动时应用持久化设置（自动测速 / 断线重连 / 默认模式）+ 恢复主题
+    //
+    // 「为 TUN 提权重启」进入的实例：先把「强制 TUN + 待续连」落盘，再应用设置。
+    // 不这么做的话，后续 autoConnectIfEnabled 会重新 load 一份旧快照，
+    // pendingTunConnect 丢了 → 提权重启后不会自动连接（用户以为还得手动点）。
+    final adminRestartForTun = Platform.isWindows &&
+        Platform.executableArguments.contains('--admin-restart-for-tun');
     SettingsStore.instance
         .load()
-        .then(ConnectionController.instance.applySettings)
+        .then((settings) async {
+          if (adminRestartForTun) {
+            await SettingsStore.instance.update((m) {
+              m['tunMode'] = 'force';
+              m['pendingTunConnect'] = true;
+            });
+            settings['tunMode'] = 'force';
+            settings['pendingTunConnect'] = true;
+          }
+          ConnectionController.instance.applySettings(settings);
+        })
         .catchError((_) {});
     ThemeController.instance.restore();
     // 预热「我的」页数据缓存（磁盘 → 内存）：这个页面 90% 是固定布局，

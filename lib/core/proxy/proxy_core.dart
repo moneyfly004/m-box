@@ -812,7 +812,10 @@ class ConnectionController extends ChangeNotifier {
     final s = await SettingsStore.instance.load();
     // 「以管理员身份重启」之后的一次性标记：用户点 TUN 时已经表达过连接意图，
     // 重启后的新实例不该等他再点一次连接（Clash Party 用命令行参数做同一件事）。
-    final pendingTun = s['pendingTunConnect'] == true;
+    // 命令行标记等价于这个意图：即使设置写入没抢到，也要自动续连一次。
+    final adminRestartForTun = Platform.isWindows &&
+        Platform.executableArguments.contains('--admin-restart-for-tun');
+    final pendingTun = s['pendingTunConnect'] == true || adminRestartForTun;
     if (pendingTun) {
       // 必须 await：不落盘就会每次启动重复消费
       await _enqueueSettingsWrite((m) => m.remove('pendingTunConnect'));

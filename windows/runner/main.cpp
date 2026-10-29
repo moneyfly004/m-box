@@ -2,6 +2,7 @@
 #include <flutter/flutter_view_controller.h>
 #include <flutter_windows.h>
 #include <windows.h>
+#include <shellapi.h>
 
 #include <stdio.h>
 #include <string>
@@ -148,6 +149,26 @@ static HWND FindExistingMainWindow() {
 
 int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
                       _In_ wchar_t *command_line, _In_ int show_command) {
+  // ---- 「为 TUN 提权重启」标记 ----
+  // 用户点 TUN → 应用用 PowerShell(UAC) 以管理员重新拉起自己。旧实例（非提权）
+  // 可能还没退干净，命名互斥量仍被持有 → 新实例会被判成「重复启动」并自杀，
+  // 用户看到的就是「点完 TUN 应用闪一下没了」，只能手动关掉再右键以管理员运行。
+  // 带这个标记的实例就是来接替旧进程的，跳过单实例拦截。
+  bool admin_restart_for_tun = false;
+  {
+    int argc = 0;
+    LPWSTR *argv = ::CommandLineToArgvW(::GetCommandLineW(), &argc);
+    if (argv != nullptr) {
+      for (int i = 1; i < argc; ++i) {
+        if (::wcscmp(argv[i], L"--admin-restart-for-tun") == 0) {
+          admin_restart_for_tun = true;
+          break;
+        }
+      }
+      ::LocalFree(argv);
+    }
+  }
+
   // ---- 单实例：同一会话内只允许一个进程 ----
   // 必须在创建任何窗口之前拦截：否则重复双击会产生多个窗口/多个托盘/多个内核，
   // 各自管理系统代理与内核，互相冲突（状态被别的进程覆盖）。
@@ -155,7 +176,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   {
     HANDLE mutex =
         ::CreateMutexW(nullptr, FALSE, L"Local\\MBox_SingleInstance");
-    if (mutex != nullptr && ::GetLastError() == ERROR_ALREADY_EXISTS) {
+    if (!admin_restart_for_tun && mutex != nullptr &&
+        ::GetLastError() == ERROR_ALREADY_EXISTS) {
       // 已有实例：唤醒它的窗口（可能被最小化到托盘或被我方 hide() 隐藏）。
       // 旧实现只 FindWindow 一次就退出：若那一刻对方窗口还没创建出来（开机自启
       // 与用户双击几乎同时），或者因权限/消息过滤没被唤醒，客户看到的就是
