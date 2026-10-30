@@ -370,7 +370,18 @@ jobs:
           # 「已损坏，无法打开」的修复脚本：手动（浏览器）下载安装的用户一旦遇到
           # Gatekeeper 拦截，双击这个脚本即可清掉隔离属性
           cp scripts/fix_quarantine_macos.command "$STAGE/修复已损坏.command" && chmod +x "$STAGE/修复已损坏.command"
-          codesign --force --deep -s - --entitlements macos/Runner/Release.entitlements "$STAGE/MBox.app"
+          if [ -n "${{ secrets.MACOS_CERT_P12 }}" ]; then
+            echo "${{ secrets.MACOS_CERT_P12 }}" | base64 -d > "$RUNNER_TEMP/cert.p12"
+            security create-keychain -p ci ci.keychain 2>/dev/null || true
+            security set-keychain-settings -lut 21600 ci.keychain 2>/dev/null || true
+            security unlock-keychain -p ci ci.keychain
+            security import "$RUNNER_TEMP/cert.p12" -k ci.keychain -P "${{ secrets.MACOS_CERT_PASSWORD }}" -T /usr/bin/codesign -T /usr/bin/security >/dev/null
+            security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k ci ci.keychain >/dev/null 2>&1 || true
+            security list-keychains -d user -s ci.keychain $(security list-keychains -d user | tr -d '"')
+            rm -f "$RUNNER_TEMP/cert.p12"
+          fi
+          IDENT=$(security find-identity -p codesigning 2>/dev/null | grep -q LocalDev && echo LocalDev || echo -)
+          codesign --force --deep -s "$IDENT" --entitlements macos/Runner/Release.entitlements "$STAGE/MBox.app"
           bash scripts/make_macos_dmg.sh "$STAGE" "dist/MBox-macos-arm64-$V.dmg"
           cd dist && shasum -a 256 MBox-macos-arm64-$V.dmg > SHA256SUMS-macos-arm64.txt
         env:
@@ -436,7 +447,18 @@ jobs:
           # 「已损坏，无法打开」的修复脚本：手动（浏览器）下载安装的用户一旦遇到
           # Gatekeeper 拦截，双击这个脚本即可清掉隔离属性
           cp scripts/fix_quarantine_macos.command "$STAGE/修复已损坏.command" && chmod +x "$STAGE/修复已损坏.command"
-          codesign --force --deep -s - --entitlements macos/Runner/Release.entitlements "$STAGE/MBox.app"
+          if [ -n "${{ secrets.MACOS_CERT_P12 }}" ]; then
+            echo "${{ secrets.MACOS_CERT_P12 }}" | base64 -d > "$RUNNER_TEMP/cert.p12"
+            security create-keychain -p ci ci.keychain 2>/dev/null || true
+            security set-keychain-settings -lut 21600 ci.keychain 2>/dev/null || true
+            security unlock-keychain -p ci ci.keychain
+            security import "$RUNNER_TEMP/cert.p12" -k ci.keychain -P "${{ secrets.MACOS_CERT_PASSWORD }}" -T /usr/bin/codesign -T /usr/bin/security >/dev/null
+            security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k ci ci.keychain >/dev/null 2>&1 || true
+            security list-keychains -d user -s ci.keychain $(security list-keychains -d user | tr -d '"')
+            rm -f "$RUNNER_TEMP/cert.p12"
+          fi
+          IDENT=$(security find-identity -p codesigning 2>/dev/null | grep -q LocalDev && echo LocalDev || echo -)
+          codesign --force --deep -s "$IDENT" --entitlements macos/Runner/Release.entitlements "$STAGE/MBox.app"
           bash scripts/make_macos_dmg.sh "$STAGE" "dist/MBox-macos-x64-$V.dmg"
           cd dist && shasum -a 256 MBox-macos-x64-$V.dmg > SHA256SUMS-macos-x64.txt
         env:
@@ -519,7 +541,18 @@ jobs:
           # 「已损坏，无法打开」的修复脚本：手动（浏览器）下载安装的用户一旦遇到
           # Gatekeeper 拦截，双击这个脚本即可清掉隔离属性
           cp scripts/fix_quarantine_macos.command "$STAGE/修复已损坏.command" && chmod +x "$STAGE/修复已损坏.command"
-          codesign --force --deep -s - --entitlements macos/Runner/Release.entitlements "$STAGE/MBox.app"
+          if [ -n "${{ secrets.MACOS_CERT_P12 }}" ]; then
+            echo "${{ secrets.MACOS_CERT_P12 }}" | base64 -d > "$RUNNER_TEMP/cert.p12"
+            security create-keychain -p ci ci.keychain 2>/dev/null || true
+            security set-keychain-settings -lut 21600 ci.keychain 2>/dev/null || true
+            security unlock-keychain -p ci ci.keychain
+            security import "$RUNNER_TEMP/cert.p12" -k ci.keychain -P "${{ secrets.MACOS_CERT_PASSWORD }}" -T /usr/bin/codesign -T /usr/bin/security >/dev/null
+            security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k ci ci.keychain >/dev/null 2>&1 || true
+            security list-keychains -d user -s ci.keychain $(security list-keychains -d user | tr -d '"')
+            rm -f "$RUNNER_TEMP/cert.p12"
+          fi
+          IDENT=$(security find-identity -p codesigning 2>/dev/null | grep -q LocalDev && echo LocalDev || echo -)
+          codesign --force --deep -s "$IDENT" --entitlements macos/Runner/Release.entitlements "$STAGE/MBox.app"
           bash scripts/make_macos_dmg.sh "$STAGE" "dist/MBox-macos-universal-$V.dmg"
           cd dist && shasum -a 256 MBox-macos-universal-$V.dmg > SHA256SUMS-macos-universal.txt
         env:
