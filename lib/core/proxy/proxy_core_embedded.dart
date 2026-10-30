@@ -64,14 +64,6 @@ class ProxyCoreEmbedded extends ProxyCore {
     receiveTimeout: const Duration(seconds: 3),
   ));
 
-  /// 当前智能(rule)/全局(global)状态 —— 决定热切节点时打 select 组还是 GLOBAL 组
-  // ignore: unused_field
-  bool _smartMode = true;
-
-  /// 最近一次切换的节点 tag（切全局模式时把 GLOBAL 组指过来）
-  // ignore: unused_field
-  String? _lastNodeTag;
-
   bool _running = false;
   String? _lastError;
   VoidCallback? _onUnexpectedExit;
@@ -103,12 +95,6 @@ class ProxyCoreEmbedded extends ProxyCore {
   Future<void> start(Map<String, dynamic> config) async {
     if (_running) throw StateError('already running');
     _lastError = null;
-    // 从配置同步模式（Rule=智能 / Global=全局）：sing-box 的模式在
-    // experimental.clash_api.default_mode 里
-    final exp = config['experimental'];
-    final apiCfg = exp is Map ? exp['clash_api'] : null;
-    final startMode = apiCfg is Map ? apiCfg['default_mode']?.toString() : null;
-    _smartMode = startMode != 'Global';
     // 剥离 app 侧元数据（系统代理端口/模式/TUN 开关），不写入配置文件
     final tunMode = config.remove('_tunMode')?.toString() ?? 'auto';
     final clashPort =
@@ -406,7 +392,6 @@ class ProxyCoreEmbedded extends ProxyCore {
 
   @override
   Future<void> switchMode(bool smart) async {
-    _smartMode = smart;
     // sing-box: Rule=智能 / Global=全局，两套规则用 clash_mode 前缀区分，
     // PATCH /configs 热切换即可，不断网
     await _clash('PATCH', '/configs', {'mode': smart ? 'Rule' : 'Global'});
@@ -414,7 +399,6 @@ class ProxyCoreEmbedded extends ProxyCore {
 
   @override
   Future<void> switchNode(String tag) async {
-    _lastNodeTag = tag;
     // sing-box 没有内置 GLOBAL 组：两种模式的路由终点都是 select 选择器
     await _clash('PUT', '/proxies/select', {'name': tag});
   }

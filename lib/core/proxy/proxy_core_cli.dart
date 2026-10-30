@@ -51,13 +51,8 @@ class ProxyCoreCli extends ProxyCore {
 
   /// 当前智能(Rule)/全局(Global)状态。sing-box 的模式热切换走
   /// PATCH /configs，节点热切换固定打 select 选择器（两种模式共用），
-  /// 这里保留状态仅用于日志/调试输出。
-  // ignore: unused_field
+  /// 这里保留状态仅用于启动日志输出。
   bool _smartMode = true;
-
-  /// 最近一次成功切换/选中的节点 tag（日志/调试用）
-  // ignore: unused_field
-  String? _lastNodeTag;
 
   final Dio _api = Dio(BaseOptions(
     baseUrl: 'http://127.0.0.1:9090',
@@ -665,7 +660,6 @@ class ProxyCoreCli extends ProxyCore {
 
   @override
   Future<void> switchNode(String tag) async {
-    _lastNodeTag = tag;
     // sing-box 没有内置 GLOBAL 组：两种模式的路由终点都是 select 选择器
     // （Global 模式由 `clash_mode: Global` 规则把流量指到 select）
     await _clash('PUT', '/proxies/select', {'name': tag});

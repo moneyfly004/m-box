@@ -34,6 +34,11 @@ export 'conn_error.dart';
 /// `tunMode = 'force'`，与设置页的「强制」读写同一个设置键。
 enum HomeMode { smart, global, tun }
 
+/// 节点是否属于指定国家/地区（大小写不敏感；缺失国家码按 `XX` 处理，
+/// 与列表分组/锁国的历史口径一致）。抽出来避免同一判据在 6 处各写一遍。
+bool _isInCountry(ProxyNode? n, String? code) =>
+    (n?.countryCode?.toUpperCase() ?? 'XX') == code;
+
 /// 后台 isolate 入口：构建 sing-box JSON 配置。compute 要求顶层/静态函数。
 Map<String, dynamic> _buildConfigInIsolate(Map<String, dynamic> args) {
   final proxies = (args['proxies'] as List).cast<Map<String, dynamic>>();
@@ -354,7 +359,7 @@ class ConnectionController extends ChangeNotifier {
   Future<bool> switchCountry(String code) async {
     final cc = code.toUpperCase();
     final candidates = nodes
-        .where((n) => (n.countryCode?.toUpperCase() ?? 'XX') == cc)
+        .where((n) => _isInCountry(n, cc))
         .toList();
     if (candidates.isEmpty) return false;
     final best = SpeedTester.selectBest(candidates) ??
@@ -417,11 +422,11 @@ class ConnectionController extends ChangeNotifier {
     if (cc != null && cc.isNotEmpty) {
       final remembered = await _restoreLastSelection(list);
       if (remembered != null &&
-          (remembered.countryCode?.toUpperCase() ?? 'XX') == cc) {
+          _isInCountry(remembered, cc)) {
         return remembered;
       }
       final candidates = list
-          .where((n) => (n.countryCode?.toUpperCase() ?? 'XX') == cc)
+          .where((n) => _isInCountry(n, cc))
           .toList();
       if (candidates.isNotEmpty) {
         return SpeedTester.selectBest(candidates) ?? candidates.first;
@@ -736,7 +741,7 @@ class ConnectionController extends ChangeNotifier {
     final lc = lockedCountry;
     if (lc == null) return;
     if (!nodes.any(
-        (n) => (n.countryCode?.toUpperCase() ?? 'XX') == lc)) {
+        (n) => _isInCountry(n, lc))) {
       lockedCountry = null;
     }
   }
@@ -1426,7 +1431,7 @@ class ConnectionController extends ChangeNotifier {
     if (pinnedTag != null) return null;
     if (lockedCountry == null) return SpeedTester.selectBest(tested);
     final candidates = tested
-        .where((n) => (n.countryCode?.toUpperCase() ?? 'XX') == lockedCountry)
+        .where((n) => _isInCountry(n, lockedCountry))
         .toList();
     return SpeedTester.selectBest(candidates);
   }
@@ -1766,7 +1771,7 @@ class ConnectionController extends ChangeNotifier {
     // connect 已按持久化记忆恢复 lastSelectedTag 与锁；无记忆时用 keepLock 补
     if (lockedCountry == null && keepLock != null) {
       final stillHas = nodes
-          .any((n) => (n.countryCode?.toUpperCase() ?? 'XX') == keepLock);
+          .any((n) => _isInCountry(n, keepLock));
       if (stillHas) lockedCountry = keepLock;
     }
     if (current == null && keepTag != null) {
