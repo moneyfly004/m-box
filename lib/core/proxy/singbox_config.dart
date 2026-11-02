@@ -918,10 +918,15 @@ class SingBoxConfigBuilder {
     'spotify.com',
   ];
 
-  /// 序列化为 JSON 字符串（写入 config.json 用；剥离 `_` 开头的元数据键）
+  /// 序列化为 JSON 字符串（写入 config.json 用；剥离 `_` 开头的元数据键）。
+  ///
+  /// 用**紧凑**序列化（不带缩进）：iOS 的 providerConfiguration 有 512KB 硬上限，
+  /// 同一份配置缩进后约 612KB、紧凑后约 405KB —— 缩进纯属白占空间，
+  /// 却会把大订阅顶过系统限制（用户实测报错：
+  /// configuration is invalid: The configuration is too large (612450 bytes)）。
   static String encode(Map<String, dynamic> cfg) {
     final filtered = Map<String, dynamic>.fromEntries(
         cfg.entries.where((e) => !e.key.startsWith('_')));
-    return const JsonEncoder.withIndent('  ').convert(filtered);
+    return jsonEncode(filtered);
   }
 }
