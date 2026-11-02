@@ -124,12 +124,24 @@ class VpnCorePlugin {
         } else {
             note("App Group 不可用（entitlement 未生效？）→ 配置只能内联传递")
         }
-        // 2) 内联兜底：App Group 不可用时这是唯一通路。上限 1MB ——
-        //    providerConfiguration 会存进系统 VPN 偏好，过大不合适；
-        //    正常订阅配置（几百 KB 以内）都能带上。
-        if !wroteFile || json.utf8.count < 1024 * 1024 {
+        // 2) 内联兜底：**只在 App Group 写文件失败时**才内联。
+        //    iOS 对 providerConfiguration（系统 VPN 偏好里的 plist）有约 512KB 硬上限，
+        //    写文件成功后仍把整份配置内联进去，会让大订阅保存失败：
+        //      configuration is invalid: The configuration is too large (612468 bytes).
+        //      The maximum size is 524288 bytes
+        //    所以写文件成功就只传路径（几百字节），配置正文由扩展从共享文件读。
+        let inlineLimit = 480 * 1024 // 512KB 上限里给其它键/plist 开销留余量
+        if json.utf8.count < inlineLimit {
+            // 小配置仍然内联：作为共享文件读不到时的双保险（保持旧行为）
             providerConf["configInline"] = json
-            note("已附带内联配置 \(json.utf8.count)B（不依赖 App Group）")
+            note("已附带内联配置 \(json.utf8.count)B（小配置双保险）")
+        } else if !wroteFile {
+            // 大配置且共享文件没写成：内联必然触发系统 512KB 上限，直接给出可读错误
+            note("✗ 配置 \(json.utf8.count)B 超过内联上限 \(inlineLimit)B，且 App Group 不可用")
+            fail("配置过大（\(json.utf8.count) 字节），无法通过系统 VPN 偏好保存；请确认 App Group 权限可用后重试", result)
+            return
+        } else {
+            note("大配置 \(json.utf8.count)B 仅走共享文件（不内联，避免 512KB 上限）")
         }
 
         let proto = NETunnelProviderProtocol()
