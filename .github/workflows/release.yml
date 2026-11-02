@@ -786,12 +786,20 @@ jobs:
   # ---- 自动补跑：GitHub 偶发把 macOS universal 之类的 job 直接 cancel ----
   # 之前每次碰到都要人工 gh run rerun --failed，现在由流水线自己补 2 次。
   # run_attempt 在每次重跑后 +1，所以最多重试 2 次（避免死循环）。
+
+  # ---- 自动补跑 ----
+  # GitHub 上偶发「job 被直接 cancel」「flutter-action 网络抖动 exit 56」这类
+  # 基础设施故障；人工 gh run rerun --failed 太慢。这里在所有 job 结束后检查一次，
+  # 有失败/取消就自动 rerun（run_attempt<3 → 最多补 2 次，防死循环）。
+  # 注意两点（都是线上踩过的）：
+  #   1) 必须给 actions:write，否则 GITHUB_TOKEN 调 rerun 会 403；
+  #   2) GitHub 偶尔返回 502，API 调用要自带重试。
   auto-retry:
     name: 自动补跑失败/取消的 job（最多 2 次）
     if: always() && github.run_attempt < 3
     needs: [android, android-aab, windows, macos-arm64, macos-x64, macos-universal, ios, release]
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - name: 检查并触发重试
         env:
@@ -799,12 +807,17 @@ jobs:
         run: |
           set -euo pipefail
           RID="${{ github.run_id }}"
-          bad=$(gh api "repos/${{ github.repository }}/actions/runs/$RID/jobs" \
-                -q '[.jobs[] | select(.conclusion == "failure" or .conclusion == "cancelled" or .conclusion == "timed_out")] | length')
+          api() {
+            for i in 1 2 3; do
+              if out=$(gh api "$@" 2>&1); then printf '%s' "$out"; return 0; fi
+              echo "  第 $i 次调用失败：$out" >&2
+              sleep $((i * 5))
+            done
+            return 1
+          }
+          jobs=$(api "repos/${{ github.repository }}/actions/runs/$RID/jobs?per_page=100")
+          bad=$(printf '%s' "$jobs" | jq '[.jobs[] | select(.conclusion == "failure" or .conclusion == "cancelled" or .conclusion == "timed_out")] | length')
           echo "失败/取消的 job 数：$bad（run_attempt=${{ github.run_attempt }}）"
-          if [ "$bad" = "0" ]; then
-            echo "全部成功，无需重试"
-            exit 0
-          fi
+          if [ "$bad" = "0" ]; then echo "全部成功，无需重试"; exit 0; fi
           echo "触发 rerun-failed-jobs"
-          gh api -X POST "repos/${{ github.repository }}/actions/runs/$RID/rerun-failed-jobs"
+          api -X POST "repos/${{ github.repository }}/actions/runs/$RID/rerun-failed-jobs"
