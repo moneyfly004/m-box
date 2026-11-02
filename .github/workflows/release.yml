@@ -796,7 +796,9 @@ jobs:
   #   2) GitHub 偶尔返回 502，API 调用要自带重试。
   auto-retry:
     name: 自动补跑失败/取消的 job（最多 2 次）
-    if: always() && github.run_attempt < 3
+    # 全部成功时**直接跳过**（不跑、不占时间、不显示成红色）；
+    # 只有存在失败/取消才进来补跑。failure()/cancelled() 检查的是 needs 里的依赖。
+    if: always() && github.run_attempt < 3 && (failure() || cancelled())
     needs: [android, android-aab, windows, macos-arm64, macos-x64, macos-universal, ios, release]
     runs-on: ubuntu-latest
     timeout-minutes: 10
