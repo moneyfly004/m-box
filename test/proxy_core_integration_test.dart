@@ -320,9 +320,12 @@ void main() {
     expect(decoded.containsKey('_clashApiPort'), isFalse);
     expect(decoded.containsKey('_clashApiSecret'), isFalse);
     expect(decoded.keys.any((k) => '$k'.startsWith('_')), isFalse);
-    // 产物是带缩进的 JSON（写盘后人类可读、可 diff）
-    expect(encoded.contains('\n'), isTrue);
-    expect(encoded.split('\n').any((l) => l.startsWith('  "log":')), isTrue,
-        reason: '2 空格缩进（JsonEncoder.withIndent(\'  \')）');
+    // 产物必须是**单行紧凑** JSON：iOS 的 providerConfiguration 只有 512KB，
+    // 缩进会让 600 节点配置从 ~405KB 涨到 ~613KB —— 实测 saveToPreferences 直接报
+    //   configuration is invalid: The configuration is too large (613638 bytes).
+    //   The maximum size is 524288 bytes
+    // 可读性靠「内核日志页 / 导出配置文件」时再格式化，不写在传给系统的配置里。
+    expect(encoded.contains('\n'), isFalse, reason: '必须单行紧凑（缩进会顶穿 iOS 上限）');
+    expect(encoded.contains('  "'), isFalse, reason: '不能有缩进空格');
   });
 }
