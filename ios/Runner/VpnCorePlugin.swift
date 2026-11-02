@@ -1,5 +1,6 @@
 import Flutter
 import Foundation
+import Compression
 import NetworkExtension
 
 /// App 侧 VPN 控制通道。
@@ -125,23 +126,26 @@ class VpnCorePlugin {
             note("App Group 不可用（entitlement 未生效？）→ 配置只能内联传递")
         }
         // 2) 内联兜底：**只在 App Group 写文件失败时**才内联。
-        //    iOS 对 providerConfiguration（系统 VPN 偏好里的 plist）有约 512KB 硬上限，
-        //    写文件成功后仍把整份配置内联进去，会让大订阅保存失败：
-        //      configuration is invalid: The configuration is too large (612468 bytes).
-        //      The maximum size is 524288 bytes
-        //    所以写文件成功就只传路径（几百字节），配置正文由扩展从共享文件读。
+        //    iOS 对 providerConfiguration（系统 VPN 偏好里的 plist）有 512KB 硬上限
+        //    （saveToPreferences 报 configuration is invalid: The configuration is
+        //    too large (613638 bytes). The maximum size is 524288 bytes）。
+        //    因此：文件写成功 → **绝不**再内联（哪怕配置只有 400KB：多一份正文只是
+        //    白白逼近上限，订阅再长一点就整条连接失败）；文件写失败 → 小配置内联、
+        //    大配置 zlib 压缩后内联（600KB JSON 压完约 100KB，仍安全），彻底避免
+        //    「App Group 不可用 + 大订阅 = 永远连不上」。
         let inlineLimit = 480 * 1024 // 512KB 上限里给其它键/plist 开销留余量
-        if json.utf8.count < inlineLimit {
-            // 小配置仍然内联：作为共享文件读不到时的双保险（保持旧行为）
+        if wroteFile {
+            note("配置仅走共享文件（不内联，避免 512KB 上限）")
+        } else if json.utf8.count <= inlineLimit {
             providerConf["configInline"] = json
-            note("已附带内联配置 \(json.utf8.count)B（小配置双保险）")
-        } else if !wroteFile {
-            // 大配置且共享文件没写成：内联必然触发系统 512KB 上限，直接给出可读错误
-            note("✗ 配置 \(json.utf8.count)B 超过内联上限 \(inlineLimit)B，且 App Group 不可用")
-            fail("配置过大（\(json.utf8.count) 字节），无法通过系统 VPN 偏好保存；请确认 App Group 权限可用后重试", result)
-            return
+            note("App Group 不可用，内联配置 \(json.utf8.count)B")
+        } else if let gz = Self.zlibCompressBase64(json) {
+            providerConf["configInlineGz"] = gz
+            note("App Group 不可用，内联 zlib 压缩配置 \(json.utf8.count)B → \(gz.count)B(base64)")
         } else {
-            note("大配置 \(json.utf8.count)B 仅走共享文件（不内联，避免 512KB 上限）")
+            note("✗ 配置 \(json.utf8.count)B 压缩失败且 App Group 不可用")
+            fail("配置过大且无法压缩传递（\(json.utf8.count) 字节）；请确认 App Group 权限可用后重试", result)
+            return
         }
 
         let proto = NETunnelProviderProtocol()
@@ -251,6 +255,24 @@ class VpnCorePlugin {
     }
 
     // MARK: - 日志与诊断
+
+    /// zlib 压缩 + base64：给「App Group 不可用 + 大订阅」兜底用。
+    /// providerConfiguration 有 512KB 上限，600KB 的 JSON 压完通常只剩 ~100KB。
+    static func zlibCompressBase64(_ text: String) -> String? {
+        let data = Data(text.utf8)
+        var out = Data(count: data.count + 1024)
+        let n = out.withUnsafeMutableBytes { dst -> Int in
+            guard let dstPtr = dst.bindMemory(to: UInt8.self).baseAddress else { return 0 }
+            return data.withUnsafeBytes { src -> Int in
+                guard let srcPtr = src.bindMemory(to: UInt8.self).baseAddress else { return 0 }
+                return compression_encode_buffer(dstPtr, dst.count, srcPtr, data.count,
+                                                nil, COMPRESSION_ZLIB)
+            }
+        }
+        guard n > 0 else { return nil }
+        out.removeSubrange(n..<out.count)
+        return out.base64EncodedString()
+    }
 
     /// 内核日志由扩展抽到 App Group 的 kernel.log（内核缓冲在扩展进程里，
     /// App 读不到），这里沿用与 Android 相同的两种语义：

@@ -2,6 +2,7 @@ import Darwin
 import Foundation
 import Network
 import NetworkExtension
+import Compression
 import ObjectiveC
 import UIKit
 import os.log
@@ -396,6 +397,12 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         if configText == nil, let inline = conf["configInline"] as? String, !inline.isEmpty {
             configText = inline
             configSource = "inline"
+        }
+        // App Group 不可用 + 大订阅时，App 会把配置 zlib 压缩后 base64 内联
+        // （600KB JSON → ~100KB），这里解回来。
+        if configText == nil, let gz = conf["configInlineGz"] as? String, !gz.isEmpty {
+            configText = Self.zlibDecompressBase64(gz)
+            configSource = configText == nil ? "inlineGz(解压失败)" : "inlineGz"
         }
         guard let configJson = configText, !configJson.isEmpty else {
             TunnelDiag.log("✗ 没有可用配置（App Group 与内联都为空）")
@@ -1010,6 +1017,30 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             mask = (mask << 8) & 0xFFFF_FFFF
         }
         return octets.joined(separator: ".")
+    }
+
+    /// zlib 解压 base64（与 App 侧 zlibCompressBase64 对应）。
+    /// 解压后大小事先未知：按估算缓冲逐步放大，最多 4 次。
+    static func zlibDecompressBase64(_ b64: String) -> String? {
+        guard let data = Data(base64Encoded: b64) else { return nil }
+        var cap = max(data.count * 8, 1 << 20)
+        for _ in 0..<4 {
+            var out = Data(count: cap)
+            let n = out.withUnsafeMutableBytes { dst -> Int in
+                guard let dstPtr = dst.bindMemory(to: UInt8.self).baseAddress else { return 0 }
+                return data.withUnsafeBytes { src -> Int in
+                    guard let srcPtr = src.bindMemory(to: UInt8.self).baseAddress else { return 0 }
+                    return compression_decode_buffer(dstPtr, cap, srcPtr, data.count,
+                                                     nil, COMPRESSION_ZLIB)
+                }
+            }
+            if n > 0 {
+                out.removeSubrange(n..<out.count)
+                return String(data: out, encoding: .utf8)
+            }
+            cap *= 4
+        }
+        return nil
     }
 
     /// 打印 fd 的 socket 类型（SOCK_DGRAM / SOCK_STREAM / 非 socket）。

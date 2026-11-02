@@ -179,6 +179,37 @@ void main() {
     expect((quiet['log'] as Map)['level'], 'debug');
   });
 
+  test('encode(): 紧凑序列化（不带缩进）—— iOS providerConfiguration 只有 512KB', () {
+    // 背景：iOS 的 NETunnelProviderProtocol.providerConfiguration 有 512KB 硬上限。
+    // 同一份 600 节点配置：带 2 空格缩进约 613KB（超限，saveToPreferences 报
+    // "The configuration is too large"），紧凑后约 400KB。缩进纯属白占空间。
+    final nodes = List.generate(
+      60,
+      (i) => ProxyNode(
+        tag: '节点$i-美国-电信优选',
+        type: 'vless',
+        server: '103.100.158.${i % 250}',
+        port: 443,
+        raw: const {
+          'uuid': '11111111-2222-3333-4444-555566667777',
+          'flow': 'xtls-rprx-vision',
+          'tls': {
+            'enabled': true,
+            'server_name': 'www.example.com',
+            'utls': {'enabled': true, 'fingerprint': 'chrome'},
+          },
+        },
+      ),
+    );
+    final cfg = SingBoxConfigBuilder.build(
+        nodes: nodes, selectedTag: nodes.first.tag, smartMode: true);
+    final text = SingBoxConfigBuilder.encode(cfg);
+    expect(text.contains('\n'), isFalse,
+        reason: '必须是单行紧凑 JSON（多余空白会顶穿 iOS 上限）');
+    expect(text.contains('  "'), isFalse, reason: '不能有缩进空格');
+    expect(jsonDecode(text), isA<Map<String, dynamic>>());
+  });
+
   test('encode(): 剥离 `_` 元数据键，产物是可被 jsonDecode 解析的 sing-box JSON', () {
     final cfg = SingBoxConfigBuilder.build(
         nodes: [vlessNode], selectedTag: vlessNode.tag, smartMode: true);
