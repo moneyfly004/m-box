@@ -424,16 +424,28 @@ class ProxyCoreCli extends ProxyCore {
           }
         }
         route.remove('rule_set');
+        // 引用这些规则集的**路由规则**与**DNS 规则**都要摘掉：DNS 规则里也用它
+        // （境外域名走 geosite-cn 判定），只清 route.rules 会让内核在
+        // `initialize dns router: dns rule[N]: rule-set not found` 直接 FATAL。
+        bool refsDropped(Object? r) {
+          if (r is! Map) return true;
+          final ref = r['rule_set'];
+          if (ref is List) {
+            return !ref.any((t) => tags.contains(t.toString()));
+          }
+          return true;
+        }
+
         final rules = route['rules'];
         if (rules is List) {
-          route['rules'] = rules.where((r) {
-            if (r is! Map) return true;
-            final ref = r['rule_set'];
-            if (ref is List) {
-              return !ref.any((t) => tags.contains(t.toString()));
-            }
-            return true;
-          }).toList();
+          route['rules'] = rules.where(refsDropped).toList();
+        }
+        final dns = config['dns'];
+        if (dns is Map) {
+          final dnsRules = dns['rules'];
+          if (dnsRules is List) {
+            dns['rules'] = dnsRules.where(refsDropped).toList();
+          }
         }
       }
     }

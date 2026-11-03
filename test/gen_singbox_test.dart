@@ -432,11 +432,13 @@ void main() {
     final off = SingBoxConfigBuilder.build(
         nodes: [vlessNode], selectedTag: vlessNode.tag, smartMode: true);
     final dns = off['dns'] as Map;
-    expect(_dnsServers(off).map((s) => s['tag']), ['dns-main', 'dns-local']);
+    // 新增 dns-proxy（8.8.8.8 经节点，防污染）：境外域名兜底走它
+    expect(_dnsServers(off).map((s) => s['tag']),
+        ['dns-main', 'dns-proxy', 'dns-local']);
     expect(dns.containsKey('enhanced-mode'), isFalse,
         reason: 'sing-box 用 servers 里的 fakeip 项表达，不再有 enhanced-mode');
     expect(dns.containsKey('listen'), isFalse, reason: '桌面 dns 不监听端口');
-    expect(dns['final'], 'dns-main');
+    expect(dns['final'], 'dns-proxy', reason: '境外域名兜底走经节点的远程 DNS');
     expect(dns['strategy'], 'prefer_ipv4');
     expect((off['route'] as Map)['default_domain_resolver'], {'server': 'dns-main'},
         reason: 'sing-box 1.12+ 必须有域名兜底解析器，否则启动报错');
@@ -651,7 +653,8 @@ void main() {
         dns: '1.1.1.1',
         dnsNameservers: ['223.5.5.5', '119.29.29.29', 'https://dns.alidns.com/dns-query']);
     final servers = serversOf(multi);
-    expect(servers.map((s) => s['tag']).toList(), ['dns-main', 'dns-1', 'dns-2', 'dns-local']);
+    expect(servers.map((s) => s['tag']).toList(),
+        ['dns-main', 'dns-1', 'dns-2', 'dns-proxy', 'dns-local']);
     expect(servers[0], {'type': 'udp', 'tag': 'dns-main', 'server': '223.5.5.5'});
     expect(servers[1], {'type': 'udp', 'tag': 'dns-1', 'server': '119.29.29.29'});
     expect(servers[2]['type'], 'https');
@@ -660,7 +663,7 @@ void main() {
     expect(servers[2]['path'], '/dns-query', reason: 'DoH 自定义路径要保留');
     expect(servers[2]['domain_resolver'], 'dns-local',
         reason: 'sing-box 1.12+ 域名型 DNS 服务器必须带 domain_resolver');
-    expect((multi['dns'] as Map)['final'], 'dns-main');
+    expect((multi['dns'] as Map)['final'], 'dns-proxy');
     expect((multi['route'] as Map)['default_domain_resolver'], {'server': 'dns-main'});
   });
 
@@ -871,6 +874,14 @@ void main() {
           if (r['rule_set'] == null) Map<String, dynamic>.from(r)
       ];
       degraded['route'] = degRoute;
+      // DNS 规则里也引用了 geosite-cn（境外域名判定），必须一并摘掉：
+      // 只清 route.rules 会让内核 initialize dns router 直接 FATAL。
+      final degDns = Map<String, dynamic>.from(degraded['dns'] as Map);
+      degDns['rules'] = [
+        for (final r in (degDns['rules'] as List).cast<Map>())
+          if (r['rule_set'] == null) Map<String, dynamic>.from(r)
+      ];
+      degraded['dns'] = degDns;
       File('${tmp.path}/config.degraded.json')
           .writeAsStringSync(SingBoxConfigBuilder.encode(degraded));
       final degRun = Process.runSync(
