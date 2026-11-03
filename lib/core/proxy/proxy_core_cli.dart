@@ -730,6 +730,23 @@ class ProxyCoreCli extends ProxyCore {
       _launchedViaSudo = false;
       _sudoBinary = null;
     }
+    // Windows：Dart 的 SIGTERM 在 Windows 上是 TerminateProcess（硬终止），
+    // sing-box 来不及执行「删除 wintun 虚拟网卡」的清理 → 适配器残留，下次
+    // TUN 启动可能报「already exists / adapter busy」。内核退出后 best-effort
+    // 清掉 sing-box 命名的（含隐藏）适配器；匹配不到/无权限都不影响正常流程。
+    if (Platform.isWindows && _tunForceMode) {
+      try {
+        await Process.run('powershell', [
+          '-NoProfile',
+          '-Command',
+          "Get-NetAdapter -IncludeHidden -Name 'sing-box*' "
+              "-ErrorAction SilentlyContinue | "
+              "Remove-NetAdapter -Confirm:\$false -ErrorAction SilentlyContinue",
+        ]).timeout(const Duration(seconds: 8));
+      } catch (e) {
+        AppLog.kernel('Windows：清理 wintun 残留适配器失败（可忽略）: \$e');
+      }
+    }
   }
 
   /// 轮询「命令行包含 [binaryPath] 的进程」是否全部消失。
