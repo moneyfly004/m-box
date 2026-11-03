@@ -73,7 +73,7 @@ class MacTunHelper {
     final script = '''
 set -e
 tmp="\$(mktemp /tmp/mf-sudoers.XXXXXX)"
-printf '%s\\n' '# MBox TUN —— 仅允许该用户免密以 root 运行下面这一个内核' '$user ALL=(root) NOPASSWD: $escapedCore' '$user ALL=(root) NOPASSWD: /usr/bin/pkill -f $escapedCore' > "\$tmp"
+printf '%s\\n' '# MBox TUN —— 仅允许该用户免密以 root 运行下面这一个内核' '$user ALL=(root) NOPASSWD: $escapedCore' '$user ALL=(root) NOPASSWD: /usr/bin/pkill -f $escapedCore' '$user ALL=(root) NOPASSWD: /usr/bin/pkill -9 -f $escapedCore' > "\$tmp"
 VISUDO="/usr/sbin/visudo"
 "\$VISUDO" -cf "\$tmp" >/dev/null
 install -m 0440 -o root -g wheel "\$tmp" $sudoersFile

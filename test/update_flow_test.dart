@@ -232,6 +232,14 @@ void main() {
 
       final flow = UpdatePrompt.installNow(ctx, info: info); // 不 await
       await tester.pump();
+      // 安装前有真实 IO 等待（断开内核 / 还原系统代理 / 校验安装包），
+      // pumpAndSettle 只等帧稳定、不等这些异步 IO；补一个有限次 pump 等结果落地，
+      // 否则用例会因「异步流程还没跑完就断言」而红（与业务正确性无关）。
+      for (var i = 0;
+          i < 60 && (Platform.isMacOS ? macInstalled == null : launched == null);
+          i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
       await tester.pumpAndSettle();
 
       if (Platform.isMacOS) {

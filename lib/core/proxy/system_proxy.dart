@@ -265,6 +265,51 @@ class SystemProxyManager {
     return true;
   }
 
+  /// 更强残留检测：清掉**任何**「指向本机(localhost/127.0.0.1)但该端口已无监听」
+  /// 的系统代理。旧 clearResidual 只认「当前配置端口」，用户改过端口/别的版本
+  /// 写下的残留会漏清 → 浏览器指向死端口 = 整机没网。
+  static Future<bool> clearDeadLocalProxies() async {
+    if (!_isMacOS) return false;
+    try {
+      final services = await _macServices();
+      if (services.isEmpty) return false;
+      const kinds = ['web', 'secureweb', 'socksfirewall'];
+      final hits = <({String svc, String kind})>[];
+      final reads = <Future<void>>[];
+      for (final svc in services) {
+        for (final kind in kinds) {
+          reads.add(Process.run('networksetup', ['-get${kind}proxy', svc])
+              .then((r) async {
+            if (r.exitCode != 0) return;
+            final text = (r.stdout as String);
+            if (!text.contains('Enabled: Yes')) return;
+            final host = _extractMacValue(text, 'Server:');
+            final portStr = _extractMacValue(text, 'Port:');
+            if (host == null || portStr == null) return;
+            final h = host.trim().toLowerCase();
+            if (h != '127.0.0.1' && h != 'localhost' && h != '::1') return;
+            final port = int.tryParse(portStr.trim());
+            if (port == null) return;
+            if (!await isLocalPortAlive(port)) {
+              hits.add((svc: svc, kind: kind));
+            }
+          }).catchError((_) {}));
+        }
+      }
+      await Future.wait(reads);
+      if (hits.isEmpty) return false;
+      for (final h in hits) {
+        await Process.run(
+            'networksetup', ['-set${h.kind}proxystate', h.svc, 'off']);
+        AppLog.log('APP', 'clear dead local proxy: ${h.svc}/${h.kind} -> off');
+      }
+      return true;
+    } catch (e) {
+      AppLog.error('clearDeadLocalProxies 失败: $e');
+      return false;
+    }
+  }
+
   static Future<void> ensureApplied({int port = defaultPort}) async {
     await _withLock(() async {
       if (!_applied || _port != port) {

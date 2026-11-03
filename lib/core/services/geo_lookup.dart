@@ -67,11 +67,16 @@ class GeoLookupService {
       return _cachedCode;
     }
     // 读当前生效的本地代理端口（设置页可改）：出口定位必须走同一个 mixed
-    // 入站，端口不匹配时请求会落到空端口导致定位失败
+    // 入站，端口不匹配时请求会落到空端口导致定位失败。
+    // ⚠️ TUN 模式**没有** mixed 监听：此时再显式 PROXY 127.0.0.1:<localPort>
+    // 会全部「连接被拒绝」→ 出口检测失败（日志三连 连接被拒绝）。TUN 下改用
+    // DIRECT —— App 自身流量本来就被 TUN 接管，直连即经节点出去，出口正确。
     int port = defaultPort;
+    var tunMode = false;
     try {
       final s = await SettingsStore.instance.load();
       port = (s['localPort'] as num?)?.toInt() ?? defaultPort;
+      tunMode = s['tunMode']?.toString() == 'force';
     } catch (_) {}
     Dio? dio;
     final errors = <String>[];
@@ -85,12 +90,13 @@ class GeoLookupService {
         receiveTimeout: lookupTimeout,
         headers: {'Accept': 'application/json', 'User-Agent': 'MBox'},
       ));
-      // 显式走本地混合代理（App 自身请求默认不走系统代理）
+      // 显式走本地混合代理（App 自身请求默认不走系统代理）；
+      // TUN 模式没有 mixed 监听 → 用 DIRECT（经 TUN 出节点）。
       dio.httpClientAdapter = IOHttpClientAdapter(
         createHttpClient: () {
           final c = HttpClient();
           c.connectionTimeout = lookupTimeout;
-          c.findProxy = (uri) => 'PROXY 127.0.0.1:$port';
+          c.findProxy = (uri) => tunMode ? 'DIRECT' : 'PROXY 127.0.0.1:$port';
           return c;
         },
       );

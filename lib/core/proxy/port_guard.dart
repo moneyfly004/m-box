@@ -19,6 +19,7 @@
 /// 别人的程序就抛类型化错误（带进程名 + PID），由 UI 给「换端口并重连」。**
 library;
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -189,6 +190,21 @@ class PortGuard {
     }
   }
 
+  /// 统计某端口的 TIME_WAIT 连接数（仅诊断日志用；macOS 上要 60s 才消退）。
+  static Future<int> timeWaitCount(int port) async {
+    if (!(Platform.isMacOS || Platform.isLinux)) return 0;
+    try {
+      final r = await Process.run('netstat', ['-an'],
+          stdoutEncoding: utf8, stderrEncoding: utf8)
+          .timeout(const Duration(seconds: 3));
+      final out = (r.stdout as String);
+      final re = RegExp('\\.$port\\s.*TIME_WAIT');
+      return re.allMatches(out).length;
+    } catch (_) {
+      return 0;
+    }
+  }
+
   /// 等端口真的释放（默认 3s）。杀掉进程后内核要一点时间回收监听 socket，
   /// 立刻重试很可能又 bind 失败 —— 必须等「确实空了」而不是「刚发了 kill」。
   static Future<bool> waitFree(
@@ -262,15 +278,17 @@ class PortGuard {
       }
       AppLog.error('[PORT] $what $port 回收后仍未释放（${holder.describe}）');
     }
-    // 没有 LISTEN 监听者、但 bind 探测失败 = 大概率是刚 stop 的内核留下
-    // TIME_WAIT（断开→重连太快，或测速刚结束一堆连接还在收尾）。内核(Go)
-    // 的监听 socket 带 SO_REUSEADDR 本可正常 bind，而我们的探测没带
-    // SO_REUSEADDR，会误报「端口被占用」→ 触发重连风暴。等它真正释放再判定。
     if (holder == null) {
+      // 没有 LISTEN 监听者、但 bind 探测失败 = 刚 stop 的内核留下 TIME_WAIT。
+      // ⚠️ 实测 sing-box 的监听**不带 SO_REUSEADDR**，在 TIME_WAIT 端口上会直接
+      // FATAL「bind: address already in use」—— 所以这里**不能放行**，必须等
+      // 一小会儿；仍不释放就抛类型化错误，由 UI 引导「换端口并重连」。
       if (await waitFree(port, timeout: const Duration(seconds: 4))) {
         AppLog.log('PORT', '$what $port 从 TIME_WAIT 恢复，已释放');
         return;
       }
+      final tw = await timeWaitCount(port);
+      AppLog.log('PORT', '$what $port 等待 4s 仍未释放（TIME_WAIT $tw 条）');
     }
     throw TypedConnError(
       ConnErrorKind.portInUse,

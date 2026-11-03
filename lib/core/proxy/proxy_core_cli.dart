@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
@@ -98,10 +99,13 @@ class ProxyCoreCli extends ProxyCore {
 
   /// 系统代理保活定时器：连接期间周期检查，被系统/外部关掉就重新开启。
   /// 目标：只要内核在跑，系统代理就保持指向本地端口，直到断开/退出。
-  /// 20s 一次：探测是子进程(reg query / networksetup)，过密会累积进程创建
-  /// 开销(macOS 每轮服务数×3 并行)；20s 内恢复被外部关闭的代理已足够快。
+  /// 10s 一次：探测是子进程(reg query / networksetup)，过密会累积进程创建
+  /// 开销(macOS 每轮服务数×3 并行)；但 20s 时切 Wi-Fi/插网线后新网络服务可能
+  /// 长达 20s 没有代理（表现为「连着但没网」）。折中 10s，并在连接成功时
+  /// 立即巡检一次 + 监听系统网络变化立即重放。
   Timer? _proxyKeepAlive;
-  static const _proxyKeepAliveInterval = Duration(seconds: 20);
+  StreamSubscription<dynamic>? _netChangeSub;
+  static const _proxyKeepAliveInterval = Duration(seconds: 10);
 
   /// 进程异常退出（非主动断开）→ 控制器触发自动重连
   VoidCallback? _onUnexpectedExit;
@@ -128,9 +132,18 @@ class ProxyCoreCli extends ProxyCore {
   /// 最近内核日志（错误排查用，环形保留末尾 ~40 行）
   final List<String> _logTail = [];
   static const _logKeep = 40;
-  /// 进程级内核日志环形缓冲（日志实时页跨实例读取；上限 200 行）
+  /// 进程级内核日志环形缓冲（日志实时页跨实例读取；上限 200 行 / 256KB）
   static final List<String> _lastCoreLogs = [];
   static const _coreLogKeep = 200;
+  /// 字节上限：debug 级别单行可达数 KB，只按行数限制仍可能吃掉几十 MB
+  static const _coreLogMaxBytes = 256 * 1024;
+  static int _lastCoreLogBytes = 0;
+
+  /// 清空内核日志缓冲（设置页「清空日志」用）
+  static void clearCoreLogs() {
+    _lastCoreLogs.clear();
+    _lastCoreLogBytes = 0;
+  }
 
   @override
   bool get isRunning => _proc != null;
@@ -371,7 +384,25 @@ class ProxyCoreCli extends ProxyCore {
       _api.options.headers['Authorization'] = 'Bearer $clashSecret';
     }
 
+    // TUN 模式没有 mixed 监听：若系统代理**残留**指向本地端口（上次会话 / 异常
+    // 退出 / 刚从系统代理模式切过来），浏览器、App 自带出口检测等走系统代理的
+    // 请求会全部「连接被拒绝」→ 表现为「TUN 已连接但没网」。起内核前先清掉。
+    // 判据见 clearResidual：只清「指向本机且该端口当前没人监听」的残留，
+    // 别的实例正在用的活代理不动。
+    if (_tunForceMode) {
+      await SystemProxyManager.clearResidual(port: _localPort);
+    }
     final binary = await resolveBinary();
+    // 上一场 TUN 会话的 root 内核若成孤儿（sudo 父进程消失），killStaleKernels
+    // 里的 `kill -9` 以普通用户身份杀不掉 → 继续占死 Clash API 端口（「端口占用」
+    // 反复出现）。这里用 sudoers 里为内核二进制放行的 NOPASSWD pkill 精确收掉。
+    // MBox 是单实例 VPN，不存在「另一实例在用」的情况。
+    if (Platform.isMacOS) {
+      try {
+        await Process.run('sudo', ['-n', 'pkill', '-f', binary],
+            stdoutEncoding: utf8, stderrEncoding: utf8);
+      } catch (_) {}
+    }
     final dir = Directory(workDir);
     if (!dir.existsSync()) dir.createSync(recursive: true);
     _configPath = '${dir.path}/config.json';
@@ -407,6 +438,33 @@ class ProxyCoreCli extends ProxyCore {
       }
     }
 
+    // Clash API 端口自动避让（关键）：上一场内核对端连接会在该端口留下
+    // TIME_WAIT（macOS 60s 才消退），sing-box 的监听**不带 SO_REUSEADDR**，
+    // 直接 FATAL「bind: address already in use」→ 表现为「TUN 断开后再连
+    // 智能模式必报端口占用」。这是 App 自己的控制通道（不是用户可见的本地
+    // 代理端口），静默换一个空闲端口即可，系统代理不受影响。
+    if (_clashApiPort > 0 && !await PortGuard.isFree(_clashApiPort)) {
+      final holder = await PortGuard.whoListens(_clashApiPort);
+      var canTakeOver = holder == null; // 无 LISTEN 监听者 = TIME_WAIT 残留
+      if (holder != null && holder.isOurKernel) {
+        canTakeOver = await PortGuard.canReclaim(holder);
+      }
+      if (canTakeOver) {
+        final newPort =
+            await PortGuard.pickFree(from: _clashApiPort + 1, avoid: {_localPort});
+        AppLog.log('PORT',
+            'Clash API 端口 $_clashApiPort 不可用（TIME_WAIT），自动改用 $newPort');
+        _clashApiPort = newPort;
+        _api.options.baseUrl = 'http://127.0.0.1:$_clashApiPort';
+        final exp = config['experimental'];
+        if (exp is Map) {
+          final api = exp['clash_api'];
+          if (api is Map) {
+            api['external_controller'] = '127.0.0.1:$_clashApiPort';
+          }
+        }
+      }
+    }
     // sing-box 读 JSON：SingBoxConfigBuilder.encode 会剥离 `_` 前缀元数据键
     await File(_configPath!).writeAsString(SingBoxConfigBuilder.encode(config), flush: true);
 
@@ -624,6 +682,18 @@ class ProxyCoreCli extends ProxyCore {
         manageSystemProxy ? SystemProxyManager.restore() : Future.value();
 
     await Future.wait([killFut, restoreFut]);
+    // 断开后把系统代理清干净：restore 依赖进程内 _applied/_original，新进程
+    // 或残留场景会直接跳过 → 代理仍指向已死的内核端口 → 整机「没网」。
+    // **不阻塞**：networksetup 要 ~0.5s+，同步等会拖慢断开（更新流程
+    // 「先 disconnect 再装」会因此超出 pumpAndSettle 的窗口）。清理是后台动作，
+    // 且下次启动 main.dart 还会兜底再清一遍。
+    unawaited(() async {
+      try {
+        await SystemProxyManager.clearResidual(port: _localPort, force: true);
+      } catch (e) {
+        AppLog.error('断开清理系统代理失败: $e');
+      }
+    }());
     // sudo 启动时，杀掉 sudo 父进程不一定带走 root 内核：按**内核二进制精确
     // 路径**补刀一次（sudoers 里为它单独放了 NOPASSWD pkill 规则，见
     // MacTunHelper.grant）。旧实现用 workdir 模糊 pkill：既可能撞无关进程，
@@ -638,6 +708,18 @@ class ProxyCoreCli extends ProxyCore {
             AppLog.kernel('macOS TUN：sudo -n pkill 补刀失败（${r.stderr.trim()}），'
                 '可能存在 root 孤儿内核');
           }
+          // 验证：pkill 发出后进程是否真的消失（SIGTERM 可能被忽略/竞态）
+          if (!await _waitBinaryGone(target, const Duration(seconds: 2))) {
+            AppLog.kernel('macOS TUN：内核仍在（pid=$target），尝试 -9 强杀');
+            await Process.run('sudo', ['-n', 'pkill', '-9', '-f', target],
+                stdoutEncoding: utf8, stderrEncoding: utf8);
+            if (!await _waitBinaryGone(target, const Duration(seconds: 2))) {
+              AppLog.error('macOS TUN：root 内核强杀后仍存活，端口可能被占死；'
+                  '请在「日志中心」查看，必要时重启系统');
+            } else {
+              AppLog.kernel('macOS TUN：-9 强杀成功，root 内核已清除');
+            }
+          }
         } catch (e) {
           AppLog.kernel('macOS TUN：sudo -n pkill 异常: $e');
         }
@@ -647,12 +729,39 @@ class ProxyCoreCli extends ProxyCore {
     }
   }
 
-  /// 启动系统代理保活：每 20s 检查一次，被关/被改走则立即重新指向本地端口
+  /// 轮询「命令行包含 [binaryPath] 的进程」是否全部消失。
+  /// 用于 sudo 内核补刀后验证（pkill 成功 ≠ 进程已退，信号可能被忽略）。
+  static Future<bool> _waitBinaryGone(
+      String binaryPath, Duration timeout) async {
+    final sw = Stopwatch()..start();
+    while (sw.elapsed < timeout) {
+      try {
+        final r = await Process.run('pgrep', ['-f', binaryPath],
+            stdoutEncoding: utf8, stderrEncoding: utf8);
+        if (r.exitCode != 0 || (r.stdout as String).trim().isEmpty) return true;
+      } catch (_) {
+        return true;
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+    }
+    return false;
+  }
+
+  /// 启动系统代理保活：每 10s 检查一次，被关/被改走则立即重新指向本地端口
   bool _keepAliveInFlight = false;
 
   void _startProxyKeepAlive() {
     _stopProxyKeepAlive();
     _keepAliveInFlight = false;
+    // 网络变化（切 Wi-Fi / 插网线 / 热点）时新网络服务的系统代理是空的：
+    // 定时轮询最长要等 10s，期间「显示已连接但没网」。监听变化立即重放。
+    try {
+      _netChangeSub = Connectivity().onConnectivityChanged.listen((_) {
+        if (_proc == null || _tunForceMode || !manageSystemProxy) return;
+        unawaited(SystemProxyManager.ensureApplied(port: _localPort)
+            .catchError((_) {}));
+      });
+    } catch (_) {}
     _proxyKeepAlive = Timer.periodic(_proxyKeepAliveInterval, (_) async {
       if (_keepAliveInFlight) return;
       if (_proc == null || _tunForceMode || !manageSystemProxy) return;
@@ -669,6 +778,8 @@ class ProxyCoreCli extends ProxyCore {
   void _stopProxyKeepAlive() {
     _proxyKeepAlive?.cancel();
     _proxyKeepAlive = null;
+    _netChangeSub?.cancel();
+    _netChangeSub = null;
   }
 
   @override
@@ -736,7 +847,12 @@ class ProxyCoreCli extends ProxyCore {
     _logTail.add(line);
     if (_logTail.length > _logKeep) _logTail.removeAt(0);
     _lastCoreLogs.add(line);
-    if (_lastCoreLogs.length > _coreLogKeep) _lastCoreLogs.removeAt(0);
+    _lastCoreLogBytes += line.length;
+    while (_lastCoreLogs.length > _coreLogKeep ||
+        _lastCoreLogBytes > _coreLogMaxBytes) {
+      final removed = _lastCoreLogs.removeAt(0);
+      _lastCoreLogBytes -= removed.length;
+    }
     // 落盘：内存里的尾部会随进程/App 退出消失，而「内核为什么死」只能靠它查
     KernelLog.append(line);
     _trackTunLog(line);

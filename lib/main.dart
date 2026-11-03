@@ -334,6 +334,9 @@ class _MBoxAppState extends State<MBoxApp> with WidgetsBindingObserver, WindowLi
           final port =
               (s['localPort'] as num?)?.toInt() ?? SystemProxyManager.defaultPort;
           await SystemProxyManager.clearResidual(port: port);
+          // 更强兜底：清掉**任何**指向本机但端口已死的代理（用户改过端口 /
+          // 别的版本写下的残留，clearResidual 只认当前配置端口会漏掉）
+          await SystemProxyManager.clearDeadLocalProxies();
         } catch (_) {}
       }());
     }

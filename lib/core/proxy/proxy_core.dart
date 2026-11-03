@@ -79,9 +79,12 @@ Map<String, dynamic> _buildConfigInIsolate(Map<String, dynamic> args) {
 /// 容错解析端口设置：历史遗留/手工改过的配置可能把端口存成字符串，
 /// 直接用 `as num?` 会抛 TypeError（该处不在 try 内，会让连接整体失败）。
 int _asPort(dynamic v, int fallback) {
-  if (v is num) return v.toInt();
-  final p = int.tryParse(v?.toString().trim() ?? '');
-  return p ?? fallback;
+  final p = v is num ? v.toInt() : int.tryParse(v?.toString().trim() ?? '');
+  if (p == null) return fallback;
+  // 端口范围校验：<1024 需要 root（macOS TUN 下内核以 root 跑会占系统端口），
+  // >65535 非法。非法值回退默认，避免内核「非法端口只打 error 却继续跑」。
+  if (p < 1024 || p > 65535) return fallback;
+  return p;
 }
 
 /// 测速后的节点切换策略（见 ConnectionController._applySwitchPolicy）
@@ -871,6 +874,12 @@ class ConnectionController extends ChangeNotifier {
   /// [fromReconnect] 由断线重连调度发起：失败时继续重试（不中断重连链）。
   /// _epoch 守卫：连接过程中用户断开/再次连接时，旧流程的结果不再覆盖状态
   Future<void> connect({bool runSpeedTest = true, bool fromReconnect = false}) async {
+    // 用户**手动**发起连接（不是自动重连）→ 清零崩溃熔断与自愈计数：熔断是为了
+    // 阻止「启动即崩」的无限循环，但用户主动点击意味着「我已经处理了问题
+    // （换端口/授权/换网络），再试一次」，必须给一轮全新额度，否则点了没反应。
+    if (!fromReconnect) {
+      resetKernelBreaker();
+    }
     // 收掉「测速专用内核」（若有）：真连接期间内核测速直接复用连接中的内核，
     // 临时探测实例没有存在意义，留着白占内存与一个 socket 端口。
     unawaited(SpeedProbeKernel.instance.stop());
@@ -1814,6 +1823,17 @@ class ConnectionController extends ChangeNotifier {
     if (status != ConnStatus.connected || !_core.isRunning) return;
     if (!autoTest) return;
     unawaited(retest());
+  }
+
+  /// 重置内核崩溃熔断（用户手动连接 / 「重试」按钮时调用）。
+  /// 只清计数，不动当前连接状态 —— 调用方负责后续动作。
+  void resetKernelBreaker() {
+    if (_unexpectedExitAt.isEmpty && _kernelRecoverCount == 0) return;
+    AppLog.kernel('reset crash breaker '
+        '(burst=${_unexpectedExitAt.length}, recover=$_kernelRecoverCount)');
+    _unexpectedExitAt.clear();
+    _kernelRecoverCount = 0;
+    _crashRecoveryChain = false;
   }
 
   /// 内核异常退出回调：未连接/用户主动断开时忽略，否则走重连或放弃

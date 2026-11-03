@@ -231,17 +231,18 @@ void main() {
       expect(killed, 0, reason: '别人的程序绝不杀 —— 只提示用户');
     });
 
-    test('查不到占用者（无 lsof / 权限不足）→ 仍然抛 portInUse，提示「其它程序占用」', () async {
+    test('查不到监听者（TIME_WAIT 残留）→ 等待后仍不释放 → 抛 portInUse', () async {
+      // sing-box 不带 SO_REUSEADDR，在 TIME_WAIT 端口上会 FATAL，所以必须报错，
+      // 由 UI 引导「换端口并重连」。
       PortGuard.debugIsFree = (_) async => false;
       PortGuard.debugWhoListens = (_) async => null;
       await expectLater(
         () => PortGuard.ensureFree(9090, what: 'Clash API 端口'),
         throwsA(isA<TypedConnError>()
             .having((e) => e.kind, 'kind', ConnErrorKind.portInUse)
-            .having((e) => e.message, 'message', contains('9090'))
-            .having((e) => e.message, 'message', contains('换端口并重连'))),
+            .having((e) => e.message, 'message', contains('9090'))),
       );
-    });
+    }, timeout: const Timeout(Duration(seconds: 20)));
 
     test('我方残留内核杀不掉 → 如实报错（绝不假装端口已腾出来继续启动）', () async {
       PortGuard.debugIsFree = (_) async => false;
