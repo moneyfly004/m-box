@@ -38,9 +38,13 @@ class MacTunHelper {
     if (override != null) return override;
     if (!Platform.isMacOS) return false;
     try {
+      // ⚠️ 探测必须用**该内核真正支持的版本子命令**：mihomo 用 `-v`，
+      // 而 sing-box 1.14.x 的 `-v` 是「unknown shorthand flag」（实测退出码
+      // 非 0）→ 永远判定未授权，TUN 被误拦（日志「macOS TUN 授权完成: false」
+      // 但 /etc/sudoers.d/mbox-tun 其实已写好）。sing-box 用 `version` 子命令。
       final r = await Process.run(
         'sudo',
-        ['-n', corePath, '-v'],
+        ['-n', corePath, 'version'],
         stdoutEncoding: utf8,
         stderrEncoding: utf8,
       ).timeout(const Duration(seconds: 8));
