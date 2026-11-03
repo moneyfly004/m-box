@@ -80,6 +80,8 @@ class VpnCorePlugin {
                 // 内核（Go）的 stdout/stderr：崩溃转储、fatal error、panic 全在这里。
                 // 扩展被系统杀掉时这是唯一的现场，必须让 App 能读到。
                 reply(result, Self.kernelStderrTail(lines: 120))
+            case "clashViaExtension":
+                handleClashViaExtension(call, result)
             default:
                 result(FlutterMethodNotImplemented)
             }
@@ -386,6 +388,35 @@ class VpnCorePlugin {
                     .providerBundleIdentifier == tunnelBundleId
             }
             body(manager)
+        }
+    }
+
+    /// 热切换兜底：App 直连内核 Clash API 不通时，借扩展进程代为调用。
+    /// 参数：method / path / body；返回 "OK <status>" 或 "ERR ..."。
+    private static func handleClashViaExtension(_ call: FlutterMethodCall,
+                                                _ result: @escaping FlutterResult) {
+        let args = call.arguments as? [String: Any] ?? [:]
+        let method = args["method"] as? String ?? "PUT"
+        let path = args["path"] as? String ?? ""
+        let body = args["body"] as? String ?? ""
+        guard !path.isEmpty else {
+            reply(result, "ERR 空路径")
+            return
+        }
+        withManager { manager in
+            guard let session = manager?.connection as? NETunnelProviderSession else {
+                reply(result, "ERR 无扩展会话")
+                return
+            }
+            let msg = "clash|\(method)|\(path)|\(body)"
+            do {
+                try session.sendProviderMessage(Data(msg.utf8)) { data in
+                    let text = data.flatMap { String(data: $0, encoding: .utf8) } ?? "ERR 空响应"
+                    result(text)
+                }
+            } catch {
+                reply(result, "ERR \(error.localizedDescription)")
+            }
         }
     }
 

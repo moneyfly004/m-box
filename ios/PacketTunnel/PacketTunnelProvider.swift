@@ -578,6 +578,31 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         return Double(info.resident_size) / (1024 * 1024)
     }
 
+    /// NEProviderStopReason → 可读原因（写进诊断轨迹，便于定位「为什么断」）
+    static func stopReasonName(_ r: NEProviderStopReason) -> String {
+        switch r {
+        case .none: return "none"
+        case .userInitiated: return "用户手动断开"
+        case .providerFailed: return "扩展启动/运行失败(providerFailed)"
+        case .noNetworkAvailable: return "无可用网络"
+        case .unrecoverableNetworkChange: return "不可恢复的网络变化"
+        case .providerDisabled: return "VPN 配置被禁用/移除"
+        case .authenticationCanceled: return "认证被取消"
+        case .configurationFailed: return "配置无效(configurationFailed)"
+        case .idleTimeout: return "空闲超时(idleTimeout)"
+        case .configurationDisabled: return "VPN 配置被禁用(configurationDisabled)"
+        case .configurationRemoved: return "VPN 配置被删除"
+        case .superceded: return "被更高优先级隧道取代(superceded)"
+        case .userLogout: return "用户注销(userLogout)"
+        case .userSwitch: return "用户切换(userSwitch)"
+        case .connectionFailed: return "连接建立失败(connectionFailed)"
+        case .sleep: return "系统休眠(sleep)"
+        case .appUpdate: return "App 更新(appUpdate)"
+        case .internalError: return "扩展内部错误(internalError)"
+        @unknown default: return "未知原因(\(r.rawValue))"
+        }
+    }
+
     static func rssText() -> String {
         String(format: "%.1fMB", residentMB())
     }
@@ -854,7 +879,10 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
 
     override func stopTunnel(with reason: NEProviderStopReason,
                              completionHandler: @escaping () -> Void) {
-        TunnelDiag.log("=== stopTunnel reason=\(reason.rawValue) === RSS=\(Self.rssText())")
+        // 原始 rawValue 只有数字，排查「为什么被系统停掉」还得反查枚举；
+        // 直接把原因名写进轨迹（崩溃/内存/用户手动/系统策略一眼可辨）。
+        TunnelDiag.log("=== stopTunnel reason=" + Self.stopReasonName(reason)
+            + "(\(reason.rawValue)) === RSS=\(Self.rssText())")
         os_log("stopTunnel reason=%d", log: log, type: .info, reason.rawValue)
         stopHeartbeat()
         stopPathWatch()
@@ -891,8 +919,51 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             TunnelDiag.log("handleAppMessage(diag) 被调用")
             completionHandler?(Data(TunnelDiag.trace.utf8))
         default:
-            completionHandler?(nil)
+            // 热切换兜底通道：App 直连 127.0.0.1:<apiPort> 若因沙箱/命名空间
+            // 不通，就由**扩展进程内**代为调用内核 Clash API（扩展自己的回环
+            // 必然可达 —— patchInterfaceName 就是这么干的）。
+            // 消息格式：clash|<METHOD>|<path>|<bodyJson>
+            if cmd.hasPrefix("clash|") {
+                let parts = cmd.split(separator: "|", maxSplits: 3,
+                                      omittingEmptySubsequences: false).map(String.init)
+                guard parts.count == 4 else {
+                    completionHandler?(Data("ERR 非法消息".utf8)); return
+                }
+                self.clashRequest(parts[1], parts[2], parts[3], completionHandler)
+            } else {
+                completionHandler?(nil)
+            }
         }
+    }
+
+    /// 在扩展进程内调用内核 Clash API（App 无法直连时的热切换兜底）。
+    /// 返回 "OK <status>" 或 "ERR <reason>"。
+    private func clashRequest(_ method: String, _ path: String, _ body: String,
+                              _ completionHandler: ((Data?) -> Void)?) {
+        guard let url = URL(string: "http://127.0.0.1:\(apiPort)\(path)") else {
+            completionHandler?(Data("ERR 非法路径".utf8)); return
+        }
+        var req = URLRequest(url: url)
+        req.httpMethod = method
+        req.timeoutInterval = 5
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if !apiSecret.isEmpty {
+            req.setValue("Bearer \(apiSecret)", forHTTPHeaderField: "Authorization")
+        }
+        if method == "PATCH" || method == "PUT" || method == "POST" {
+            req.httpBody = body.data(using: .utf8)
+        }
+        TunnelDiag.log("clashRequest(扩展内兜底) \(method) \(path)")
+        URLSession.shared.dataTask(with: req) { _, resp, err in
+            if let err {
+                TunnelDiag.log("clashRequest 失败: \(err.localizedDescription)")
+                completionHandler?(Data("ERR \(err.localizedDescription)".utf8))
+            } else {
+                let code = (resp as? HTTPURLResponse)?.statusCode ?? -1
+                TunnelDiag.log("clashRequest → HTTP \(code)")
+                completionHandler?(Data("OK \(code)".utf8))
+            }
+        }.resume()
     }
 
     override func sleep(completionHandler: @escaping () -> Void) {

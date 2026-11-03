@@ -394,13 +394,33 @@ class ProxyCoreEmbedded extends ProxyCore {
   Future<void> switchMode(bool smart) async {
     // sing-box: Rule=智能 / Global=全局，两套规则用 clash_mode 前缀区分，
     // PATCH /configs 热切换即可，不断网
-    await _clash('PATCH', '/configs', {'mode': smart ? 'Rule' : 'Global'});
+    final mode = smart ? 'Rule' : 'Global';
+    final sw = Stopwatch()..start();
+    try {
+      await _clash('PATCH', '/configs', {'mode': mode});
+      // 埋点：热切必须能在日志里看出「成功/耗时」，否则「切了但没生效/断了」
+      // 全靠猜。log center 导出时这行就是判据。
+      AppLog.kernel('热切模式 → $mode 成功 ${sw.elapsedMilliseconds}ms'
+          '（api=${_api.options.baseUrl}）');
+    } catch (e) {
+      AppLog.error('热切模式 → $mode 失败 ${sw.elapsedMilliseconds}ms: $e'
+          '（authFailed=$_apiAuthFailed api=${_api.options.baseUrl}）');
+      rethrow;
+    }
   }
 
   @override
   Future<void> switchNode(String tag) async {
     // sing-box 没有内置 GLOBAL 组：两种模式的路由终点都是 select 选择器
-    await _clash('PUT', '/proxies/select', {'name': tag});
+    final sw = Stopwatch()..start();
+    try {
+      await _clash('PUT', '/proxies/select', {'name': tag});
+      AppLog.kernel('热切节点 → $tag 成功 ${sw.elapsedMilliseconds}ms');
+    } catch (e) {
+      AppLog.error('热切节点 → $tag 失败 ${sw.elapsedMilliseconds}ms: $e'
+          '（authFailed=$_apiAuthFailed）');
+      rethrow;
+    }
   }
 
   @override
@@ -447,8 +467,41 @@ class ProxyCoreEmbedded extends ProxyCore {
         _apiAuthFailed = true;
         AppLog.error('内核 API 鉴权失败（$method $path → HTTP $code）：'
             'secret 与内核配置不一致，热切换必然失败');
+        rethrow;
+      }
+      // 连接层失败（连不上 / 超时 / 拒绝，无 HTTP 响应）→ 走扩展内兜底：
+      // iOS 上 App 与扩展进程可能不在同一网络命名空间，直连 127.0.0.1:<apiPort>
+      // 会 Connection refused；而扩展进程内访问自己的回环必然可达。只有这种
+      // 「根本没拿到响应」的情况才兜底，4xx/5xx 是内核真实答复，照常上抛。
+      if (e.response == null) {
+        final r = await _clashViaExtension(method, path, jsonEncode(body));
+        if (r.startsWith('OK ')) {
+          final code2 = int.tryParse(r.substring(3).trim());
+          if (code2 != null && code2 >= 200 && code2 < 300) {
+            AppLog.kernel('热切换经扩展兜底成功：$method $path → $r');
+            return;
+          }
+          throw StateError('扩展兜底返回非 2xx：$r');
+        }
+        throw StateError('扩展兜底失败：$r');
       }
       rethrow;
+    }
+  }
+
+  /// 扩展内兜底：App 无法直连内核时，借 PacketTunnel 扩展进程代为调用 Clash API。
+  Future<String> _clashViaExtension(String method, String path, String body) async {
+    try {
+      final r = await _channel.invokeMethod<String>('clashViaExtension', {
+        'method': method,
+        'path': path,
+        'body': body,
+      });
+      return r ?? 'ERR 空响应';
+    } on PlatformException catch (e) {
+      return 'ERR ${e.message ?? e.code}';
+    } catch (e) {
+      return 'ERR $e';
     }
   }
 
@@ -520,6 +573,8 @@ class ProxyCoreEmbedded extends ProxyCore {
             }
             return;
           case WatchdogAction.declareDead:
+            AppLog.error('看门狗判定内核死亡：连续 $_watchdogFailures 次 API 无响应、'
+                '原生状态确认已停 → 触发重连');
             _onKernelDead();
         }
       } finally {
