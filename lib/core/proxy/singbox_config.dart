@@ -107,6 +107,7 @@ class SingBoxConfigBuilder {
     ];
 
     // ===== DNS =====
+    final useGeo = geoReady && ruleSetDir != null;
     final nsList = dnsNameservers.isNotEmpty ? dnsNameservers : <String>[dns];
     final servers = <Map<String, dynamic>>[];
     final tags = <String>[];
@@ -122,6 +123,18 @@ class SingBoxConfigBuilder {
     if (tags.isEmpty) {
       servers.add(_dnsServer('223.5.5.5', 'dns-main'));
       tags.add('dns-main');
+    }
+    // 远程 DNS（经节点出站，防污染）：国内 DNS(223.5.5.5 等)对 google/YouTube
+    // 这类域名返回被污染的境外 IP —— TUN 模式下域名在**本机**解析，直接拿到
+    // 错误 IP 就「连不上/出口检测失败」。加一个 8.8.8.8 经节点解析作为境外
+    // 兜底（detour=select），国内域名仍走国内 DNS（快且不被劫持）。
+    if (!servers.any((e) => e['tag'] == 'dns-proxy')) {
+      servers.add({
+        'type': 'udp',
+        'tag': 'dns-proxy',
+        'server': '8.8.8.8',
+        'detour': 'select',
+      });
     }
     // 本地兜底解析器：处理 hosts/内网域名，且 fake-ip 过滤的域名走它
     servers.add({'type': 'local', 'tag': 'dns-local'});
@@ -151,11 +164,14 @@ class SingBoxConfigBuilder {
           'query_type': ['A', 'AAAA'],
           'server': 'dns-fakeip',
         },
+      // 国内域名走国内 DNS（快、不被劫持）；境外域名兜底走远程 DNS（经节点，
+      // 拿到干净 IP，解决 google/YouTube 打不开）
+      if (useGeo) {'rule_set': ['geosite-cn'], 'server': 'dns-main'},
+      {'server': 'dns-proxy'},
     ];
 
     // ===== 规则集（.srs，随包分发/用户更新）=====
     // ruleSetDir 为空串 = 用相对文件名（iOS 扩展的工作目录即内核 homeDir）
-    final useGeo = geoReady && ruleSetDir != null;
     final ruleSets = <Map<String, dynamic>>[
       if (useGeo) ...[
         {
@@ -245,7 +261,7 @@ class SingBoxConfigBuilder {
       'dns': {
         'servers': servers,
         'rules': dnsRules,
-        'final': tags.first,
+        'final': 'dns-proxy',
         // sing-box 1.12+：DNS 解析策略（默认 prefer_ipv4，与 ipv6:false 一致）
         'strategy': 'prefer_ipv4',
       },

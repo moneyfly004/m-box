@@ -18,6 +18,8 @@ import '../../widgets/update_prompt.dart';
 import '../../core/api/api_client.dart';
 import '../../core/services/app_log.dart';
 import '../../core/platform/elevation.dart';
+import '../../core/platform/mac_tun_helper.dart';
+import '../../core/proxy/proxy_core_cli.dart';
 import '../../widgets/tun_elevation_dialog.dart';
 import '../../core/services/country_slots.dart';
 import '../../widgets/traffic_chart.dart';
@@ -1351,20 +1353,34 @@ class _HomePageState extends State<HomePage>
       return;
     }
     if (mode == HomeMode.tun && !Elevation.isElevated) {
-      final outcome = await requestTunElevation(context);
+      // macOS：先探测是否已经一次性授权过（sudoers 规则已写入
+      // /etc/sudoers.d/mbox-tun）。旧实现这里**无条件**弹授权框 —— 用户每次
+      // 点 TUN 都要求授权，即使规则早已生效。只有「确实未授权」才弹框。
+      var granted = false;
+      if (Platform.isMacOS) {
+        String core = '';
+        try {
+          core = await ProxyCoreCli.resolveKernelBinary();
+        } catch (_) {}
+        granted = await MacTunHelper.isGranted(core);
+      }
       if (!mounted) return;
-      if (outcome == TunElevationOutcome.relaunching) {
-        await Future<void>.delayed(const Duration(milliseconds: 300));
-        exit(0);
-      }
-      if (outcome == TunElevationOutcome.cancelled) {
-        if (Platform.isWindows) {
-          _toast(AppStrings.t('tun_admin_cancelled',
-              {'mode': _homeModeLabel(conn.homeMode)}));
+      if (!granted) {
+        final outcome = await requestTunElevation(context);
+        if (!mounted) return;
+        if (outcome == TunElevationOutcome.relaunching) {
+          await Future<void>.delayed(const Duration(milliseconds: 300));
+          exit(0);
         }
-        return;
+        if (outcome == TunElevationOutcome.cancelled) {
+          if (Platform.isWindows) {
+            _toast(AppStrings.t('tun_admin_cancelled',
+                {'mode': _homeModeLabel(conn.homeMode)}));
+          }
+          return;
+        }
+        // macOS：刚完成一次性授权 → 继续切 TUN
       }
-      // macOS：刚完成一次性授权 → 继续切 TUN
     }
     try {
       // 不 await：TUN 与系统代理互切要重连内核（秒级），阻塞会让按钮像卡死。
