@@ -14,7 +14,10 @@ import '../services/app_log.dart';
 ///   1. 首次选择 TUN 时用 `osascript ... with administrator privileges` 弹一次
 ///      系统密码框；
 ///   2. 以 root 写 `/etc/sudoers.d/mbox-tun`：
-///        `用户 ALL=(root) NOPASSWD: …/MBox.app/Contents/MacOS/mihomo`
+///        `用户 ALL=(root) NOPASSWD: …/MBox.app/Contents/MacOS/sing-box`
+///        `用户 ALL=(root) NOPASSWD: /usr/bin/pkill -f …/Contents/MacOS/sing-box`
+///        （第二条用于断开 TUN 时精确补刀 root 孤儿内核 —— sudo 被 SIGKILL
+///        不会转发信号，root 内核会残留占死 9090/TUN，必须能 pkill）
 ///      即「只允许这个用户、免密、以 root 运行这一个内核二进制」；
 ///   3. 之后内核启动走 `sudo -n`，TUN 免密可用。
 ///
@@ -70,7 +73,7 @@ class MacTunHelper {
     final script = '''
 set -e
 tmp="\$(mktemp /tmp/mf-sudoers.XXXXXX)"
-printf '%s\\n' '# MBox TUN —— 仅允许该用户免密以 root 运行下面这一个内核' '$user ALL=(root) NOPASSWD: $escapedCore' > "\$tmp"
+printf '%s\\n' '# MBox TUN —— 仅允许该用户免密以 root 运行下面这一个内核' '$user ALL=(root) NOPASSWD: $escapedCore' '$user ALL=(root) NOPASSWD: /usr/bin/pkill -f $escapedCore' > "\$tmp"
 VISUDO="/usr/sbin/visudo"
 "\$VISUDO" -cf "\$tmp" >/dev/null
 install -m 0440 -o root -g wheel "\$tmp" $sudoersFile

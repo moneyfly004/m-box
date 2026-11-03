@@ -262,6 +262,16 @@ class PortGuard {
       }
       AppLog.error('[PORT] $what $port 回收后仍未释放（${holder.describe}）');
     }
+    // 没有 LISTEN 监听者、但 bind 探测失败 = 大概率是刚 stop 的内核留下
+    // TIME_WAIT（断开→重连太快，或测速刚结束一堆连接还在收尾）。内核(Go)
+    // 的监听 socket 带 SO_REUSEADDR 本可正常 bind，而我们的探测没带
+    // SO_REUSEADDR，会误报「端口被占用」→ 触发重连风暴。等它真正释放再判定。
+    if (holder == null) {
+      if (await waitFree(port, timeout: const Duration(seconds: 4))) {
+        AppLog.log('PORT', '$what $port 从 TIME_WAIT 恢复，已释放');
+        return;
+      }
+    }
     throw TypedConnError(
       ConnErrorKind.portInUse,
       holder == null

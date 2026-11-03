@@ -74,6 +74,10 @@ class ProxyCoreCli extends ProxyCore {
   /// 内核工作目录（sudo 启动时用于兜底 pkill）
   String? _kernelDir;
 
+  /// sudo 启动的内核二进制**绝对路径**（用于精确 pkill 补刀，见 stop()）。
+  /// 只杀这一个文件，不用 workdir 模糊匹配（workdir 可能撞上无关进程）。
+  String? _sudoBinary;
+
   /// 本次启动是否已经就「TUN 起不来」报过一次日志（避免就绪轮询里刷屏）
   bool _tunFailureLogged = false;
 
@@ -433,6 +437,7 @@ class ProxyCoreCli extends ProxyCore {
     }
     _launchedViaSudo = useSudo;
     _kernelDir = dir.path;
+    _sudoBinary = useSudo ? binary : null;
     final kernelArgs = ['run', '-c', _configPath!, '-D', dir.path];
     _proc = useSudo
         ? await Process.start(
@@ -603,10 +608,14 @@ class ProxyCoreCli extends ProxyCore {
         await p.exitCode.timeout(const Duration(milliseconds: 1500));
         return;
       } catch (_) {}
-      // API 退出失败：回退信号/强杀
+      // API 退出失败（sing-box 没有 /shutdown 端点，此处恒走这条）：
+      // 回退 SIGTERM。sudo 会转发 SIGTERM 给 root 子内核，sing-box 优雅拆
+      // TUN 需要几秒 —— 旧实现只等 1.5s，一超时就 SIGKILL 掉 sudo 父进程，
+      // SIGKILL 不转发 → root 内核变孤儿、占死 9090/TUN（「端口占用/没网」根因）。
+      // 给足 8s；仍不退再 SIGKILL，随后靠下方 sudo -n pkill 精确补刀。
       try {
         p.kill(ProcessSignal.sigterm);
-        await p.exitCode.timeout(const Duration(milliseconds: 1500));
+        await p.exitCode.timeout(const Duration(seconds: 8));
       } catch (_) {
         p.kill(ProcessSignal.sigkill);
       }
@@ -615,13 +624,26 @@ class ProxyCoreCli extends ProxyCore {
         manageSystemProxy ? SystemProxyManager.restore() : Future.value();
 
     await Future.wait([killFut, restoreFut]);
-    // sudo 启动时，杀掉 sudo 父进程不一定带走 root 内核：按工作目录兜底一次
-    if (_launchedViaSudo && _kernelDir != null) {
-      try {
-        await Process.run('sudo', ['-n', 'pkill', '-f', _kernelDir!],
-            stdoutEncoding: utf8, stderrEncoding: utf8);
-      } catch (_) {}
+    // sudo 启动时，杀掉 sudo 父进程不一定带走 root 内核：按**内核二进制精确
+    // 路径**补刀一次（sudoers 里为它单独放了 NOPASSWD pkill 规则，见
+    // MacTunHelper.grant）。旧实现用 workdir 模糊 pkill：既可能撞无关进程，
+    // 又因 sudoers 只允许 sing-box 而不允许 pkill，永远失败 → root 孤儿。
+    if (_launchedViaSudo) {
+      final target = _sudoBinary ?? _kernelDir;
+      if (target != null) {
+        try {
+          final r = await Process.run('sudo', ['-n', 'pkill', '-f', target],
+              stdoutEncoding: utf8, stderrEncoding: utf8);
+          if (r.exitCode != 0) {
+            AppLog.kernel('macOS TUN：sudo -n pkill 补刀失败（${r.stderr.trim()}），'
+                '可能存在 root 孤儿内核');
+          }
+        } catch (e) {
+          AppLog.kernel('macOS TUN：sudo -n pkill 异常: $e');
+        }
+      }
       _launchedViaSudo = false;
+      _sudoBinary = null;
     }
   }
 
