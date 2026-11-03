@@ -598,7 +598,8 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         case .connectionFailed: return "连接建立失败(connectionFailed)"
         case .sleep: return "系统休眠(sleep)"
         case .appUpdate: return "App 更新(appUpdate)"
-        case .internalError: return "扩展内部错误(internalError)"
+        // 注意：internalError 是 iOS 18.1 才新增的枚举值，macos-14 的 Xcode 16.x
+        // SDK 里没有该 case，写死会导致 CI 编译失败；交给 @unknown default 兜底。
         @unknown default: return "未知原因(\(r.rawValue))"
         }
     }
