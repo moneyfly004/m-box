@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import '../../core/proxy/proxy_core.dart';
 import '../../core/proxy/proxy_core_cli.dart';
 import '../../core/services/app_log.dart';
+import '../../core/services/diagnostic_export.dart';
 import '../../core/services/settings_store.dart';
 import '../../l10n/app_strings.dart';
 import '../../theme/app_theme.dart';
@@ -27,6 +28,30 @@ class LogCenterPage extends StatelessWidget {
               icon: const Icon(Icons.arrow_back_ios_new, size: 18),
               onPressed: () => Navigator.pop(context)),
           title: Text(AppStrings.t('log_center_title')),
+          actions: [
+            // 一键导出诊断包：app_log + 内核日志 + 崩溃转储 + 端口/代理/授权快照
+            IconButton(
+              tooltip: AppStrings.t('diag_export_tip'),
+              icon: const Icon(Icons.ios_share, size: 20),
+              onPressed: () async {
+                final messenger = ScaffoldMessenger.of(context);
+                try {
+                  final path = await DiagnosticExport.exportBundle();
+                  messenger.showSnackBar(SnackBar(
+                      content: Text(AppStrings.t('diag_export_done',
+                          {'path': path}))));
+                  if (Platform.isMacOS) {
+                    // 直接在 Finder 里定位文件，省得用户再找
+                    await Process.run('open', ['-R', path]);
+                  }
+                } catch (e) {
+                  messenger.showSnackBar(SnackBar(
+                      content: Text(
+                          AppStrings.t('diag_export_fail', {'err': '$e'}))));
+                }
+              },
+            ),
+          ],
           bottom: TabBar(
             indicatorColor: MBColors.brand,
             indicatorSize: TabBarIndicatorSize.label,
