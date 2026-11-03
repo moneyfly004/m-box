@@ -704,9 +704,12 @@ class ProxyCoreCli extends ProxyCore {
         try {
           final r = await Process.run('sudo', ['-n', 'pkill', '-f', target],
               stdoutEncoding: utf8, stderrEncoding: utf8);
-          if (r.exitCode != 0) {
-            AppLog.kernel('macOS TUN：sudo -n pkill 补刀失败（${r.stderr.trim()}），'
-                '可能存在 root 孤儿内核');
+          // pkill 退出码：0=杀掉进程，1=没有匹配进程（本就无需补刀，非故障），
+          // >1=真正出错（权限/sudoers 不匹配）。旧实现把 1 也当失败刷日志，
+          // 用户会看到「补刀失败（）」这种假告警。
+          if (r.exitCode != 0 && r.exitCode != 1) {
+            AppLog.kernel('macOS TUN：sudo -n pkill 补刀失败'
+                '（code=${r.exitCode} ${r.stderr.trim()}），可能存在 root 孤儿内核');
           }
           // 验证：pkill 发出后进程是否真的消失（SIGTERM 可能被忽略/竞态）
           if (!await _waitBinaryGone(target, const Duration(seconds: 2))) {
