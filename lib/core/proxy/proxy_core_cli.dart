@@ -401,13 +401,7 @@ class ProxyCoreCli extends ProxyCore {
       // 正是「start inbound/tun ... take too much time」→ 启动超时的成因之一。
       if (Platform.isWindows) {
         try {
-          await Process.run('powershell', [
-            '-NoProfile',
-            '-Command',
-            "Get-NetAdapter -IncludeHidden -Name 'sing-box*' "
-                "-ErrorAction SilentlyContinue | "
-                "Remove-NetAdapter -Confirm:\$false -ErrorAction SilentlyContinue",
-          ]).timeout(const Duration(seconds: 8));
+          await _removeWintunGhosts();
         } catch (_) {}
         // 检测其它 VPN/TUN 是否开着：同时开会抢默认路由，我方 TUN 建网卡会极慢
         // （open interface take too much time）甚至失败。
@@ -715,7 +709,9 @@ class ProxyCoreCli extends ProxyCore {
   String get _winKernelHint => Platform.isWindows
       ? '。提示：若退出码为 0xC0000005/0xC000001D 多为 CPU 过老与新版内核不兼容'
           '(可到设置→内核管理更新兼容内核)；若反复「无日志即退出」多为杀毒软件/'
-          'Windows 安全中心拦截 sing-box.exe，请将 MBox 安装目录加入白名单'
+          'Windows 安全中心拦截 sing-box.exe，请将 MBox 安装目录加入白名单；'
+          '若提示 create adapter / open existing adapter，是 wintun 网卡幽灵残留'
+          '（已自动清理，重试一次即可；仍不行请重启电脑）'
       : '';
 
   @override
@@ -807,15 +803,13 @@ class ProxyCoreCli extends ProxyCore {
     // 清掉 sing-box 命名的（含隐藏）适配器；匹配不到/无权限都不影响正常流程。
     if (Platform.isWindows && _tunForceMode) {
       try {
-        await Process.run('powershell', [
-          '-NoProfile',
-          '-Command',
-          "Get-NetAdapter -IncludeHidden -Name 'sing-box*' "
-              "-ErrorAction SilentlyContinue | "
-              "Remove-NetAdapter -Confirm:\$false -ErrorAction SilentlyContinue",
-        ]).timeout(const Duration(seconds: 8));
+        // 停内核是硬杀（TerminateProcess），sing-box 来不及删 wintun 适配器，
+        // 会留下 `Unknown` 状态的 PnP 幽灵设备；下次 CreateAdapter 会报
+        // 「Cannot create a file when that file already exists」
+        // +「open existing adapter: Element not found」直接 FATAL。
+        await _removeWintunGhosts();
       } catch (e) {
-        AppLog.kernel('Windows：清理 wintun 残留适配器失败（可忽略）: \$e');
+        AppLog.kernel('Windows：清理 wintun 幽灵设备失败（可忽略）: $e');
       }
     }
   }
@@ -851,6 +845,42 @@ class ProxyCoreCli extends ProxyCore {
       return null;
     } catch (_) {
       return null;
+    }
+  }
+
+  /// Windows：清掉 wintun 的 PnP **幽灵设备**（`SWD\WINTUN\*` 且状态 Unknown）。
+  ///
+  /// 为什么必须清：sing-box 在 Windows 上以 wintun 建虚拟网卡；内核被硬杀
+  /// （TerminateProcess）时它来不及 RemoveAdapter，设备从网络栈消失、但 PnP
+  /// 记录还在（`Get-NetAdapter` 看不到、`Get-PnpDevice` 能看到 Unknown）。
+  /// 下一次启动 `CreateAdapter(<名字>)` 撞上残留报「already exists」，随后
+  /// `OpenAdapter` 又报「not found」→ 直接 FATAL：
+  ///   configure tun interface: (create adapter: Cannot create a file when that
+  ///   file already exists. | open existing adapter: Element not found.)
+  /// 实测（Windows 11 虚拟机）：清掉这些 Unknown 幽灵后 TUN 立即正常建网卡。
+  /// 只删 `Status -eq 'Unknown'` 的（在用的适配器是 OK，不会误删别人的）。
+  /// 返回清掉的个数。
+  static Future<int> _removeWintunGhosts() async {
+    if (!Platform.isWindows) return 0;
+    try {
+      final ps = "Get-PnpDevice -Class Net -ErrorAction SilentlyContinue | "
+          "Where-Object { \$_.InstanceId -like 'SWD\\WINTUN*' -and \$_.Status -eq 'Unknown' } | "
+          "ForEach-Object { & pnputil /remove-device \$_.InstanceId *> \$null; \$_.InstanceId }";
+      final r = await Process.run('powershell', ['-NoProfile', '-Command', ps],
+              stdoutEncoding: utf8, stderrEncoding: utf8)
+          .timeout(const Duration(seconds: 12));
+      final removed = (r.stdout as String)
+          .split('\n')
+          .map((e) => e.trim())
+          .where((e) => e.isNotEmpty)
+          .length;
+      if (removed > 0) {
+        AppLog.kernel('Windows：已清理 $removed 个 wintun 幽灵设备（SWD\\WINTUN Unknown）');
+      }
+      return removed;
+    } catch (e) {
+      AppLog.kernel('Windows：清理 wintun 幽灵设备异常: $e');
+      return 0;
     }
   }
 
