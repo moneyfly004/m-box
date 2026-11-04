@@ -403,6 +403,19 @@ class ProxyCoreCli extends ProxyCore {
         try {
           await _removeWintunGhosts();
         } catch (_) {}
+        // 清掉上次 TUN 残留的虚拟接口 IP：适配器被硬杀后会留下幽灵接口，
+        // 其 IPv4/IPv6 地址仍挂在 NetCfg 里（Get-NetAdapter 看不到，但
+        // Get-NetIPAddress / netsh 能看到）。不清掉的话，新建网卡设同一地址会：
+        //   configure tun interface: set ipv4 address: The object already exists.
+        // （VM 实测：tun0 幽灵带着 172.19.0.1/30，清掉后 TUN 立刻正常）
+        try {
+          await Process.run('powershell', [
+            '-NoProfile',
+            '-Command',
+            "Remove-NetIPAddress -IPAddress '172.19.0.1' -Confirm:\$false -ErrorAction SilentlyContinue; "
+                "Remove-NetIPAddress -IPAddress 'fdfe:dcba:9876::1' -Confirm:\$false -ErrorAction SilentlyContinue",
+          ]).timeout(const Duration(seconds: 10));
+        } catch (_) {}
         // 检测其它 VPN/TUN 是否开着：同时开会抢默认路由，我方 TUN 建网卡会极慢
         // （open interface take too much time）甚至失败。
         _vpnConflict = await _detectVpnConflict();
@@ -808,6 +821,14 @@ class ProxyCoreCli extends ProxyCore {
         // 「Cannot create a file when that file already exists」
         // +「open existing adapter: Element not found」直接 FATAL。
         await _removeWintunGhosts();
+        // 幽灵接口上残留的 TUN 地址也要一并清（否则下次 set ipv4 address 报
+        // 「The object already exists」）。
+        await Process.run('powershell', [
+          '-NoProfile',
+          '-Command',
+          "Remove-NetIPAddress -IPAddress '172.19.0.1' -Confirm:\$false -ErrorAction SilentlyContinue; "
+              "Remove-NetIPAddress -IPAddress 'fdfe:dcba:9876::1' -Confirm:\$false -ErrorAction SilentlyContinue",
+        ]).timeout(const Duration(seconds: 10));
       } catch (e) {
         AppLog.kernel('Windows：清理 wintun 幽灵设备失败（可忽略）: $e');
       }

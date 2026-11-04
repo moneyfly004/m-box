@@ -80,14 +80,23 @@ class Elevation {
     final quoted = exe.replaceAll("'", "''");
     // --admin-restart-for-tun：告诉新实例「你是来接替旧进程的」，让它跳过
     // 单实例互斥量检查（旧进程退出通常要 1~3s，只靠延迟会偶发被挡回去）。
-    final script = 'Start-Sleep -Milliseconds 1500; '
-        "Start-Process -FilePath '$quoted' -ArgumentList '--admin-restart-for-tun' -Verb RunAs";
+    // 诊断：把 PowerShell 里 Start-Process 的真实结果落盘（UAC 被拒/参数不合法时
+    // 之前是完全静默的，用户只看到 App 退出、再点还是原样）。
+    final logPath = '${Platform.environment['TEMP'] ?? r'C:\Windows\Temp'}\\mbox_relaunch.log';
+    final escLog = logPath.replaceAll("'", "''");
+    // ⚠️ 这里**同步**执行（Process.run），不再用 detached + 延迟 1.5s：
+    // 旧实现把 PowerShell 甩成 detached 后立刻 exit(0)，实测新实例根本没被拉起
+    // （UAC 那步在 detached 上下文里静默失败），用户再点一次还是原样。
+    // Start-Process 本身是「发起即返回」，同步等它结束（~300ms）不会卡 UI。
+    // 新实例带 --admin-restart-for-tun，会跳过单实例互斥量，所以无需延迟。
+    final script = "try { Start-Process -FilePath '$quoted' -ArgumentList '--admin-restart-for-tun' -Verb RunAs -ErrorAction Stop; "
+        "'ok ' + (Get-Date -Format o) | Out-File -FilePath '$escLog' -Append -Encoding UTF8 } "
+        "catch { 'ERR ' + (Get-Date -Format o) + ' ' + \$_.Exception.Message | Out-File -FilePath '$escLog' -Append -Encoding UTF8 }";
     try {
-      await Process.start(
+      await Process.run(
         'powershell.exe',
-        ['-NoProfile', '-NonInteractive', '-WindowStyle', 'Hidden', '-Command', script],
-        mode: ProcessStartMode.detached,
-      );
+        ['-NoProfile', '-NonInteractive', '-Command', script],
+      ).timeout(const Duration(seconds: 30));
       AppLog.log('APP', '已安排以管理员身份重启: $exe');
       return true;
     } catch (e) {

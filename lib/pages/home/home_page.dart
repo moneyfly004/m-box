@@ -358,6 +358,14 @@ class _HomePageState extends State<HomePage>
       // 见 _ensurePermissionsGuided）
       final ok = await _ensurePermissionsGuided();
       if (!ok) return;
+      // TUN 需要提权（Windows 管理员 / macOS root）。点「连接」这条路径旧实现
+      // 不查提权，直接起内核 → 内核 FATAL「configure tun interface:
+      // Access is denied」→ 用户只看到一句看不懂的失败。这里复用「点 TUN 模式」
+      // 的提权引导（Windows：以管理员身份重启并自动续连 TUN；macOS：一次性授权）。
+      if (conn.homeMode == HomeMode.tun && !Elevation.isElevated) {
+        await _selectMode(HomeMode.tun);
+        return;
+      }
       unawaited(conn.connect());
     }
   }
