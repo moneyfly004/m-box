@@ -391,6 +391,20 @@ class ProxyCoreCli extends ProxyCore {
     // 别的实例正在用的活代理不动。
     if (_tunForceMode) {
       await SystemProxyManager.clearResidual(port: _localPort);
+      // Windows：先清掉上次异常退出（强杀/崩溃）残留的 wintun 适配器。
+      // 同名适配器存在时 sing-box 的 `open interface` 会极慢甚至失败 ——
+      // 正是「start inbound/tun ... take too much time」→ 启动超时的成因之一。
+      if (Platform.isWindows) {
+        try {
+          await Process.run('powershell', [
+            '-NoProfile',
+            '-Command',
+            "Get-NetAdapter -IncludeHidden -Name 'sing-box*' "
+                "-ErrorAction SilentlyContinue | "
+                "Remove-NetAdapter -Confirm:\$false -ErrorAction SilentlyContinue",
+          ]).timeout(const Duration(seconds: 8));
+        } catch (_) {}
+      }
     }
     final binary = await resolveBinary();
     // 上一场 TUN 会话的 root 内核若成孤儿（sudo 父进程消失），killStaleKernels
@@ -531,9 +545,29 @@ class ProxyCoreCli extends ProxyCore {
         '｜模式 ${_smartMode ? "智能(Rule)" : "全局(Global)"}');
 
     // 等内核就绪（Clash API 可访问 + 本地 mixed 端口真的在监听）
+    //
+    // TUN 模式的就绪窗口必须长得多：sing-box 的启动顺序是「先建 TUN 入站
+    // （open interface）→ 再起 Clash API」。Windows 的 wintun 首次创建适配器/
+    // 安装驱动常要 10~60s（杀毒软件扫描更慢），期间内核只打
+    // `inbound/tun[tun-in]: open interface take too much time` 的 WARN、
+    // **进程并没有挂**，但 Clash API 尚未监听 → 旧实现 10s 就判「内核启动超时」，
+    // Windows 用户永远连不上 TUN。
+    final readyTimeout = !_tunForceMode
+        ? _readyTimeout
+        : (Platform.isWindows
+            ? const Duration(seconds: 90)
+            : const Duration(seconds: 45));
     final sw = Stopwatch()..start();
     var apiReadyButPortDead = false;
-    while (sw.elapsed < _readyTimeout) {
+    var tunSlowLogged = false;
+    while (sw.elapsed < readyTimeout) {
+      if (!tunSlowLogged &&
+          sw.elapsed > const Duration(seconds: 12) &&
+          _tail().contains('take too much time')) {
+        tunSlowLogged = true;
+        AppLog.kernel('TUN 建网卡较慢（${Platform.isWindows ? "wintun" : "utun"}），'
+            '内核未退出，继续等待就绪（窗口 ${readyTimeout.inSeconds}s）…');
+      }
       if (_proc == null) {
         // 内核因 TUN 起不来而立即退出（macOS 未授权时 sing-box 打
         // `start tun: operation not permitted` 就退出）必须按 TUN 分类上报，
@@ -614,8 +648,12 @@ class ProxyCoreCli extends ProxyCore {
       // 「换端口并重连」这个真正能解决的动作。
       throw await _portInUseError(_tail());
     }
-    throw UnsupportedError(
-        '内核启动超时（${_readyTimeout.inSeconds}s）。日志：${_tail()}$_winKernelHint');
+    throw TypedConnError(
+        ConnErrorKind.kernelTimeout,
+        '内核启动超时（${readyTimeout.inSeconds}s）。'
+        '${_tunForceMode ? "TUN 建网卡较慢（Windows 的 wintun / 杀毒软件扫描），可稍后重试；"
+            "若反复超时请把 MBox 安装目录加入杀毒软件白名单。" : ""}'
+        '日志：${_tail()}$_winKernelHint');
   }
 
   /// 把内核的 bind 失败翻译成**可执行**的类型化错误。
