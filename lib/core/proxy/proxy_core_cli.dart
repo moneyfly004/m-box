@@ -75,6 +75,11 @@ class ProxyCoreCli extends ProxyCore {
   /// 内核工作目录（sudo 启动时用于兜底 pkill）
   String? _kernelDir;
 
+  /// 启动前检测到的「其它 VPN/TUN 正在接管网络」描述（无冲突为 null）。
+  /// 两个 VPN 同时开 TUN 会抢默认路由/网卡，表现为我方 TUN 建得极慢、卡顿、
+  /// 甚至启动超时 —— 这是最常见的环境原因之一，必须在错误里点明。
+  String? _vpnConflict;
+
   /// sudo 启动的内核二进制**绝对路径**（用于精确 pkill 补刀，见 stop()）。
   /// 只杀这一个文件，不用 workdir 模糊匹配（workdir 可能撞上无关进程）。
   String? _sudoBinary;
@@ -404,6 +409,20 @@ class ProxyCoreCli extends ProxyCore {
                 "Remove-NetAdapter -Confirm:\$false -ErrorAction SilentlyContinue",
           ]).timeout(const Duration(seconds: 8));
         } catch (_) {}
+        // 检测其它 VPN/TUN 是否开着：同时开会抢默认路由，我方 TUN 建网卡会极慢
+        // （open interface take too much time）甚至失败。
+        _vpnConflict = await _detectVpnConflict();
+        if (_vpnConflict != null) {
+          AppLog.kernel('检测到其它 VPN/TUN 正在接管网络：$_vpnConflict'
+              '（可能抢占默认路由，导致本机 TUN 建网卡变慢/失败）');
+        }
+      } else {
+        // macOS / Linux：默认路由如果已经指向 utun/tun，说明别的 VPN 在接管网络
+        _vpnConflict = await _detectVpnConflict();
+        if (_vpnConflict != null) {
+          AppLog.kernel('检测到其它 VPN/TUN 正在接管网络：$_vpnConflict'
+              '（可能抢占默认路由，导致本机 TUN 建网卡变慢/失败）');
+        }
       }
     }
     final binary = await resolveBinary();
@@ -653,6 +672,8 @@ class ProxyCoreCli extends ProxyCore {
         '内核启动超时（${readyTimeout.inSeconds}s）。'
         '${_tunForceMode ? "TUN 建网卡较慢（Windows 的 wintun / 杀毒软件扫描），可稍后重试；"
             "若反复超时请把 MBox 安装目录加入杀毒软件白名单。" : ""}'
+        '${_vpnConflict != null ? "⚠️ 检测到其它 VPN 正在运行（$_vpnConflict），"
+            "两个 VPN 同时开 TUN 会抢默认路由、互相卡顿；请先退出它再连。" : ""}'
         '日志：${_tail()}$_winKernelHint');
   }
 
@@ -796,6 +817,40 @@ class ProxyCoreCli extends ProxyCore {
       } catch (e) {
         AppLog.kernel('Windows：清理 wintun 残留适配器失败（可忽略）: \$e');
       }
+    }
+  }
+
+  /// 检测是否已有其它 VPN/TUN 正在接管网络（跨平台）。返回可读描述，无冲突 null。
+  /// - Windows：Wintun/TAP/WireGuard/Clash 适配器处于 Up（排除我方 sing-box）
+  /// - macOS/Linux：默认路由已指向 utun/tun（别的 TUN VPN 在接管）
+  static Future<String?> _detectVpnConflict() async {
+    try {
+      if (Platform.isWindows) {
+        final r = await Process.run('powershell', [
+          '-NoProfile',
+          '-Command',
+          "Get-NetAdapter -IncludeHidden -ErrorAction SilentlyContinue | "
+              "Where-Object { \$_.Status -eq 'Up' -and "
+              "\$_.InterfaceDescription -match 'Wintun|TAP-Windows|WireGuard|Clash|sing-box|mihomo' -and "
+              "\$_.Name -notmatch 'sing-box' } | "
+              "ForEach-Object { \$_.Name + ' (' + \$_.InterfaceDescription + ')' }",
+        ]).timeout(const Duration(seconds: 8));
+        final out = (r.stdout as String).trim();
+        if (out.isEmpty) return null;
+        return out.split('\n').first.trim();
+      }
+      // POSIX：默认路由走 utun/tun = 别的 TUN VPN 已接管
+      final r = await Process.run('route',
+          ['-n', 'get', 'default'], stdoutEncoding: utf8).timeout(const Duration(seconds: 5));
+      final out = r.stdout as String;
+      final m = RegExp(r'interface:\s*(\S+)').firstMatch(out);
+      final iface = m?.group(1) ?? '';
+      if (iface.startsWith('utun') || iface.startsWith('tun')) {
+        return '默认路由已指向 $iface（其它 TUN VPN 在接管）';
+      }
+      return null;
+    } catch (_) {
+      return null;
     }
   }
 
